@@ -1,0 +1,133 @@
+import { DriverEntity } from '@/api/driver/entities/driver.entity';
+import { UserEntity } from '@/api/user/entities/user.entity';
+import { Uuid } from '@/common/types/common.type';
+import { dbEnumType } from '@/common/utils/db-types';
+import { AbstractEntity } from '@/database/entities/abstract.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { RequestStatusEnum } from '../enums/request-status.enum';
+
+/**
+ * Persistent representation of a customer service request.
+ * Requests start as ephemeral cache entries and are persisted here upon transition
+ * to terminal states (Completed, Cancelled, Expired) or during active service (Accepted).
+ *
+ * @class RequestEntity
+ * @extends AbstractEntity
+ */
+@Entity('requests')
+export class RequestEntity extends AbstractEntity {
+  /**
+   * Unique UUID for the request.
+   */
+  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_request_id' })
+  id!: Uuid;
+
+  /**
+   * Volume of water/service requested.
+   */
+  @Column({ type: 'float', nullable: true })
+  volume: number;
+
+  /**
+   * Minimum vehicle capability required to fulfill this request.
+   */
+  @Column({ nullable: true })
+  requiredVehicleType: string;
+
+  /**
+   * Current lifecycle stage of the request.
+   * @default RequestStatusEnum.SEARCHING
+   */
+  @Column({
+    type: dbEnumType,
+    enum: RequestStatusEnum,
+    default: RequestStatusEnum.SEARCHING,
+  })
+  status: RequestStatusEnum;
+
+  /**
+   * FK to the User (Client) who initiated the request.
+   */
+  @Column({ type: 'uuid' })
+  userId: Uuid;
+
+  /**
+   * Client profile details.
+   */
+  @ManyToOne(() => UserEntity)
+  @JoinColumn({ name: 'userId' })
+  user: UserEntity;
+
+  /**
+   * Latitude coordinate for pickup.
+   */
+  @Column({ type: 'float', nullable: true })
+  pickupLat: number;
+
+  /**
+   * Longitude coordinate for pickup.
+   */
+  @Column({ type: 'float', nullable: true })
+  pickupLng: number;
+
+  @Column({ nullable: true })
+  deliveryAddress: string;
+
+  /**
+   * Type of request (BOTTLED or TANKER).
+   */
+  @Column({ type: 'varchar', nullable: true })
+  type: string;
+
+  @Column({ type: 'json', nullable: true })
+  tankerDetails: Record<string, any>;
+
+  @Column({ type: 'json', nullable: true })
+  bottledItems: Record<string, any>;
+
+  @Column({ type: 'boolean', default: false })
+  isScheduled: boolean;
+
+  @Column({ nullable: true })
+  scheduledDate: string;
+
+  @Column({ nullable: true })
+  scheduledTime: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  subtotal: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  deliveryFee: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  totalPrice: number;
+
+  @Column({ nullable: true })
+  cancelReason: string;
+
+  /**
+   * FK to the target Product being requested.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  productId: Uuid;
+
+  /**
+   * FK to the Driver assigned to fulfill this request.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  driverId: Uuid;
+
+  /**
+   * Driver profile details.
+   */
+  @ManyToOne(() => DriverEntity)
+  @JoinColumn({ name: 'driverId' })
+  driver: DriverEntity;
+}

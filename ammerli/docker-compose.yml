@@ -1,0 +1,76 @@
+services:
+  ammerli:
+    container_name: ammerli
+    restart: always
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    env_file:
+      - apps/backend/.env.docker
+    ports:
+      - '3000:3000'
+    networks:
+      - ammerli-network
+
+  ammerli-db:
+    image: postgres:16
+    container_name: ammerli-postgres
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ammerli_postgres
+      POSTGRES_USER: ammerli
+      POSTGRES_PASSWORD: ammerli
+      TZ: 'UTC'
+    ports:
+      - '25432:5432'
+    networks:
+      - ammerli-network
+
+  ammerli-redis:
+    image: redis/redis-stack:latest
+    container_name: ammerli-redis
+    restart: always
+    ports:
+      - '6379:6379'
+      - '8001:8001'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+    environment:
+      REDIS_ARGS: '--requirepass ammerliredispassword'
+    networks:
+      - ammerli-network
+
+  ammerli-maildev:
+    container_name: ammerli-mail-dev
+    image: maildev/maildev:latest
+    ports:
+      - ${MAIL_CLIENT_PORT}:1080
+      - ${MAIL_PORT}:1025
+    networks:
+      - ammerli-network
+
+  ammerli-rabbitmq:
+    image: rabbitmq:3-management
+    container_name: ammerli-rabbitmq
+    restart: always
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - ammerli-network
+
+volumes:
+  postgres_data:
+  pgadmin_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  ammerli-network:
+    driver: bridge

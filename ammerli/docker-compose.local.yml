@@ -1,0 +1,106 @@
+version: '3.9'
+
+services:
+  # -------------------
+  # Postgres DB
+  # -------------------
+  ammerli-db:
+    image: postgres:16-alpine
+    container_name: ammerli-db
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      TZ: 'UTC'
+    ports:
+      - '${DATABASE_PORT}:5432'
+    volumes:
+      - ammerli-db-data:/var/lib/postgresql/data
+    networks:
+      - ammerli-network
+
+  # -------------------
+  # Redis
+  # -------------------
+  ammerli-redis:
+    image: redis/redis-stack:latest
+    container_name: ammerli-redis
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - '${REDIS_PORT}:6379'
+      - '8001:8001'
+    volumes:
+      - ammerli-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'PING']
+      interval: 5s
+      retries: 5
+    networks:
+      - ammerli-network
+
+  # -------------------
+  # MailDev
+  # -------------------
+  ammerli-maildev:
+    build:
+      context: apps/backend
+      dockerfile: maildev.Dockerfile
+    container_name: ammerli-maildev
+    env_file:
+      - .env
+    ports:
+      - '${MAIL_CLIENT_PORT}:1080'
+      - '${MAIL_PORT}:1025'
+    networks:
+      - ammerli-network
+
+  # -------------------
+  # RabbitMQ
+  # -------------------
+  ammerli-rabbitmq:
+    image: rabbitmq:3-management
+    container_name: ammerli-rabbitmq
+    restart: always
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    volumes:
+      - ammerli-rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - ammerli-network
+
+  # -------------------
+  # NestJS app
+  # -------------------
+  ammerli:
+    build:
+      context: apps/backend
+      dockerfile: Dockerfile
+    container_name: ammerli
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - '3000:3000'
+    networks:
+      - ammerli-network
+
+# -------------------
+# Volumes
+# -------------------
+volumes:
+  ammerli-db-data:
+  ammerli-redis-data:
+  ammerli-rabbitmq-data:
+
+# -------------------
+# Networks
+# -------------------
+networks:
+  ammerli-network:
+    driver: bridge

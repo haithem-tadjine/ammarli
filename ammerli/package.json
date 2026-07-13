@@ -1,0 +1,28 @@
+{
+  "name": "@ammerli/root",
+  "version": "0.0.1",
+  "description": "Ammerli Platform Monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "backend": "npm run -w @ammerli/backend",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,json,md}\"",
+    "lint": "eslint \"apps/**/*.{ts,tsx}\" --fix",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
+    "prettier-plugin-organize-imports": "^4.3.0",
+    "standard-version": "^9.5.0",
+    "typescript": "^5.9.3"
+  }
+}
