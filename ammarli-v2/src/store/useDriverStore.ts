@@ -165,6 +165,7 @@ interface DriverState {
 
   completeDelivery: (earnings: number, quantityLiters: number) => void;
   markOrderAsCompleted: (orderData: { price: number; customerName: string }) => void;
+  clearStore: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -230,6 +231,26 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     })),
 
   clearNotifications: () => set({ notifications: [] }),
+  
+  clearStore: () => set({
+    registeredDriver: null,
+    driverStatus: 'OFFLINE',
+    isOnline: false,
+    activeDriverOrder: null,
+    incomingOrdersQueue: [],
+    totalEarnings: 0,
+    walletBalance: 0,
+    completedTrips: 0,
+    completedTripsCount: 0,
+    driverRating: 4.9,
+    appCommission: 0,
+    transactions: [],
+    weeklyStats: buildInitialWeeklyStats(),
+    pastTrips: [],
+    tripHistory: [],
+    inventory: INITIAL_INVENTORY,
+    notifications: []
+  }),
 
   // ── Profile ────────────────────────────────────────────────────────────────
   registerDriver: (driver) =>

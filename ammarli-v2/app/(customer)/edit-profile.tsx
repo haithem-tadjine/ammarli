@@ -14,8 +14,7 @@ import {
   I18nManager,
   KeyboardAvoidingView
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { User, Phone, MapPin, Camera, ChevronRight } from 'lucide-react-native';
+import { User, Phone, Camera, ChevronRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/store/useAuthStore';
@@ -32,20 +31,16 @@ const EditProfileAlgerian = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { userProfile, updateUserProfile } = useAuthStore();
-  
+
   const [firstName, setFirstName] = useState(userProfile?.firstName || '');
   const [lastName, setLastName] = useState(userProfile?.lastName || '');
   const [phone, setPhone] = useState(userProfile?.phone || '');
-  const [selectedProvince, setSelectedProvince] = useState(userProfile?.wilaya || 'الجزائر العاصمة');
 
   useEffect(() => {
     if (userProfile) {
       setFirstName(userProfile.firstName || '');
       setLastName(userProfile.lastName || '');
       setPhone(userProfile.phone);
-      if (userProfile.wilaya) {
-        setSelectedProvince(userProfile.wilaya);
-      }
     }
   }, [userProfile]);
 
@@ -54,18 +49,9 @@ const EditProfileAlgerian = () => {
       firstName,
       lastName,
       phone,
-      wilaya: selectedProvince
     });
     router.back();
   };
-
-  // قائمة عينة لولايات الجزائر (يمكنك إكمال الـ 58 ولاية)
-  const algerianProvinces = [
-    'أدرار', 'الشلف', 'الأغواط', 'أم البواقي', 'باتنة', 'بجاية', 'بسكرة', 'بشار', 'البليدة', 'البويرة', 
-    'تمنراست', 'تبسة', 'تلمسان', 'تيارت', 'تيزي وزو', 'الجزائر العاصمة', 'الجلفة', 'جيجل', 'سطيف', 
-    'سعيدة', 'سكيكدة', 'سيدي بلعباس', 'عنابة', 'قالمة', 'قسنطينة', 'المدية', 'مستغانم', 'المسيلة', 
-    'معسكر', 'ورقلة', 'وهران'
-  ];
 
   return (
     <ScreenContainer style={styles.container}>
@@ -74,7 +60,6 @@ const EditProfileAlgerian = () => {
 
       {/* الترويسة (Header) */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-
           <View style={styles.headerContent}>
             <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <ChevronRight color="#FFF" size={28} />
@@ -84,18 +69,22 @@ const EditProfileAlgerian = () => {
           </View>
       </View>
 
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}>
-        <ScrollView 
-          contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
         {/* قسم الصورة الشخصية */}
         <View style={styles.photoContainer}>
           <View style={styles.avatarWrapper}>
-            <Image 
-              source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} 
-              style={styles.avatarImage} 
+            <Image
+              source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }}
+              style={styles.avatarImage}
             />
             <TouchableOpacity style={styles.cameraIcon}>
               <Camera color="#FFF" size={18} />
@@ -105,8 +94,8 @@ const EditProfileAlgerian = () => {
 
         {/* الحقول (Form) */}
         <View style={styles.form}>
-          
-          {/* الخانة الأولى والثانية: الاسم واللقب */}
+
+          {/* الاسم */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>الاسم</Text>
             <View style={styles.inputWrapper}>
@@ -121,7 +110,8 @@ const EditProfileAlgerian = () => {
               <User color={THEME_NAVY} size={20} style={styles.fieldIcon} />
             </View>
           </View>
-          
+
+          {/* اللقب */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>اللقب</Text>
             <View style={styles.inputWrapper}>
@@ -137,7 +127,7 @@ const EditProfileAlgerian = () => {
             </View>
           </View>
 
-          {/* الخانة الثانية: رقم الهاتف (أرقام فقط) */}
+          {/* رقم الهاتف */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>رقم الهاتف</Text>
             <View style={styles.inputWrapper}>
@@ -149,29 +139,9 @@ const EditProfileAlgerian = () => {
                 keyboardType="numeric"
                 value={phone}
                 onChangeText={setPhone}
-                textAlign="left" // رقم الهاتف يفضل أن يكون لليسار
+                textAlign="left"
               />
               <Phone color={THEME_NAVY} size={20} style={styles.fieldIcon} />
-            </View>
-          </View>
-
-          {/* الخانة الثالثة: الولايات في الجزائر (قائمة منسدلة) */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>الولاية</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={selectedProvince}
-                onValueChange={(itemValue) => setSelectedProvince(itemValue)}
-                style={styles.picker}
-                dropdownIconColor={THEME_NAVY}
-              >
-                {algerianProvinces.map((province, index) => (
-                  <Picker.Item key={index} label={province} value={province} />
-                ))}
-              </Picker>
-              <View style={styles.pickerIconOverlay}>
-                 <MapPin color={THEME_NAVY} size={20} />
-              </View>
             </View>
           </View>
 
@@ -195,7 +165,6 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: THEME_NAVY,
     paddingBottom: 20,
-    // paddingTop is set dynamically via inline style using insets.top
     elevation: 4,
   },
   headerContent: {
@@ -287,28 +256,6 @@ const styles = StyleSheet.create({
   },
   fieldIcon: {
     marginLeft: 10,
-  },
-  pickerWrapper: {
-    backgroundColor: '#FFF',
-    borderRadius: 15,
-    height: 60,
-    borderWidth: 1.5,
-    borderColor: '#F2F2F7',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    ...Platform.select({
-      android: { elevation: 2 },
-    }),
-  },
-  picker: {
-    width: '100%',
-    height: '100%',
-    color: '#000',
-  },
-  pickerIconOverlay: {
-    position: 'absolute',
-    right: 15,
-    pointerEvents: 'none',
   },
   saveButton: {
     backgroundColor: THEME_YELLOW,

@@ -38,7 +38,8 @@ const COLORS = {
 export default function InteractiveLocationPicker() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { userLocation, updateDraftOrder } = useCustomerStore();
+  const userLocation = useCustomerStore(state => state.userLocation);
+  const updateDraftOrder = useCustomerStore(state => state.updateDraftOrder);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [address, setAddress] = useState(userLocation?.address || 'بوزوران، طريق بسكرة، باتنة');
@@ -115,7 +116,7 @@ export default function InteractiveLocationPicker() {
   React.useEffect(() => {
     (async () => {
       try {
-        let { status } = await Location.getForegroundPermissionsAsync();
+        let { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           let location = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.High
@@ -268,6 +269,11 @@ export default function InteractiveLocationPicker() {
         style={styles.gpsButton}
         onPress={async () => {
            try {
+             let { status } = await Location.requestForegroundPermissionsAsync();
+             if (status !== 'granted') {
+               Alert.alert("تنبيه", "يجب الموافقة على صلاحيات الموقع لتحديد مكانك بدقة.");
+               return;
+             }
              let location = await Location.getCurrentPositionAsync({
                accuracy: Location.Accuracy.High,
              });

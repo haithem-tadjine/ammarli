@@ -121,11 +121,15 @@ export class UserEntity extends AbstractEntity {
   /**
    * TypeORM Hook: Hashes the plain-text password before persisting to database.
    * Triggered on initial creation and updates to the password field.
+   *
+   * Guard: Argon2 hashes always start with '$argon2'. If the password already
+   * starts with this prefix it is already hashed — skip to prevent double-hashing.
+   * This makes the method idempotent: safe to call explicitly AND via the hook.
    */
   @BeforeInsert()
   @BeforeUpdate()
   async hashPassword() {
-    if (this.password) {
+    if (this.password && !this.password.startsWith('$argon2')) {
       this.password = await hashPass(this.password);
     }
   }

@@ -31,7 +31,8 @@ const COLORS = {
 export default function DriverArrivedScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { userLocation, activeOrder } = useCustomerStore();
+  const userLocation = useCustomerStore(state => state.userLocation);
+  const activeOrder = useCustomerStore(state => state.activeOrder);
 
   const handleIAmGoingOut = () => {
     // Navigate to receipt

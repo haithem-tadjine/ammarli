@@ -133,9 +133,13 @@ export class AuthService {
     dto: RegisterReqDto,
     manager?: EntityManager,
   ): Promise<RegisterResDto> {
-    const userRepo = manager
-      ? manager.getRepository(UserEntity)
-      : UserEntity.getRepository();
+    if (!manager) {
+      return await this.userRepository.manager.transaction(async (transactionalEntityManager) => {
+        return await this.register(dto, transactionalEntityManager);
+      });
+    }
+
+    const userRepo = manager.getRepository(UserEntity);
 
     if (dto.role === UserRoleEnum.CLIENT && dto.driverType) {
       throw new ValidationException(
@@ -161,17 +165,22 @@ export class AuthService {
       updatedBy: SYSTEM_USER_ID,
     });
 
-    await user.save();
+    // Explicitly call hashPassword() as a safety net in case the @BeforeInsert
+    // hook does not fire (e.g., edge cases in some TypeORM transactional modes).
+    // hashPassword() is idempotent: if the hook ALSO fires, the '$argon2' prefix
+    // guard prevents the already-hashed value from being hashed a second time.
+    await user.hashPassword();
+    await userRepo.save(user);
 
     if (dto.role === UserRoleEnum.CLIENT) {
-      await this.clientService.createProfile(user);
+      await this.clientService.createProfile(user, manager);
     } else if (dto.role === UserRoleEnum.DRIVER) {
       await this.driverService.createProfile(user, dto.driverType!, {
         truckPlate: dto.truckPlate,
         waterType: dto.waterType,
         capacity: dto.capacity,
         brands: dto.brands,
-      });
+      }, manager);
     }
 
     // Create a session and return auth tokens so the user is immediately logged in
@@ -186,7 +195,12 @@ export class AuthService {
       createdBy: SYSTEM_USER_ID,
       updatedBy: SYSTEM_USER_ID,
     });
-    await session.save();
+    // ⚠️ Must use `manager.save()` here — NOT `session.save()`.
+    // `session.save()` is an ActiveRecord call that opens its own global DB
+    // connection outside this transaction. Because the user INSERT hasn't
+    // committed yet, the FK_session_user check fails with a constraint error.
+    await manager.save(SessionEntity, session);
+
 
     const token = await this.createToken({
       id: user.id,
@@ -333,17 +347,37 @@ export class AuthService {
     sessionId: string;
     hash: string;
   }): Promise<Token> {
+    const user = await this.userRepository.findOne({
+      where: { id: data.id as Uuid },
+    });
+    
+    let driverId: string | undefined;
+    let clientId: string | undefined;
+
+    if (user?.role === UserRoleEnum.DRIVER) {
+      try {
+        const driver = await this.driverService.findByUserId(user.id);
+        driverId = driver.id;
+      } catch (e) {
+        // Driver profile might be missing if created improperly in older data
+      }
+    } else if (user?.role === UserRoleEnum.CLIENT) {
+      try {
+        const client = await this.clientService.findByUserId(user.id);
+        clientId = client.id;
+      } catch (e) {
+        // Client profile might be missing
+      }
+    }
+
     const [accessToken, refreshToken] = await Promise.all([
       await this.jwtService.signAsync(
         {
           id: data.id,
-          role:
-            (
-              await this.userRepository.findOne({
-                where: { id: data.id as Uuid },
-              })
-            )?.role || '',
+          role: user?.role || '',
           sessionId: data.sessionId,
+          ...(driverId && { driverId }),
+          ...(clientId && { clientId }),
         },
         {
           secret: this.configService.getOrThrow('auth.secret', { infer: true }),

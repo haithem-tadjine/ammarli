@@ -30,7 +30,10 @@ const COLORS = {
 
 export default function OrderTrackingScreen() {
   const router = useRouter();
-  const { userLocation, driverLocation, setDriverLocation, activeOrder } = useCustomerStore();
+  const userLocation = useCustomerStore(state => state.userLocation);
+  const driverLocation = useCustomerStore(state => state.driverLocation);
+  const setDriverLocation = useCustomerStore(state => state.setDriverLocation);
+  const activeOrder = useCustomerStore(state => state.activeOrder);
 
   // Real driver info — populated when socket fires request_accepted
   const driverInfo  = activeOrder?.driverInfo;
@@ -48,19 +51,20 @@ export default function OrderTrackingScreen() {
   };
 
   React.useEffect(() => {
+    const handleLocationUpdate = (data: any) => {
+      setDriverLocation({ latitude: data.lat, longitude: data.lng });
+    };
+
     import('../../src/services/socket').then(({ socketService }) => {
-      // The connection is handled globally in _layout.tsx, we just listen here.
-      socketService.on('location_update', (data) => {
-        setDriverLocation({ latitude: data.lat, longitude: data.lng });
-      });
+      socketService.on('location_update', handleLocationUpdate);
     });
 
     return () => {
       import('../../src/services/socket').then(({ socketService }) => {
-        socketService.off('location_update');
+        socketService.off('location_update', handleLocationUpdate);
       });
     };
-  }, []);
+  }, [setDriverLocation]);
 
   React.useEffect(() => {
     if (!activeOrder) {

@@ -18,5 +18,5 @@ export class FindDriversDto {
   @NumberFieldOptional()
   @Min(0.1)
   @Max(100)
-  radiusKm?: number = 5;
+  radiusKm?: number = 15;
 }

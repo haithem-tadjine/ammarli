@@ -25,7 +25,13 @@ const COLORS = {
 const DriverEarningsScreen = () => {
   const insets = useSafeAreaInsets();
 
-  const { walletBalance, totalEarnings, completedTrips, driverRating, appCommission, weeklyStats, transactions } = useDriverStore();
+  const walletBalance = useDriverStore(state => state.walletBalance);
+  const totalEarnings = useDriverStore(state => state.totalEarnings);
+  const completedTrips = useDriverStore(state => state.completedTrips);
+  const driverRating = useDriverStore(state => state.driverRating);
+  const appCommission = useDriverStore(state => state.appCommission);
+  const weeklyStats = useDriverStore(state => state.weeklyStats);
+  const transactions = useDriverStore(state => state.transactions);
 
   const handleWithdraw = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

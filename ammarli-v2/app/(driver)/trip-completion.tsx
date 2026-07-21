@@ -35,7 +35,7 @@ export default function TripCompletionScreen() {
   }>();
 
   const { orderId, serviceType, price, customerName } = params;
-  const { completeDriverOrder } = useDriverStore();
+  const completeDriverOrder = useDriverStore(state => state.completeDriverOrder);
   
   const [isLoading, setIsLoading] = useState(false);
 

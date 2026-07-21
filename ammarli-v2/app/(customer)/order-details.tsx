@@ -70,7 +70,7 @@ export default function OrderDetailsScreen() {
     { id: 'Youkous', name: 'يوكوس', color: '#34495E', logo: require('../../assets/images/brands/youkous.png') },
   ];
 
-  const [selectedBrand, setSelectedBrand] = useState('Guedila');
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   
   // Dynamic cart state based on BRANDS array
   const [cart, setCart] = useState(() => {
@@ -91,6 +91,7 @@ export default function OrderDetailsScreen() {
   }, [cart]);
 
   const updateQuantity = useCallback((size: string, delta: number) => {
+    if (!selectedBrand) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCart((prev: any) => {
       const currentQty = prev[selectedBrand][size];
@@ -176,7 +177,8 @@ export default function OrderDetailsScreen() {
     });
   };
 
-  const getBrandName = (id: string) => {
+  const getBrandName = (id: string | null) => {
+    if (!id) return '';
     return BRANDS.find(b => b.id === id)?.name || id;
   };
 
@@ -273,34 +275,43 @@ export default function OrderDetailsScreen() {
           </ScrollView>
 
           {/* Size Selection for selected Brand */}
-          <Text style={styles.sectionTitle}>اختر الأحجام لـ <Text style={{ color: COLORS.primaryBlue }}>{getBrandName(selectedBrand)}</Text></Text>
-          
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.sizesScroll, { flexGrow: 1 }]}>
-            <ProductCard 
-              size="5L" 
-              label="عبوة 5 لتر" 
-              subLabel="قارورة واحدة" 
-              qty={cart[selectedBrand]['5L']} 
-              onAdd={() => updateQuantity('5L', 1)}
-              onSub={() => updateQuantity('5L', -1)}
-            />
-            <ProductCard 
-              size="1.5L" 
-              label="عبوة 1.5 لتر" 
-              subLabel="6 قارورات" 
-              qty={cart[selectedBrand]['1.5L']} 
-              onAdd={() => updateQuantity('1.5L', 1)}
-              onSub={() => updateQuantity('1.5L', -1)}
-            />
-            <ProductCard 
-              size="0.5L" 
-              label="عبوة 0.5 لتر" 
-              subLabel="12 قارورة" 
-              qty={cart[selectedBrand]['0.5L']} 
-              onAdd={() => updateQuantity('0.5L', 1)}
-              onSub={() => updateQuantity('0.5L', -1)}
-            />
-          </ScrollView>
+          {selectedBrand ? (
+            <>
+              <Text style={styles.sectionTitle}>اختر الأحجام لـ <Text style={{ color: COLORS.primaryBlue }}>{getBrandName(selectedBrand)}</Text></Text>
+              
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.sizesScroll, { flexGrow: 1 }]}>
+                <ProductCard 
+                  size="5L" 
+                  label="عبوة 5 لتر" 
+                  subLabel="قارورة واحدة" 
+                  qty={cart[selectedBrand]['5L']} 
+                  onAdd={() => updateQuantity('5L', 1)}
+                  onSub={() => updateQuantity('5L', -1)}
+                />
+                <ProductCard 
+                  size="1.5L" 
+                  label="عبوة 1.5 لتر" 
+                  subLabel="6 قارورات" 
+                  qty={cart[selectedBrand]['1.5L']} 
+                  onAdd={() => updateQuantity('1.5L', 1)}
+                  onSub={() => updateQuantity('1.5L', -1)}
+                />
+                <ProductCard 
+                  size="0.5L" 
+                  label="عبوة 0.5 لتر" 
+                  subLabel="12 قارورة" 
+                  qty={cart[selectedBrand]['0.5L']} 
+                  onAdd={() => updateQuantity('0.5L', 1)}
+                  onSub={() => updateQuantity('0.5L', -1)}
+                />
+              </ScrollView>
+            </>
+          ) : (
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40, marginHorizontal: 20, backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed' }}>
+              <Ionicons name="water-outline" size={48} color={COLORS.textSecondary} style={{ marginBottom: 10, opacity: 0.5 }} />
+              <Text style={{ fontSize: 16, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, textAlign: 'center' }}>الرجاء اختيار العلامة التجارية أولاً لتحديد الكمية</Text>
+            </View>
+          )}
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -333,8 +344,8 @@ const ProductCard = React.memo(({ label, subLabel, qty, onAdd, onSub }: any) => 
           <Text style={styles.productLabel}>{label}</Text>
           <Text style={styles.productSubLabel}>{subLabel}</Text>
         </View>
-        <View style={[styles.productImagePlaceholder, { backgroundColor: '#F0FDF4', borderRadius: 12, justifyContent: 'center', alignItems: 'center' }]}>
-           <MaterialCommunityIcons name="bottle-wine-outline" size={32} color="#16A34A" />
+        <View style={[styles.productImagePlaceholder, { backgroundColor: '#F0FDF4', borderRadius: 12, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }]}>
+           <Image source={require('../../assets/images/bottled_icon.png')} style={styles.productImage} resizeMode="contain" />
         </View>
       </View>
     </View>

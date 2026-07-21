@@ -43,43 +43,40 @@ export default function OrderAcceptanceScreen() {
   const router = useRouter();
   const updateDriverOrderStatus = useDriverStore(s => s.updateDriverOrderStatus);
 
-  const params = useLocalSearchParams<{
-    customerName: string;
-    customerPhone?: string;
-    customerLat?: string;
-    customerLng?: string;
-    avatarUrl?:   string;
-    price:        string;
-    address:      string;
-    orderType:    string;
-    distance:     string;
-    rating:       string;
-    capacity?:    string;
-    floor?:       string;
-    items?:       string;
-  }>();
+  const params = useLocalSearchParams<{ orderId: string; avatarUrl?: string }>();
+  
+  const activeDriverOrder = useDriverStore(s => s.activeDriverOrder);
+  const registeredDriver = useDriverStore(s => s.registeredDriver);
+  
+  const order = activeDriverOrder;
 
-  const customerName = params.customerName ?? 'ياسين';
-  const customerPhone = params.customerPhone ?? '';
-  const customerLat = params.customerLat ?? '';
-  const customerLng = params.customerLng ?? '';
-  const price        = Number(params.price ?? 2500);
-  const address      = params.address  ?? 'الجزائر العاصمة';
-  const orderType    = params.orderType ?? 'spring_water';
+  const customerName = order?.customer.name ?? 'الزبون';
+  const customerPhone = order?.customer.phone ?? '';
+  const customerLat = String(order?.deliveryAddress.lat ?? '');
+  const customerLng = String(order?.deliveryAddress.lng ?? '');
+  const price        = Number(order?.total ?? 2500);
+  const address      = order?.deliveryAddress.label  ?? 'الجزائر العاصمة';
+  
+  const orderType = registeredDriver?.driverType === 'Bottled' ? 'bottles' 
+    : (registeredDriver?.waterType === 'well' ? 'well_water' 
+    : (registeredDriver?.waterType === 'construction' ? 'construction_water' 
+    : 'spring_water'));
+    
   const meta         = ORDER_META[orderType] ?? ORDER_META.spring_water;
-  const capacityLiters = Number(params.capacity || 1000);
-  const floor = params.floor ?? 'غير محدد';
+  const capacityLiters = Number(order?.items?.[0]?.qty || 1000);
+  const floor = String(order?.items?.[0]?.floor || 'غير محدد');
   const [bucketPrice, setBucketPrice] = useState('');
   const [wellWaterPrice, setWellWaterPrice] = useState('');
   
-  // استلام قائمة المنتجات مباشرة من تفاصيل الطلبية القادمة
   const [bottleItems, setBottleItems] = useState<{id: number, name: string, qty: number, unit: string, price: string, image: string}[]>(() => {
-    try {
-      if (params.items) {
-        return JSON.parse(params.items);
-      }
-    } catch (e) {}
-    return [];
+    return order?.items?.map((i, idx) => ({
+      id: idx,
+      name: i.description,
+      qty: i.qty || 1,
+      unit: i.detail,
+      price: String(i.unitPrice || i.price || 0),
+      image: i.icon
+    })) || [];
   });
 
   const [totalPrice, setTotalPrice] = useState(orderType === 'spring_water' ? 0 : price);
@@ -126,7 +123,7 @@ export default function OrderAcceptanceScreen() {
     }
   };
 
-  const activeDriverOrder = useDriverStore(s => s.activeDriverOrder);
+
 
   const handleConfirm = () => {
     if (totalPrice <= 0) {
@@ -147,8 +144,8 @@ export default function OrderAcceptanceScreen() {
           price:        String(totalPrice), // Pass the calculated total price
           address:      address,
           orderType:    orderType,
-          distance:     params.distance ?? '2.5 كم',
-          rating:       params.rating   ?? '4.8',
+          distance:     order?.deliveryAddress.distance ?? '2.5 كم',
+          rating:       (order?.customer as any)?.rating ?? '4.8',
           orderNumber:  activeDriverOrder?.orderId ? activeDriverOrder.orderId.split('-')[0].toUpperCase() : String(Math.floor(10000 + Math.random() * 90000)),
         },
       });
@@ -202,7 +199,7 @@ export default function OrderAcceptanceScreen() {
               <Text style={styles.statusLabel}>تم قبول طلب جديد</Text>
               <Text style={styles.customerName}>{customerName}</Text>
               <View style={styles.ratingRow}>
-                <Text style={styles.locationText}>{params.distance ?? '2.5 كم'} • {params.rating ?? '4.8'} ⭐</Text>
+                <Text style={styles.locationText}>{order?.deliveryAddress.distance ?? '2.5 كم'} • {(order?.customer as any)?.rating ?? '4.8'} ⭐</Text>
               </View>
             </View>
             <View style={styles.shieldIconBox}>

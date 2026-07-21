@@ -9,7 +9,8 @@ import {
   StatusBar,
   Dimensions,
   Platform,
-  Alert
+  Alert,
+  Image
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,7 +30,8 @@ export default function MyAccountScreen() {
   const logout = useAuthStore((s) => s.logout);
   
   const userName = userProfile?.firstName ? `${userProfile.firstName} ${userProfile.lastName || ''}`.trim() : 'ضيف';
-  const userRating = '4.8'; // Mock rating
+  const userRating = (userProfile as any)?.rating;
+  const userAvatar = userProfile?.avatarUrl;
 
   const handleLogout = () => {
     // Only works natively, but for Web we can just execute the action directly or use a web-compatible confirm
@@ -87,15 +89,21 @@ export default function MyAccountScreen() {
           <View style={styles.profileHeader}>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{userName}</Text>
-              <View style={styles.ratingBadge}>
-                <Text style={styles.ratingText}>{userRating}</Text>
-                <Feather name="star" color={THEME_NAVY} size={12} style={{ fill: THEME_NAVY } as any} />
-              </View>
+              {userRating ? (
+                <View style={styles.ratingBadge}>
+                  <Text style={styles.ratingText}>{userRating}</Text>
+                  <Feather name="star" color={THEME_NAVY} size={12} style={{ fill: THEME_NAVY } as any} />
+                </View>
+              ) : null}
             </View>
             <View style={styles.avatarContainer}>
-              <View style={styles.avatarPlaceholder}>
-                <Feather name="user" color="#ADB5BD" size={40} />
-              </View>
+              {userAvatar ? (
+                <Image source={{ uri: userAvatar }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Feather name="user" color="#ADB5BD" size={40} />
+                </View>
+              )}
             </View>
           </View>
 
@@ -182,6 +190,12 @@ const styles = StyleSheet.create({
     width: 90, height: 90, borderRadius: 45, backgroundColor: '#F2F2F7',
     justifyContent: 'center', alignItems: 'center', elevation: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   avatarPlaceholder: {
     width: 80, height: 80, borderRadius: 40, backgroundColor: '#D1D1D6',

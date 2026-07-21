@@ -155,23 +155,7 @@ export default function RootLayout() {
           router.push({
             pathname: '/(driver)/order-acceptance' as any,
             params: {
-              customerName: data.customerName ?? 'زبون جديد',
-              price:        data.price        ?? '2500',
-              address:      data.address      ?? 'الجزائر العاصمة',
-              orderType:    data.orderType    ?? 'spring_water',
-              distance:     data.distance     ?? '2.5 كم',
-              rating:       data.rating       ?? '4.8',
-              items: JSON.stringify([
-                {
-                  id: 1,
-                  name: 'مياه',
-                  qty: data.quantity ?? 1,
-                  unit: data.orderType === 'bottles' ? 'قوارير' : 'لتر',
-                  price: data.price ?? '2500',
-                  image: null,
-                },
-              ]),
-              capacity: data.quantity ?? '1000',
+              orderId: data.orderId
             },
           });
           return;
@@ -254,18 +238,7 @@ export default function RootLayout() {
                   router.push({
                     pathname: '/(driver)/order-acceptance' as any,
                     params: { 
-                      customerName: globalIncomingOrder.customer.name,
-                      customerPhone: globalIncomingOrder.customer.phone,
-                      customerLat: globalIncomingOrder.deliveryAddress.lat.toString(),
-                      customerLng: globalIncomingOrder.deliveryAddress.lng.toString(),
-                      price: globalIncomingOrder.total.toString(),
-                      address: globalIncomingOrder.deliveryAddress.label,
-                      orderType: useDriverStore.getState().registeredDriver?.waterType || 'spring',
-                      capacity: globalIncomingOrder.items?.[0]?.detail?.replace(/\D/g, '') || '1000',
-                      floor: globalIncomingOrder.items?.[0]?.floor || 'غير محدد',
-                      distance: globalIncomingOrder.deliveryAddress.distance,
-                      rating: '5.0',
-                      items: JSON.stringify(globalIncomingOrder.items.map((i, idx) => ({ id: idx, name: i.description, qty: i.qty || 1, unit: i.detail, price: i.unitPrice || i.price })))
+                      orderId: globalIncomingOrder.orderId
                     }
                   });
                 });

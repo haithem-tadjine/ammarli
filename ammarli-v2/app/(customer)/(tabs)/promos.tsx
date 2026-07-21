@@ -6,11 +6,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   StatusBar,
   Alert,
   Platform,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  ActivityIndicator
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +24,9 @@ export default function PromotionsScreen() {
   const insets = useSafeAreaInsets();
   const [promoCode, setPromoCode] = useState('');
 
-  const { promos, fetchPromos } = useCustomerStore();
+  const promos = useCustomerStore(state => state.promos);
+  const fetchPromos = useCustomerStore(state => state.fetchPromos);
+  const isLoadingPromos = useCustomerStore(state => state.isLoadingPromos);
 
   useEffect(() => {
     fetchPromos();
@@ -31,27 +34,73 @@ export default function PromotionsScreen() {
 
   const handleApplyPromo = () => {
     if (!promoCode.trim()) {
-      if (Platform.OS === 'web') {
-        window.alert('يرجى إدخال رمز ترويجي أولاً');
-      } else {
-        Alert.alert('تنبيه', 'يرجى إدخال رمز ترويجي أولاً');
-      }
+      Alert.alert('تنبيه', 'يرجى إدخال رمز ترويجي أولاً');
       return;
     }
-    if (Platform.OS === 'web') {
-      window.alert(`تم تطبيق الرمز: ${promoCode}`);
-    } else {
-      Alert.alert('تم', `تم تطبيق الرمز: ${promoCode}`);
-    }
+    console.warn('TODO: Connect promo apply to backend');
+    Alert.alert('قريباً', 'ميزة الرموز الترويجية قيد التطوير');
   };
 
   const handleUseOffer = (title: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(`هل تود استخدام عرض: ${title}؟`);
-    } else {
-      Alert.alert('استخدام العرض', `هل تود استخدام عرض: ${title}؟`);
-    }
+    console.warn(`TODO: Connect use offer (${title}) to backend`);
+    Alert.alert('قريباً', 'استخدام العروض قيد التطوير');
   };
+
+  const renderHeader = () => (
+    <>
+      <Text style={styles.headerTitle}>العروض والخصومات</Text>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>إضافة رمز ترويجي</Text>
+        <View style={styles.inputRow}>
+          <TouchableOpacity style={styles.applyButton} onPress={handleApplyPromo}>
+            <Text style={styles.applyButtonText}>تطبيق</Text>
+          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="أدخل الرمز هنا..."
+            placeholderTextColor="#8E8E93"
+            value={promoCode}
+            onChangeText={setPromoCode}
+            textAlign="right"
+          />
+        </View>
+      </View>
+      <Text style={styles.sectionLabel}>العروض المتاحة</Text>
+    </>
+  );
+
+  const renderEmpty = () => {
+    if (isLoadingPromos) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={THEME_NAVY} />
+          <Text style={styles.emptyText}>جاري تحميل العروض...</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.emptyContainer}>
+        <Feather name="inbox" size={48} color="#8E8E93" />
+        <Text style={styles.emptyText}>لا توجد عروض حالياً، ترقبوا جديدنا!</Text>
+      </View>
+    );
+  };
+
+  const renderItem = ({ item }: { item: any }) => (
+    <View style={styles.offerCard}>
+      <TouchableOpacity style={styles.useButton} onPress={() => handleUseOffer(item.title)}>
+        <Text style={styles.useButtonText}>استخدام</Text>
+      </TouchableOpacity>
+      <View style={styles.offerInfo}>
+        <Text style={styles.offerTitle}>{item.title}</Text>
+        <Text style={styles.offerSubtitle}>{item.description || item.subtitle}</Text>
+      </View>
+      <View style={styles.iconContainer}>
+        <Feather name={item.icon || 'gift'} color={THEME_YELLOW} size={28} />
+      </View>
+    </View>
+  );
 
   return (
     <ScreenContainer style={styles.container}>
@@ -62,53 +111,16 @@ export default function PromotionsScreen() {
           behavior="padding" 
           style={{ flex: 1 }}
          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}>
-          <ScrollView 
-            contentContainerStyle={[styles.scrollContent, { flexGrow: 1, paddingBottom: 80 + insets.bottom }]} 
+          <FlatList
+            data={promos}
+            keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+            renderItem={renderItem}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={renderEmpty}
+            contentContainerStyle={[styles.scrollContent, { flexGrow: 1, paddingBottom: 80 + insets.bottom }]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-          >
-            
-            <Text style={styles.headerTitle}>العروض والخصومات</Text>
-
-          {/* Promo Code Input Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>إضافة رمز ترويجي</Text>
-            <View style={styles.inputRow}>
-              <TouchableOpacity style={styles.applyButton} onPress={handleApplyPromo}>
-                <Text style={styles.applyButtonText}>تطبيق</Text>
-              </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                placeholder="أدخل الرمز هنا..."
-                placeholderTextColor="#8E8E93"
-                value={promoCode}
-                onChangeText={setPromoCode}
-                textAlign="right"
-              />
-            </View>
-          </View>
-
-          {/* Offers List Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>العروض المتاحة</Text>
-            {promos.map((offer, index) => (
-              <View key={offer.id || index} style={styles.offerCard}>
-                <TouchableOpacity style={styles.useButton} onPress={() => handleUseOffer(offer.title)}>
-                  <Text style={styles.useButtonText}>استخدام</Text>
-                </TouchableOpacity>
-                
-                <View style={styles.offerInfo}>
-                  <Text style={styles.offerTitle}>{offer.title}</Text>
-                  <Text style={styles.offerSubtitle}>{offer.description || offer.subtitle}</Text>
-                </View>
-
-                <View style={styles.iconContainer}>
-                  <Feather name={offer.icon || 'gift'} color={THEME_YELLOW} size={28} />
-                </View>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
+          />
         </KeyboardAvoidingView>
       </View>
     </ScreenContainer>
@@ -227,5 +239,18 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 13,
     fontFamily: 'Cairo-Bold',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 40,
+  },
+  emptyText: {
+    marginTop: 15,
+    fontFamily: 'Cairo-SemiBold',
+    fontSize: 16,
+    color: '#8E8E93',
+    textAlign: 'center',
   },
 });

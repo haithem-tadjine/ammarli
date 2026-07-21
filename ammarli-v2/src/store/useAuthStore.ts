@@ -16,7 +16,6 @@ export interface UserProfile {
   // Computed convenience getter — used by screens that display a greeting
   name?: string;
   phone: string;
-  wilaya?: string;
   driverType?: 'BOTTLED' | 'TANKER';
   pushToken?: string;
 }
@@ -46,7 +45,6 @@ function normaliseProfile(user: any): UserProfile {
     lastName,
     name:       [firstName, lastName].filter(Boolean).join(' ') || user.name || user.phone,
     phone:      user.phone ?? '',
-    wilaya:     user.wilaya,
     driverType: user.driverType,
   };
 }
@@ -106,6 +104,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await storage.remove(STORAGE_KEYS.USER_PROFILE);
     await storage.remove('AUTH_TOKEN');
     set({ userRole: null, userProfile: null, token: null });
+
+    // Prevent state bleeding across sessions
+    import('./useCustomerStore').then((m) => m.useCustomerStore.getState().clearStore());
+    import('./useDriverStore').then((m) => m.useDriverStore.getState().clearStore());
   },
 
   hydrate: async () => {

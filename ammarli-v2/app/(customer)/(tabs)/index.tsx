@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,42 +7,88 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  Platform,
-  StatusBar,
   Modal,
-  ActivityIndicator
+  ActivityIndicator,
+  AppState
 } from 'react-native';
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../../src/store/useAuthStore';
 import { useCustomerStore } from '../../../src/store/useCustomerStore';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import * as Haptics from 'expo-haptics';
 import ScreenContainer, { TAB_BAR_HEIGHT, MIN_BOTTOM_INSET } from '../../../components/ScreenContainer';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
+
+const WaterCategory = React.memo(({ title, subtitle, imageSource, onPress }: any) => (
+  <TouchableOpacity 
+    style={styles.categoryCardOuter} 
+    onPress={onPress}
+    activeOpacity={0.8}
+  >
+    <View style={styles.categoryCardInner}>
+      <View style={styles.iconContainer}>
+        <Image 
+          source={imageSource} 
+          style={styles.floatingImage} 
+        />
+      </View>
+      <View style={styles.categoryTextContainer}>
+        <Text style={styles.categoryTitle}>{title}</Text>
+      </View>
+    </View>
+  </TouchableOpacity>
+));
 
 const AmmerliHomeScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const isMounted = useRef(true);
   
   // Dynamic user name from AuthStore - defaults to 'زائر'
   const userProfile = useAuthStore((s) => s.userProfile);
   const userName = userProfile?.name ? userProfile.name.split(' ')[0] : 'زائر';
 
-  // عدد الإشعارات غير المقروءة لإظهار النقطة الذهبية ديناميكياً
-  const unreadCount = useCustomerStore((s) => s.notifications.filter((n) => !n.isRead).length);
+  const notifications = useCustomerStore((s) => s.notifications);
 
-  const { userLocation, setUserLocation, activeOrder } = useCustomerStore();
+  // عدد الإشعارات غير المقروءة لإظهار النقطة الذهبية ديناميكياً
+  const unreadCount = useMemo(() => {
+    return notifications.filter((n) => !n.isRead).length;
+  }, [notifications]);
+
+  const userLocation = useCustomerStore(state => state.userLocation);
+  const setUserLocation = useCustomerStore(state => state.setUserLocation);
+  const activeOrder = useCustomerStore(state => state.activeOrder);
+  const fetchActiveOrder = useCustomerStore(state => state.fetchActiveOrder);
+  
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
   useEffect(() => {
+    fetchActiveOrder();
+    
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+         fetchActiveOrder();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    isMounted.current = true;
     if (!userLocation) {
       setShowPermissionModal(true);
     }
+    return () => {
+      isMounted.current = false;
+    };
   }, [userLocation]);
 
   const requestLocationPermission = async () => {
@@ -51,29 +97,50 @@ const AmmerliHomeScreen = () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const location = await Location.getCurrentPositionAsync({});
-        let address = undefined;
-        try {
-          const geocode = await Location.reverseGeocodeAsync({
+        
+        if (isMounted.current) {
+          // Immediately unblock the UI and set the location coordinates
+          setUserLocation({
             latitude: location.coords.latitude,
-            longitude: location.coords.longitude
+            longitude: location.coords.longitude,
+            address: undefined
           });
-          if (geocode.length > 0) {
-            address = geocode[0].district || geocode[0].street || geocode[0].city || undefined;
-          }
-        } catch (e) {
-          console.log('Geocoding error:', e);
+          setIsFetchingLocation(false);
+          setShowPermissionModal(false);
         }
-        setUserLocation({
+
+        // Perform reverse geocoding asynchronously in the background
+        Location.reverseGeocodeAsync({
           latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          address
+          longitude: location.coords.longitude
+        }).then((geocode) => {
+          if (isMounted.current && geocode.length > 0) {
+            const address = geocode[0].district || geocode[0].street || geocode[0].city || undefined;
+            // Get the current location from store to preserve lat/lng
+            const currentLocation = useCustomerStore.getState().userLocation;
+            if (currentLocation) {
+              setUserLocation({
+                ...currentLocation,
+                address
+              });
+            }
+          }
+        }).catch(e => {
+          console.log('Geocoding error:', e);
         });
+
+      } else {
+        if (isMounted.current) {
+          setIsFetchingLocation(false);
+          setShowPermissionModal(false);
+        }
       }
     } catch (e) {
       console.log('Location error:', e);
-    } finally {
-      setIsFetchingLocation(false);
-      setShowPermissionModal(false);
+      if (isMounted.current) {
+        setIsFetchingLocation(false);
+        setShowPermissionModal(false);
+      }
     }
   };
 
@@ -102,19 +169,19 @@ const AmmerliHomeScreen = () => {
     }
   };
 
-  const WaterCategory = ({ title, subtitle, imageSource, iconBg, onPress }: any) => (
-    <TouchableOpacity 
-      style={styles.categoryCard} 
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <View style={[styles.imagePlaceholder, { backgroundColor: iconBg, borderRadius: 20 }]}>
-         <Image source={imageSource} style={{ width: 60, height: 60, resizeMode: 'contain' }} />
-      </View>
-      <Text style={styles.categoryTitle}>{title}</Text>
-      <Text style={styles.categorySubtitle}>{subtitle}</Text>
-    </TouchableOpacity>
-  );
+  const getOrderStatusText = (status: string) => {
+    switch (status) {
+      case 'searching': return 'جاري البحث عن سائق...';
+      case 'created': return 'تم إنشاء الطلب، جاري البحث...';
+      case 'dispatched': return 'السائق في الطريق إليك';
+      case 'accepted': return 'السائق في الطريق إليك';
+      case 'arrived': return 'السائق وصل!';
+      case 'delivering': return 'جاري التسليم';
+      case 'completed': return 'تم التسليم بنجاح';
+      case 'delivered': return 'تم التسليم بنجاح';
+      default: return 'تتبع طلبيتك الآن';
+    }
+  };
 
   return (
     <ScreenContainer
@@ -165,7 +232,7 @@ const AmmerliHomeScreen = () => {
                 <View style={[styles.bannerTextContent, { alignItems: 'flex-start' }]}>
                   <Text style={[styles.bannerTitle, { color: '#002147' }]}>لديك طلب نشط</Text>
                   <Text style={[styles.bannerTitle, { color: '#002147', fontSize: 16, marginTop: 4 }]}>
-                    {activeOrder.status === 'searching' ? 'جاري البحث عن سائق...' : 'تتبع طلبيتك الآن'}
+                    {getOrderStatusText(activeOrder.status)}
                   </Text>
                   <View style={[styles.bannerButtonDecoration, { backgroundColor: '#002147' }]}>
                     <Text style={[styles.bannerButtonText, { color: '#FFF' }]}>عرض التفاصيل</Text>
@@ -177,7 +244,7 @@ const AmmerliHomeScreen = () => {
               </View>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.bannerContainer} onPress={() => router.push('/(customer)/tank-order-details?type=Spring')} activeOpacity={0.9}>
+            <View style={styles.bannerContainer}>
               <View style={styles.bannerBackground}>
                 <View style={styles.bannerTextContent}>
                   <Text style={styles.bannerTitle}>مياه نقية،</Text>
@@ -188,12 +255,11 @@ const AmmerliHomeScreen = () => {
                 </View>
                 <View style={styles.bannerImagePlaceholder} />
               </View>
-            </TouchableOpacity>
+            </View>
           )}
 
           {/* 3. Functional Water Selection Grid */}
           <View style={styles.sectionHeader}>
-            <View />
             <Text style={styles.sectionTitle}>اختر نوع المياه</Text>
           </View>
 
@@ -202,28 +268,24 @@ const AmmerliHomeScreen = () => {
               title="مياه الآبار" 
               subtitle="استخراج عميق" 
               imageSource={require('../../../assets/images/well-water-icon.png')}
-              iconBg="#EFF6FF"
               onPress={() => handleServicePress('Well')}
             />
             <WaterCategory 
               title="مياه الينابيع" 
               subtitle="مصدر طبيعي" 
               imageSource={require('../../../assets/images/spring-water-icon.png')}
-              iconBg="#F0F9FF"
               onPress={() => handleServicePress('Spring')}
             />
             <WaterCategory 
               title="مياه معبأة" 
               subtitle="عبوات مميزة" 
               imageSource={require('../../../assets/images/bottled_icon.png')}
-              iconBg="#F0FDF4"
               onPress={() => handleServicePress('Bottled')}
             />
             <WaterCategory 
               title="أشغال" 
               subtitle="مياه غير صالحة للشرب" 
               imageSource={require('../../../assets/images/ashghal-icon.png')}
-              iconBg="#FFF7ED"
               onPress={() => handleServicePress('Ashghal')}
             />
           </View>
@@ -328,39 +390,71 @@ const styles = StyleSheet.create({
 
   sectionHeader: { 
     flexDirection: 'row-reverse', 
-    justifyContent: 'space-between', 
+    justifyContent: 'flex-start', // right aligned in RTL
     alignItems: 'center', 
     paddingHorizontal: 20, 
     marginBottom: 12 
   },
-  sectionTitle: { fontSize: 20, fontFamily: 'Cairo-Bold', color: '#002147' },
+  sectionTitle: { fontSize: 24, fontFamily: 'Cairo-Bold', color: '#003366', textAlign: 'right' },
   seeAllText: { color: '#8E8E93', fontFamily: 'Cairo-SemiBold' },
 
   gridContainer: { 
     flexDirection: 'row-reverse', 
     flexWrap: 'wrap', 
-    justifyContent: 'space-between', 
+    justifyContent: 'center', 
     paddingHorizontal: 20,
-    gap: 12,
+    gap: 20,
   },
-  categoryCard: {
-    backgroundColor: '#FFFFFF',
-    width: (width - 52) / 2,
-    height: 145,
+  categoryCardOuter: {
+    width: (width - 80) / 2,
+    height: 120,
     borderRadius: 22,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    backgroundColor: '#FFFFFF',
   },
-  imagePlaceholder: { width: 80, height: 80, marginBottom: 6, justifyContent: 'center', alignItems: 'center' },
-  categoryImage: { width: '100%', height: '100%' },
-  categoryTitle: { fontSize: 16, fontFamily: 'Cairo-Bold', color: '#002147', textAlign: 'center' },
-  categorySubtitle: { fontSize: 12, color: '#8E8E93', fontFamily: 'Cairo-Regular', textAlign: 'center', marginTop: 4 },
+  categoryCardInner: {
+    flex: 1,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 16,
+  },
+  iconContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    paddingTop: 5,
+  },
+  floatingImage: {
+    width: '120%',
+    height: '120%',
+    resizeMode: 'contain',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  categoryTextContainer: {
+    alignItems: 'center',
+  },
+  categoryTitle: { 
+    fontSize: 16, 
+    fontFamily: 'Cairo-Bold', 
+    color: '#003366', 
+    textAlign: 'center' 
+  },
+  categorySubtitle: { 
+    fontSize: 12, 
+    color: '#64748B', 
+    fontFamily: 'Cairo-Regular', 
+    textAlign: 'center', 
+    marginTop: 2 
+  },
   
   modalOverlay: {
     flex: 1,

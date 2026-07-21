@@ -49,35 +49,41 @@ export default function CustomerLayout() {
 
   useEffect(() => {
     // ── Connect Socket and Setup Listeners ─────────────────────────────
+    let handleAccepted: any;
+    let handleRideStarted: any;
+    let handleDriverArrived: any;
+    let handleCompleted: any;
+    let handleCancelled: any;
+    let handleSearching: any;
+
     const setupSocket = async () => {
       if (token && userProfile?.id) {
         console.log('🔄 Auth state ready, connecting Customer Socket...');
         await socketService.connectAsUser(); // Wait for socket to be created
 
-        socketService.on('request_accepted', (data) => {
+        handleAccepted = (data: any) => {
           console.log('✅ SOCKET RECEIVED (request_accepted):', data);
           useCustomerStore.getState().handleSocketOrderUpdate(data);
-        });
+        };
 
-        socketService.on('ride_started', (data) => {
+        handleRideStarted = (data: any) => {
           console.log('✅ SOCKET RECEIVED (ride_started):', data);
           useCustomerStore.getState().handleSocketOrderUpdate(data);
-        });
+        };
 
-        socketService.on('driver_arrived', async (data) => {
+        handleDriverArrived = async (data: any) => {
           console.log('🔔 SOCKET: driver_arrived received', data);
           useCustomerStore.getState().handleSocketOrderUpdate(data);
           // إشعار الزبون بوصول السائق
           try { await triggerDriverArrivedNotification(); } catch (_) { }
-          // Navigation is handled by order-tracking.tsx or the active order banner
-        });
+        };
 
-        socketService.on('request_completed', (data) => {
+        handleCompleted = (data: any) => {
           console.log('✅ SOCKET RECEIVED (request_completed):', data);
           useCustomerStore.getState().handleSocketOrderUpdate(data);
-        });
+        };
 
-        socketService.on('request_cancelled', (data) => {
+        handleCancelled = (data: any) => {
           console.log('✅ SOCKET RECEIVED (request_cancelled):', data);
           useCustomerStore.getState().handleSocketOrderUpdate(data);
 
@@ -98,9 +104,9 @@ export default function CustomerLayout() {
               }
             }]
           );
-        });
+        };
 
-        socketService.on('request_searching', (data) => {
+        handleSearching = (data: any) => {
           console.log('✅ SOCKET RECEIVED (request_searching):', data);
           useCustomerStore.getState().handleSocketOrderUpdate(data);
 
@@ -111,9 +117,7 @@ export default function CustomerLayout() {
             Alert.alert(title, message, [
               {
                 text: 'حسناً', onPress: () => {
-                  // As requested: clear store in both scenarios
                   useCustomerStore.getState().clearActiveOrderStore();
-
                   if (data.action === 'GO_HOME') {
                     router.replace('/(customer)/(tabs)');
                   } else {
@@ -123,14 +127,27 @@ export default function CustomerLayout() {
               }
             ]);
           }
-          // Do NOT replace to order-tracking here! User should stay on searching-driver
-        });
+        };
+
+        socketService.on('request_accepted', handleAccepted);
+        socketService.on('ride_started', handleRideStarted);
+        socketService.on('driver_arrived', handleDriverArrived);
+        socketService.on('request_completed', handleCompleted);
+        socketService.on('request_cancelled', handleCancelled);
+        socketService.on('request_searching', handleSearching);
       }
     };
 
     setupSocket();
 
     return () => {
+      if (handleAccepted) socketService.off('request_accepted', handleAccepted);
+      if (handleRideStarted) socketService.off('ride_started', handleRideStarted);
+      if (handleDriverArrived) socketService.off('driver_arrived', handleDriverArrived);
+      if (handleCompleted) socketService.off('request_completed', handleCompleted);
+      if (handleCancelled) socketService.off('request_cancelled', handleCancelled);
+      if (handleSearching) socketService.off('request_searching', handleSearching);
+      
       if (token) {
         socketService.disconnect();
       }

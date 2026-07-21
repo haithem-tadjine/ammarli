@@ -31,6 +31,7 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/useAuthStore';
 import { api } from '../../src/services/api';
 
@@ -52,10 +53,8 @@ const SettingsScreen = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  const userData = {
-    name: userProfile?.firstName ? `${userProfile.firstName} ${userProfile.lastName || ''}`.trim() : 'ضيف',
-    image: 'https://randomuser.me/api/portraits/men/32.jpg'
-  };
+  const userName = userProfile?.firstName ? `${userProfile.firstName} ${userProfile.lastName || ''}`.trim() : 'ضيف';
+  const userAvatar = userProfile?.avatarUrl;
 
   const handleLogout = () => {
     Alert.alert(
@@ -149,12 +148,18 @@ const SettingsScreen = () => {
           {/* قسم الملف الشخصي (ملء الفراغ العلوي) */}
           <View style={styles.profileSection}>
             <View style={styles.avatarWrapper}>
-              <Image source={{ uri: userData.image }} style={styles.avatarImage} />
+              {userAvatar ? (
+                <Image source={{ uri: userAvatar }} style={styles.avatarImage} />
+              ) : (
+                <View style={[styles.avatarImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#D1D1D6' }]}>
+                  <Feather name="user" color="#ADB5BD" size={40} />
+                </View>
+              )}
               <View style={styles.cameraBadge}>
                 <Camera color="#FFF" size={14} />
               </View>
             </View>
-            <Text style={styles.profileName}>{userData.name}</Text>
+            <Text style={styles.profileName}>{userName}</Text>
           </View>
 
           {/* بطاقة الحساب (موسعة) */}

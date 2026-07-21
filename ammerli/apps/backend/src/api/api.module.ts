@@ -17,6 +17,7 @@ import { PricingModule } from './pricing/pricing.module';
 import { ProductModule } from './product/product.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { WilayaModule } from './wilaya/wilaya.module';
+import { PromoModule } from './promo/promo.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { WilayaModule } from './wilaya/wilaya.module';
     WilayaModule,
     PricingModule,
     StatisticsModule,
+    PromoModule,
   ],
 })
 export class ApiModule {}

@@ -55,7 +55,9 @@ export default function OrderDetailsScreen() {
     avatarUrl:    string;
   }>();
 
-  const { registeredDriver, updateDriverOrderStatus, activeDriverOrder } = useDriverStore();
+  const registeredDriver = useDriverStore(state => state.registeredDriver);
+  const updateDriverOrderStatus = useDriverStore(state => state.updateDriverOrderStatus);
+  const activeDriverOrder = useDriverStore(state => state.activeDriverOrder);
   const [completing, setCompleting] = useState(false);
 
   React.useEffect(() => {

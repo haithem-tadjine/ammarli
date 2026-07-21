@@ -25,7 +25,7 @@ const THEME_YELLOW = '#FFCC00';
 export default function DriverRatingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { activeOrder } = useCustomerStore();
+  const activeOrder = useCustomerStore(state => state.activeOrder);
   const driverName = activeOrder?.driverInfo?.name || "السائق";
   const driverImage = activeOrder?.driverInfo?.avatarUrl || null;
 

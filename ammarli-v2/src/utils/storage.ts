@@ -4,11 +4,20 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
 
 export const storage = {
   async get<T>(key: string): Promise<T | null> {
     try {
-      const value = await AsyncStorage.getItem(key);
+      let value: string | null = null;
+      if (key === 'AUTH_TOKEN' && !isWeb) {
+        value = await SecureStore.getItemAsync(key);
+      } else {
+        value = await AsyncStorage.getItem(key);
+      }
       if (value === null) return null;
       return JSON.parse(value) as T;
     } catch {
@@ -18,7 +27,12 @@ export const storage = {
 
   async set<T>(key: string, value: T): Promise<void> {
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(value));
+      const stringValue = JSON.stringify(value);
+      if (key === 'AUTH_TOKEN' && !isWeb) {
+        await SecureStore.setItemAsync(key, stringValue);
+      } else {
+        await AsyncStorage.setItem(key, stringValue);
+      }
     } catch (e) {
       console.warn('[Storage] set error:', e);
     }
@@ -26,7 +40,11 @@ export const storage = {
 
   async remove(key: string): Promise<void> {
     try {
-      await AsyncStorage.removeItem(key);
+      if (key === 'AUTH_TOKEN' && !isWeb) {
+        await SecureStore.deleteItemAsync(key);
+      } else {
+        await AsyncStorage.removeItem(key);
+      }
     } catch (e) {
       console.warn('[Storage] remove error:', e);
     }
@@ -35,6 +53,9 @@ export const storage = {
   async clear(): Promise<void> {
     try {
       await AsyncStorage.clear();
+      if (!isWeb) {
+        await SecureStore.deleteItemAsync('AUTH_TOKEN');
+      }
     } catch (e) {
       console.warn('[Storage] clear error:', e);
     }

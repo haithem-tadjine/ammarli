@@ -19,6 +19,11 @@ interface ScoredCandidate {
  * Service that implements the "Fairness & Logic" matching algorithm for driver assignment.
  * Scores candidates based on a weighted multi-criteria decision-making (MCDM) approach.
  *
+ * Factors:
+ * - DISTANCE (0.7): Closer drivers score higher. Ensures fast delivery.
+ * - IDLE_TIME (0.3): Drivers waiting longer score higher. Prevents starvation
+ *   and ensures fair job distribution across the driver pool.
+ *
  * @class MatchingService
  */
 @Injectable()
@@ -26,13 +31,16 @@ export class MatchingService {
   /**
    * Configurable weights for scoring factors.
    * Total must sum to 1.0 for predictable normalization.
+   *
+   * DISTANCE (0.7): Proximity to pickup — closer is better.
+   * IDLE_TIME (0.3): Time since last job — longer wait = higher priority.
    * @private
    */
   private readonly WEIGHTS = {
-    DISTANCE: 0.4, // Proximity to pickup
-    IDLE_TIME: 0.3, // Time since last job (higher is better for fairness)
-    DAILY_BALANCE: 0.2, // Total jobs today (lower is better for fairness)
-    RATING: 0.1, // Driver quality metric
+    DISTANCE: 0.7,
+    IDLE_TIME: 0.3,
+    DAILY_BALANCE: 0.0,
+    RATING: 0.0,
   };
 
   constructor(
@@ -122,7 +130,7 @@ export class MatchingService {
       // Distance: Closer is better (Invert: 1 - ratio)
       const nDist = 1 - dist / maxDist;
 
-      // Idle Time: Longer wait equals higher priority
+      // Idle Time: Longer wait equals higher priority (direct ratio)
       const idleMs = now - meta.lastJobTimestamp;
       const nIdle = idleMs / maxIdle;
 
@@ -137,6 +145,13 @@ export class MatchingService {
         this.WEIGHTS.IDLE_TIME * nIdle +
         this.WEIGHTS.DAILY_BALANCE * nBalance +
         this.WEIGHTS.RATING * nRating;
+
+      this.logger.debug(
+        `[Matching] Driver ${meta.driverId}: score=${score.toFixed(4)} ` +
+        `(dist=${dist.toFixed(2)}km nDist=${nDist.toFixed(3)}, ` +
+        `idle=${(idleMs / 1000).toFixed(0)}s nIdle=${nIdle.toFixed(3)}) ` +
+        `W=[D:${this.WEIGHTS.DISTANCE} I:${this.WEIGHTS.IDLE_TIME}]`,
+      );
 
       scoredCandidates.push({
         driverId: meta.driverId,

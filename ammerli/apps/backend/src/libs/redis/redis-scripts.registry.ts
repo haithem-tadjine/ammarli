@@ -17,6 +17,9 @@ export const RedisScripts = {
   REJECT_REQUEST: {
     file: 'reject_request.lua',
   },
+  RESERVE_DRIVER: {
+    file: 'reserve_driver.lua',
+  },
 } as const;
 
 export type RedisScriptName = keyof typeof RedisScripts;

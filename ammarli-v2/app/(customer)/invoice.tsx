@@ -28,7 +28,8 @@ const COLORS = {
 export default function InvoiceScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { activeOrder, cancelOrder } = useCustomerStore();
+  const activeOrder = useCustomerStore(state => state.activeOrder);
+  const cancelOrder = useCustomerStore(state => state.cancelOrder);
 
   const isTanker = activeOrder?.type === 'Tanker';
   const items = activeOrder?.items && activeOrder.items.length > 0 ? activeOrder.items : [];

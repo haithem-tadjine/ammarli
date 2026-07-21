@@ -259,6 +259,11 @@ export class RequestService {
     const ttl = isTerminal ? 60 : 14400; // 60s if terminal, 4 hours if active ride
     await this.setRequestInCache(request, ttl);
 
+    // If cancelled or expired BEFORE any driver accepted it, DO NOT save to PostgreSQL
+    if ((status === RequestStatusEnum.CANCELLED || status === RequestStatusEnum.EXPIRED) && !request.driverId) {
+      return;
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -269,11 +274,20 @@ export class RequestService {
         status: status,
         userId: request.user?.id as Uuid,
         driverId: request.driverId ? (request.driverId as Uuid) : null,
-        volume: request.quantity,
+        volume: request.tankerDetails?.volume || request.quantity,
         pickupLat: request.pickupLat,
         pickupLng: request.pickupLng,
-        productId: request.productId ? (request.productId as Uuid) : null,
+        deliveryAddress: request.deliveryAddress,
+        type: request.type,
+        tankerDetails: request.tankerDetails,
+        bottledItems: request.bottledItems,
+        isScheduled: request.isScheduled || false,
+        scheduledDate: request.scheduledDate,
+        scheduledTime: request.scheduledTime,
+        subtotal: request.subtotal,
+        deliveryFee: request.deliveryFee,
         totalPrice: request.totalPrice,
+        productId: request.productId ? (request.productId as Uuid) : null,
       });
 
       await queryRunner.manager.save(requestEntity);

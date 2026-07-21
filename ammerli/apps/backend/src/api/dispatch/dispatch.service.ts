@@ -110,40 +110,79 @@ export class DispatchService {
       return [];
     }
 
-    const bestMatch = scoredCandidates[0];
-    const active = [
-      {
-        driverId: bestMatch.driverId,
-        distanceKm: bestMatch.distanceKm,
-      },
-    ];
+    return this.reserveAndDispatchBestDriver(request, scoredCandidates);
+  }
 
-    request.offeredDriverId = bestMatch.driverId as Uuid;
+  /**
+   * Iterates through ranked candidates, atomically reserving the first available driver.
+   * Uses the RESERVE_DRIVER Lua script for a check-and-set operation to prevent
+   * two concurrent requests from offering to the same driver.
+   *
+   * @param request - The active request being dispatched
+   * @param scoredCandidates - Pre-scored and sorted driver candidates
+   * @returns Array with the successfully reserved driver, or empty if none available
+   * @private
+   */
+  private async reserveAndDispatchBestDriver(
+    request: RequestResDto,
+    scoredCandidates: { driverId: string; distanceKm: number; score: number; debug: Record<string, number> }[],
+  ): Promise<DriverLocationResDto[]> {
+    for (const candidate of scoredCandidates) {
+      const metadataKey = RedisConstants.KEYS.driverMetadata(candidate.driverId);
 
-    await this.markRequestDispatched(request);
-    await this.emitDispatchEvent(request, active);
+      // Atomic check-and-set: AVAILABLE -> BUSY
+      const reserved = await this.redisScriptService.eval(
+        'RESERVE_DRIVER',
+        [metadataKey],
+        ['AVAILABLE', 'BUSY'],
+      );
 
-    this.logger.infoStructured(LogConstants.REQUEST.DISPATCH_SUCCESS, {
+      if (reserved !== 1) {
+        // Another request reserved this driver a millisecond ago — skip to next
+        this.logger.debug(
+          `Driver ${candidate.driverId} was not AVAILABLE (atomic reserve failed), skipping to next candidate for request ${request.id}`,
+        );
+        continue;
+      }
+
+      // Successfully reserved — proceed with dispatch
+      const active = [
+        {
+          driverId: candidate.driverId,
+          distanceKm: candidate.distanceKm,
+        },
+      ];
+
+      request.offeredDriverId = candidate.driverId as Uuid;
+
+      await this.markRequestDispatched(request);
+      await this.emitDispatchEvent(request, active);
+
+      this.logger.infoStructured(LogConstants.REQUEST.DISPATCH_SUCCESS, {
+        requestId: request.id,
+        driverCount: 1,
+        driverId: candidate.driverId,
+        score: candidate.score,
+        debug: candidate.debug,
+      });
+
+      // Enqueue delayed timeout job (30s)
+      await this.dispatchTimeoutQueue.add(
+        'dispatch-timeout-job',
+        { requestId: request.id, driverId: candidate.driverId },
+        { delay: 30000, jobId: `dispatch-timeout-${request.id}-${candidate.driverId}` }
+      );
+
+      return active;
+    }
+
+    // All candidates were already BUSY — no driver could be reserved
+    this.logger.warnStructured(LogConstants.REQUEST.NO_DRIVERS, {
       requestId: request.id,
-      driverCount: 1,
-      driverId: bestMatch.driverId,
-      score: bestMatch.score,
-      debug: bestMatch.debug,
+      totalCandidates: scoredCandidates.length,
+      reason: 'ALL_CANDIDATES_BUSY',
     });
-
-    // Mark the driver as BUSY immediately so they don't receive concurrent offers
-    await this.driverMetadataService.updateMetadata(bestMatch.driverId, {
-      status: 'BUSY',
-    });
-
-    // Enqueue delayed timeout job (30s)
-    await this.dispatchTimeoutQueue.add(
-      'dispatch-timeout-job',
-      { requestId: request.id, driverId: bestMatch.driverId },
-      { delay: 30000, jobId: `dispatch-timeout-${request.id}-${bestMatch.driverId}` }
-    );
-
-    return active;
+    return [];
   }
 
   /**
@@ -158,7 +197,7 @@ export class DispatchService {
         RedisConstants.KEYS.DRIVERS_GEO_INDEX,
         request.pickupLng,
         request.pickupLat,
-        5,
+        15,
         RedisConstants.CMD.UNIT_KM,
       );
     } catch (error) {
@@ -441,7 +480,7 @@ export class DispatchService {
             continue;
           }
 
-          // Otherwise, try to find drivers again
+          // Otherwise, try to find drivers again (uses atomic reservation)
           const candidates = await this.findNearbyDrivers(request);
           if (candidates.length > 0) {
             const scoredCandidates = await this.matchingService.findBestDrivers(
@@ -449,33 +488,7 @@ export class DispatchService {
               candidates,
             );
             if (scoredCandidates.length > 0) {
-              const bestMatch = scoredCandidates[0];
-              const active = [
-                {
-                  driverId: bestMatch.driverId,
-                  distanceKm: bestMatch.distanceKm,
-                },
-              ];
-
-              request.offeredDriverId = bestMatch.driverId as Uuid;
-              await this.markRequestDispatched(request);
-              await this.emitDispatchEvent(request, active);
-
-              this.logger.infoStructured(LogConstants.REQUEST.DISPATCH_SUCCESS, {
-                requestId: request.id,
-                driverCount: 1,
-                driverId: bestMatch.driverId,
-                score: bestMatch.score,
-                debug: bestMatch.debug,
-                context: 'continuous-matching',
-              });
-
-              // Enqueue delayed timeout job (30s)
-              await this.dispatchTimeoutQueue.add(
-                'dispatch-timeout-job',
-                { requestId: request.id, driverId: bestMatch.driverId },
-                { delay: 30000, jobId: `dispatch-timeout-${request.id}-${bestMatch.driverId}` }
-              );
+              await this.reserveAndDispatchBestDriver(request, scoredCandidates);
             }
           }
         }

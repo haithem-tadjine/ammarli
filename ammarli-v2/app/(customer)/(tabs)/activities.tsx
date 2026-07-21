@@ -10,9 +10,11 @@ import {
   Platform,
   Linking,
   ActivityIndicator,
+  FlatList,
   ScrollView,
   StatusBar,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar, Phone, Star, Truck, X } from 'lucide-react-native';
@@ -201,30 +203,42 @@ export default function MyActivitiesScreen() {
   const [isBottomSheetVisible, setBottomSheetVisible] = useState(false);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<ScheduledOrder | null>(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
-
   const fetchPastOrders = useCustomerStore((s) => s.fetchPastOrders);
   const fetchScheduledOrders = useCustomerStore((s) => s.fetchScheduledOrders);
+  const scheduledOrders = useCustomerStore((s) => s.scheduledOrders);
+  const pastOrders = useCustomerStore((s) => s.pastOrders);
 
   useFocusEffect(
     useCallback(() => {
-      fetchPastOrders();
-      fetchScheduledOrders();
-    }, [fetchPastOrders, fetchScheduledOrders])
+      let isActive = true;
+      const loadData = async () => {
+        if (scheduledOrders.length === 0 && pastOrders.length === 0) {
+          setIsLoading(true);
+        }
+        await Promise.all([fetchPastOrders(), fetchScheduledOrders()]);
+        if (isActive) setIsLoading(false);
+      };
+      loadData();
+      return () => { isActive = false; };
+    }, [fetchPastOrders, fetchScheduledOrders, scheduledOrders.length, pastOrders.length])
   );
 
-  // جلب الطلبات من الحالة العامة للطلبات المجدولة والسابقة
-  const scheduledOrders = useCustomerStore((s) => s.scheduledOrders);
-  const pastOrders = useCustomerStore((s) => s.pastOrders);
   const pastOrdersList = pastOrders.filter(o => o.status === 'delivered' || o.status === 'cancelled');
   const currentPastList = pastOrdersList;
 
   const openOrderDetails = (order: ScheduledOrder) => {
     setSelectedOrderDetails(order);
     setBottomSheetVisible(true);
+  };
+
+  const handleReorder = (order: any) => {
+    console.log('Reordering:', order);
+    Alert.alert('جاري التحويل', 'جاري تحويلك إلى السلة...');
+  };
+
+  const handleRate = () => {
+    console.warn('TODO: Connect rating logic');
+    Alert.alert('قريباً', 'ميزة التقييم قيد التطوير');
   };
 
   return (
@@ -259,75 +273,80 @@ export default function MyActivitiesScreen() {
 
         {/* Content Scroll View 
              paddingBottom = ارتفاع الـ TabBar الفعلي + MIN_BOTTOM_INSET للحماية + 20 كفراغ إضافي */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_INSET) + 20 }]}>
-          {isLoading ? (
+        {isLoading ? (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_INSET) + 20 }]}>
             <SkeletonList type="card" count={3} />
-          ) : activeTab === 'upcoming' ? (
-            scheduledOrders.length === 0 ? (
-              <EmptyActivities onPress={() => router.replace('/(customer)/(tabs)')} />
-            ) : (
-              scheduledOrders.map(order => (
-                <ScheduledOrderCard
-                  key={order.id}
-                  status={order.status}
-                  orderData={order}
-                  onCardPress={() => openOrderDetails(order)}
+          </ScrollView>
+        ) : (
+          <FlatList
+            data={activeTab === 'upcoming' ? (scheduledOrders as any[]) : (currentPastList as any[])}
+            keyExtractor={(item: any) => item.id ? item.id.toString() : Math.random().toString()}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_INSET) + 20 }]}
+            ListEmptyComponent={
+              activeTab === 'upcoming' ? (
+                <EmptyActivities onPress={() => router.replace('/(customer)/(tabs)')} />
+              ) : (
+                <EmptyActivities 
+                  onPress={() => router.replace('/(customer)/(tabs)')} 
+                  title="لا توجد طلبات سابقة" 
+                  subtitle="اطلب مياهك الآن لكي يظهر سجلك هنا"
                 />
-              ))
-            )
-          ) : (
-            // عرض الطلبات السابقة
-            currentPastList.length === 0 ? (
-              <EmptyActivities 
-                onPress={() => router.replace('/(customer)/(tabs)')} 
-                title="لا توجد طلبات سابقة" 
-                subtitle="اطلب مياهك الآن لكي يظهر سجلك هنا"
-              />
-            ) : (
-            currentPastList.map((order: any) => {
-              const isCancelled = order.status === 'cancelled';
-
-              return (
-                <View key={order.id} style={[styles.oldOrderCard, isCancelled && { borderColor: '#FCA5A5', borderWidth: 1 }]}>
-                  <View style={styles.cardMainRow}>
-                    <View style={styles.orderInfo}>
-                      <Text style={[styles.orderTitle, isCancelled && { color: '#EF4444' }]} numberOfLines={2}>
-                        {isCancelled ? 'طلب ملغى' : (order.orderSummary || order.items || 'طلب مياه')}
-                      </Text>
-                      <Text style={styles.orderTime}>{order.time || order.orderTime || '10:00 ص'}</Text>
-                      {isCancelled && order.cancelReason ? (
-                        <Text style={[styles.orderPrice, { color: '#EF4444', fontSize: 14, marginTop: 4 }]}>السبب: {order.cancelReason}</Text>
-                      ) : (
-                        <Text style={styles.orderPrice}>{order.price ? `${order.price} د.ج` : 'لم يتم التحديد بعد'}</Text>
-                      )}
-                    </View>
-                    <View style={styles.iconContainerBox}>
-                      <View style={[styles.iconGlow, isCancelled && { backgroundColor: '#FEF2F2', elevation: 0, borderWidth: 1, borderColor: '#FCA5A5' }]}>
-                        {isCancelled ? (
-                          <X color="#EF4444" size={24} strokeWidth={2.5} />
+              )
+            }
+            renderItem={({ item }: { item: any }) => {
+              if (activeTab === 'upcoming') {
+                return (
+                  <ScheduledOrderCard
+                    status={item.status}
+                    orderData={item}
+                    onCardPress={() => openOrderDetails(item)}
+                  />
+                );
+              } else {
+                const isCancelled = item.status === 'cancelled';
+                const orderSummaryText = item.waterType ? `مياه ${item.waterType}` : (item.items && item.items.length > 0 ? `${item.items.length} منتجات` : 'طلب مياه');
+                return (
+                  <View style={[styles.oldOrderCard, isCancelled && { borderColor: '#FCA5A5', borderWidth: 1 }]}>
+                    <View style={styles.cardMainRow}>
+                      <View style={styles.orderInfo}>
+                        <Text style={[styles.orderTitle, isCancelled && { color: '#EF4444' }]} numberOfLines={2}>
+                          {isCancelled ? 'طلب ملغى' : orderSummaryText}
+                        </Text>
+                        <Text style={styles.orderTime}>{item.orderTime || item.time || '10:00 ص'}</Text>
+                        {isCancelled && item.cancelReason ? (
+                          <Text style={[styles.orderPrice, { color: '#EF4444', fontSize: 14, marginTop: 4 }]}>السبب: {item.cancelReason}</Text>
                         ) : (
-                          <Truck color="#FFF" size={24} strokeWidth={2.5} />
+                          <Text style={styles.orderPrice}>{item.price ? `${item.price} د.ج` : 'لم يتم التحديد بعد'}</Text>
                         )}
                       </View>
+                      <View style={styles.iconContainerBox}>
+                        <View style={[styles.iconGlow, isCancelled && { backgroundColor: '#FEF2F2', elevation: 0, borderWidth: 1, borderColor: '#FCA5A5' }]}>
+                          {isCancelled ? (
+                            <X color="#EF4444" size={24} strokeWidth={2.5} />
+                          ) : (
+                            <Truck color="#FFF" size={24} strokeWidth={2.5} />
+                          )}
+                        </View>
+                      </View>
                     </View>
-                  </View>
 
-                  {!isCancelled && (
-                    <View style={styles.cardActions}>
-                      <TouchableOpacity style={styles.rateButton}>
-                        <Text style={styles.rateButtonText}>تقييم</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.reorderButton}>
-                        <Text style={styles.reorderButtonText}>إعادة طلب</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              );
-            })
-            )
-          )}
-        </ScrollView>
+                    {!isCancelled && (
+                      <View style={styles.cardActions}>
+                        <TouchableOpacity style={styles.rateButton} onPress={handleRate}>
+                          <Text style={styles.rateButtonText}>تقييم</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.reorderButton} onPress={() => handleReorder(item)}>
+                          <Text style={styles.reorderButtonText}>إعادة طلب</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                );
+              }
+            }}
+          />
+        )}
 
       {/* Bottom Sheet Modal */}
       <Modal

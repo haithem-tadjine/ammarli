@@ -77,7 +77,7 @@ export class DriverController {
   async findNearby(
     @Query('lat') lat: number,
     @Query('lng') lng: number,
-    @Query('radius') radius = 5,
+    @Query('radius') radius = 15,
   ) {
     // We need to inject TrackingService properly.
     // DriverModule imports TrackingModule?

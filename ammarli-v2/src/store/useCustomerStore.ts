@@ -74,6 +74,16 @@ export interface Notification {
   isRead: boolean;
 }
 
+export interface PromoOffer {
+  id: string | number;
+  title: string;
+  description?: string;
+  subtitle?: string;
+  icon?: string;
+  discountPercent?: number;
+  expiresAt?: string;
+}
+
 export interface DraftOrder {
   bottledWaterCart: Record<string, { small: number; medium: number; large: number }>;
   tankerDetails: {
@@ -93,7 +103,9 @@ interface CustomerState {
   scheduledOrders: ScheduledOrder[];
   draftOrder: DraftOrder;
   favorites: Order[];
-  promos: any[];
+  promos: PromoOffer[];
+  isLoadingPromos: boolean;
+  promosError: string | null;
   notifications: Notification[];
   userLocation: { latitude: number; longitude: number; address?: string } | null;
   driverLocation: { latitude: number; longitude: number } | null;
@@ -128,6 +140,7 @@ interface CustomerState {
   fetchPromos: () => Promise<void>;
   handleSocketOrderUpdate: (payload: any) => void;
   clearActiveOrderStore: () => void;
+  clearStore: () => void;
 }
 
 const INITIAL_DRAFT: DraftOrder = {
@@ -147,6 +160,8 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
   draftOrder: INITIAL_DRAFT,
   favorites: [],
   promos: [],
+  isLoadingPromos: false,
+  promosError: null,
   userLocation: null,
   driverLocation: null,
   notifications: [],
@@ -157,6 +172,19 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
   setDriverLocation: (location) => set({ driverLocation: location }),
   
   clearActiveOrderStore: () => set({ activeOrder: null }),
+  clearStore: () => set({
+    activeOrder: null,
+    pastOrders: [],
+    scheduledOrders: [],
+    draftOrder: INITIAL_DRAFT,
+    favorites: [],
+    promos: [],
+    isLoadingPromos: false,
+    promosError: null,
+    userLocation: null,
+    driverLocation: null,
+    notifications: [],
+  }),
 
   fetchActiveOrder: async () => {
     try {
@@ -281,13 +309,20 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
   },
   
   fetchPromos: async () => {
+    set({ isLoadingPromos: true, promosError: null });
     try {
       const { data } = await api.get('/promos');
       if (data) {
-        set({ promos: data });
+        set({ promos: data, isLoadingPromos: false });
+      } else {
+        set({ isLoadingPromos: false });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.log('Failed to fetch promos:', e);
+      set({ 
+        isLoadingPromos: false, 
+        promosError: e.response?.data?.message || 'فشل في جلب العروض' 
+      });
     }
   },
   

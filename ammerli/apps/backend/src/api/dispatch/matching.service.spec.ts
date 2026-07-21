@@ -17,6 +17,7 @@ describe('MatchingService', () => {
     };
     const loggerMock = {
       setContext: jest.fn(),
+      debug: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -78,13 +79,17 @@ describe('MatchingService', () => {
       console.log('D1 Score:', d1?.score);
       console.log('D2 Score:', d2?.score);
 
-      // In this specific weighted setup:
-      // W_DIST=0.4, W_IDLE=0.3, W_BAL=0.2
-      // d1 dist=1/5 -> 4/5 score. Idle=small. Bal=0.
-      // d2 dist=5/5 -> 0 score. Idle=big. Bal=1.
-      // D2 should win if weights favor fairness.
+      // In this weighted setup:
+      // W_DIST=0.7, W_IDLE=0.3
+      // d1: dist=1km -> nDist=0.8 (close). Idle=1min -> nIdle≈0.017 (just worked)
+      //     score = 0.7*0.8 + 0.3*0.017 ≈ 0.565
+      // d2: dist=5km -> nDist=0.0 (far). Idle=1hr -> nIdle=1.0 (starving)
+      //     score = 0.7*0.0 + 0.3*1.0 = 0.300
+      // d1 wins because proximity (70% weight) outweighs idle fairness (30%).
+      // This is the correct behavior: close drivers are preferred, but idle
+      // drivers get a meaningful boost that can tip the balance when distances are similar.
 
-      expect(result[0].driverId).toBe('d2');
+      expect(result[0].driverId).toBe('d1');
     });
 
     it('should filter out BUSY drivers', async () => {

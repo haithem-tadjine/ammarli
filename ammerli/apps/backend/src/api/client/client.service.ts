@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 
 import { CursorPaginationDto } from '@/common/dto/cursor-pagination/cursor-pagination.dto';
 import { CursorPaginatedDto } from '@/common/dto/cursor-pagination/paginated.dto';
@@ -26,11 +26,12 @@ export class ClientService {
     private readonly ClientRepository: Repository<ClientEntity>,
   ) {}
 
-  async createProfile(user: UserEntity): Promise<ClientEntity> {
-    const client = this.ClientRepository.create({
+  async createProfile(user: UserEntity, manager?: EntityManager): Promise<ClientEntity> {
+    const repo = manager ? manager.getRepository(ClientEntity) : this.ClientRepository;
+    const client = repo.create({
       user,
     });
-    return await this.ClientRepository.save(client);
+    return await repo.save(client);
   }
 
   async findAll(
@@ -90,6 +91,14 @@ export class ClientService {
 
   async findOne(id: Uuid): Promise<ClientResDto> {
     const Client = await this.ClientRepository.findOneOrFail({ where: { id } });
+    return Client.toDto(ClientResDto);
+  }
+
+  async findByUserId(userId: Uuid): Promise<ClientResDto> {
+    const Client = await this.ClientRepository.findOneOrFail({
+      where: { user: { id: userId } },
+      relations: ['user'],
+    });
     return Client.toDto(ClientResDto);
   }
 

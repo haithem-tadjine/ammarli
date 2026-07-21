@@ -164,9 +164,25 @@ export class TrackingGateway
 
     // Forward to Driver (if needed for cancellations)
     let targetDriverUserId = msg.driver?.user?.id || msg.driver?.userId;
-    const targetDriverPk = driverId;
+    let targetDriverPk = driverId || msg.offeredDriverId;
 
-    // Fallback: If AMQP payload lost the driver user relation during caching, fetch it
+    // Fallback 1: Attempt to fetch from Redis if unknown
+    if (!targetDriverUserId && msg.id) {
+      try {
+        const cachedRequest = await this.requestService.getRequestFromCache(msg.id);
+        if (cachedRequest) {
+          targetDriverUserId = targetDriverUserId || cachedRequest.driver?.user?.id || (cachedRequest.driver as any)?.userId;
+          targetDriverPk = targetDriverPk || cachedRequest.driverId || cachedRequest.offeredDriverId;
+          if (targetDriverUserId) {
+            this.logger.log(`[Cancel Event] Recovered driver user ID from Redis cache: ${targetDriverUserId}`);
+          }
+        }
+      } catch (e) {
+        this.logger.warn(`[Cancel Event] Failed to read from Redis cache for Request ${msg.id}: ${e.message}`);
+      }
+    }
+
+    // Fallback 2: If AMQP payload or Redis lost the driver user relation, fetch from DB
     if (!targetDriverUserId && targetDriverPk) {
       try {
         const driver = await this.driverService.findOne(targetDriverPk as any);
@@ -198,9 +214,7 @@ export class TrackingGateway
           this.server.to(`driver_${targetDriverPk}`).emit(dEvent, msg);
         }
       } else {
-        // Broadcast to all to ensure searching drivers receive the cancel event
-        this.logger.log(`📡 Broadcast ${dEvent} globally (no driver IDs found)`);
-        this.server.emit(dEvent, msg);
+        this.logger.warn(`[Cancel Event] Aborted ${dEvent} for Request ${msg.id}: No target driver ID could be resolved. Global broadcast prevented to protect privacy and performance.`);
       }
     }
   }
