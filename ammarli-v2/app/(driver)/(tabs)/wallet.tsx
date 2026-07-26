@@ -29,7 +29,8 @@ const DriverEarningsScreen = () => {
   const totalEarnings = useDriverStore(state => state.totalEarnings);
   const completedTrips = useDriverStore(state => state.completedTrips);
   const driverRating = useDriverStore(state => state.driverRating);
-  const appCommission = useDriverStore(state => state.appCommission);
+  const appCommissionDebt = useDriverStore(state => state.appCommissionDebt);
+  const isSuspended = useDriverStore(state => state.isSuspended);
   const weeklyStats = useDriverStore(state => state.weeklyStats);
   const transactions = useDriverStore(state => state.transactions);
 
@@ -74,17 +75,10 @@ const DriverEarningsScreen = () => {
         {/* بطاقة الرصيد الكبيرة */}
         <View style={styles.balanceCard}>
            <View style={styles.balanceInfo}>
-              <Text style={styles.balanceLabel}>الرصيد الحالي</Text>
-              <Text style={styles.balanceValue}>{walletBalance.toLocaleString('ar-DZ')} <Text style={styles.currency}>د.ج</Text></Text>
+              <Text style={styles.balanceLabel}>الرصيد الحالي (الأرباح)</Text>
+              <Text style={styles.balanceValue}>{(walletBalance || 0).toLocaleString('ar-DZ')} <Text style={styles.currency}>د.ج</Text></Text>
            </View>
-           <TouchableOpacity 
-             style={styles.withdrawBtn} 
-             activeOpacity={0.8}
-             onPress={handleWithdraw}
-           >
-              <MaterialCommunityIcons name="wallet-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.withdrawText}>سحب الأرباح</Text>
-           </TouchableOpacity>
+           {/* If we want to hide withdraw button or keep it, for now keep it */}
         </View>
 
         {/* الإحصائيات السريعة */}
@@ -94,17 +88,19 @@ const DriverEarningsScreen = () => {
         </View>
 
         {/* بطاقة عمولة التطبيق (المديونية) */}
-        <View style={styles.debtCard}>
-           <View style={styles.debtIconBox}>
-              <MaterialCommunityIcons name="receipt" size={24} color={COLORS.danger} />
+        <View style={[styles.debtCard, isSuspended && styles.suspendedCard]}>
+           <View style={[styles.debtIconBox, isSuspended && { backgroundColor: '#FEE2E2' }]}>
+              <MaterialCommunityIcons name={isSuspended ? "alert-circle" : "receipt"} size={24} color={COLORS.danger} />
            </View>
            <View style={styles.debtInfo}>
-              <Text style={styles.debtLabel}>عمولة التطبيق</Text>
+              <Text style={[styles.debtLabel, isSuspended && { color: COLORS.danger }]}>عمولة التطبيق</Text>
               <Text style={styles.debtSubLabel}>المبالغ المستحقة للبرنامج</Text>
            </View>
            <View style={styles.debtAmountContainer}>
-              <Text style={styles.debtValue}>{appCommission.toLocaleString('ar-DZ')} د.ج</Text>
-              <Text style={styles.debtStatus}>• مستحق الدفع</Text>
+              <Text style={styles.debtValue}>{(appCommissionDebt || 0).toLocaleString('ar-DZ')} د.ج</Text>
+              <Text style={styles.debtStatus}>
+                 {isSuspended ? '• تم الإيقاف (يرجى التسديد)' : '• مستحق الدفع'}
+              </Text>
            </View>
         </View>
 
@@ -189,6 +185,7 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textSecondary },
   statValue: { fontSize: 20, fontWeight: '900', color: COLORS.primary },
   debtCard: { backgroundColor: COLORS.white, borderRadius: 22, padding: 18, flexDirection: 'row', alignItems: 'center', marginTop: 20, borderWidth: 1, borderColor: '#FEE2E2' },
+  suspendedCard: { backgroundColor: '#FEF2F2', borderColor: COLORS.danger, borderWidth: 2 },
   debtIconBox: { width: 50, height: 50, borderRadius: 15, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   debtInfo: { flex: 1, alignItems: 'flex-start' },
   debtLabel: { fontSize: 17, fontWeight: '900', color: COLORS.primary },

@@ -42,4 +42,8 @@ export class DriverResDto {
 
   @Expose()
   inventory: Record<string, any>;
+
+  @NumberFieldOptional()
+  @Expose()
+  defaultPrice?: number;
 }

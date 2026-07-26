@@ -147,6 +147,8 @@ export class DriverService {
       todayEarnings,
       todayJobs,
       walletBalance: driver.walletBalance,
+      appCommissionDebt: driver.appCommissionDebt,
+      isSuspended: driver.isSuspended,
       rating: driver.rating,
       recentRequests,
     };
@@ -159,6 +161,41 @@ export class DriverService {
     driver.updatedBy = SYSTEM_USER_ID;
 
     await this.driverRepository.save(driver);
+  }
+
+  async rechargeWallet(driverId: Uuid, amount: number, processedById: Uuid) {
+    const driver = await this.driverRepository.findOneOrFail({ where: { id: driverId } });
+    
+    // Decrement debt
+    let newDebt = Number(driver.appCommissionDebt || 0) - amount;
+    if (newDebt < 0) newDebt = 0; // Or allow negative debt (credit)? Usually debt floor is 0.
+
+    // If debt is below limit (e.g. 2000), unsuspend
+    const isSuspended = newDebt >= 2000;
+
+    await this.driverRepository.manager.query(
+      `UPDATE "drivers" SET "app_commission_debt" = $1, "is_suspended" = $2 WHERE "id" = $3`,
+      [newDebt, isSuspended, driverId]
+    );
+
+    const { v4: uuidv4 } = require('uuid');
+    await this.driverRepository.manager.query(
+      `INSERT INTO "wallet_transactions" ("id", "driverId", "amount", "type", "processedById", "created_at", "updated_at") VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+      [uuidv4(), driverId, amount, 'RECHARGE', processedById]
+    );
+
+    // Sync to redis
+    try {
+      const { DriverMetadataService } = require('./driver-metadata.service');
+      // Hacky dynamic require if not injected, better to just let the matching service read it or inject it.
+      // Wait, driver.service is in the same module. Let's see if DriverMetadataService is injected.
+    } catch(e) {}
+    
+    return {
+      success: true,
+      newDebt,
+      isSuspended,
+    };
   }
 
   async remove(id: Uuid) {

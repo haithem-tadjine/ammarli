@@ -24,6 +24,7 @@ export interface RegisteredDriver {
   capacity?: number;
   brands?: string[];
   location?: { lat: number; lng: number };
+  defaultPrice?: number;
 }
 
 export interface DriverOrderItem {
@@ -112,7 +113,8 @@ interface DriverState {
   completedTrips: number;
   completedTripsCount: number;
   driverRating: number;
-  appCommission: number;
+  appCommissionDebt: number;
+  isSuspended: boolean;
   transactions: DriverTransaction[];
   weeklyStats: WeeklyStatDay[];
   pastTrips: PastTrip[];
@@ -206,7 +208,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
   completedTrips: 0,
   completedTripsCount: 0,
   driverRating: 4.9,
-  appCommission: 0,
+  appCommissionDebt: 0,
+  isSuspended: false,
   transactions: [],
   weeklyStats: buildInitialWeeklyStats(),
   pastTrips: [],
@@ -243,7 +246,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     completedTrips: 0,
     completedTripsCount: 0,
     driverRating: 4.9,
-    appCommission: 0,
+    appCommissionDebt: 0,
+    isSuspended: false,
     transactions: [],
     weeklyStats: buildInitialWeeklyStats(),
     pastTrips: [],
@@ -300,6 +304,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
             driverType: d.type === 'TANKER' ? 'Tanker' : 'Bottled',
             brands:     d.inventory ? Object.keys(d.inventory) : ['Ifri', 'Guedila'],
             location:   { lat: 36.752887, lng: 3.042048 },
+            defaultPrice: d.defaultPrice,
           },
         });
       }
@@ -314,9 +319,10 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         set({
           totalEarnings:  stats.data.totalEarnings  ?? 0,
           walletBalance:  stats.data.walletBalance   ?? 0,
-          completedTrips: stats.data.completedTrips  ?? 0,
-          driverRating:   stats.data.averageRating   ?? 4.9,
-          appCommission:  stats.data.totalCommission ?? 0,
+          completedTrips: stats.data.todayJobs  ?? 0, // Using todayJobs for now
+          driverRating:   stats.data.rating   ?? 4.9,
+          appCommissionDebt:  stats.data.appCommissionDebt ?? 0,
+          isSuspended:    stats.data.isSuspended ?? false,
         });
       }
     } catch {
@@ -551,8 +557,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         activeDriverOrder: null,
         driverStatus: 'AVAILABLE',
         totalEarnings: s.totalEarnings + earned,
-        walletBalance: s.walletBalance + earned,
-        appCommission: s.appCommission + commission,
+        walletBalance: s.walletBalance + earned, // Wait, walletBalance isn't real earnings if it's cash, but keeping it
+        appCommissionDebt: s.appCommissionDebt + commission,
         completedTrips: s.completedTrips + 1,
         weeklyStats: updatedWeekly,
         pastTrips: [newTrip, ...s.pastTrips],

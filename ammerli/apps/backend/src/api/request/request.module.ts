@@ -13,6 +13,7 @@ import { RequestEntity } from './entities/request.entity';
 import { UserModule } from '../user/user.module';
 import { DriverModule } from '../driver/driver.module';
 import { DispatchModule } from '../dispatch/dispatch.module';
+import { GeocodingModule } from '@/libs/geocoding/geocoding.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { DispatchModule } from '../dispatch/dispatch.module';
     forwardRef(() => TrackingModule),
     forwardRef(() => DriverModule),
     forwardRef(() => DispatchModule),
+    GeocodingModule,
   ],
   controllers: [RequestController],
   providers: [RequestService, RequestCacheRepository],

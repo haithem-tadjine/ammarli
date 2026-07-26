@@ -29,6 +29,7 @@ import { RequestEntity } from './entities/request.entity';
 
 import { DriverMetadataService } from '../driver/driver-metadata.service';
 import { UserService } from '../user/user.service';
+import { GeocodingService } from '@/libs/geocoding/geocoding.service';
 
 /**
  * Service managing the lifecycle of customer requests.
@@ -48,6 +49,7 @@ export class RequestService {
     private readonly logger: AppLogger,
     private readonly userService: UserService,
     private readonly driverMetadataService: DriverMetadataService,
+    private readonly geocodingService: GeocodingService,
     private readonly dataSource: DataSource,
   ) {
     this.logger.setContext(RequestService.name);
@@ -268,6 +270,17 @@ export class RequestService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    let wilaya = 'Unknown Wilaya';
+    let commune = 'Unknown Commune';
+
+    if (request.pickupLat && request.pickupLng) {
+      const geoResult = await this.geocodingService.reverseGeocode(request.pickupLat, request.pickupLng);
+      if (geoResult) {
+        wilaya = geoResult.wilaya;
+        commune = geoResult.commune;
+      }
+    }
+
     try {
       const requestEntity = this.requestRepo.create({
         id: request.id as Uuid,
@@ -288,6 +301,8 @@ export class RequestService {
         deliveryFee: request.deliveryFee,
         totalPrice: request.totalPrice,
         productId: request.productId ? (request.productId as Uuid) : null,
+        wilaya,
+        commune,
       });
 
       await queryRunner.manager.save(requestEntity);
@@ -300,10 +315,58 @@ export class RequestService {
 
         if (request.driverId) {
           const finalPrice = request.totalPrice || 0;
-          await queryRunner.manager.query(
-            `UPDATE "drivers" SET "totalJobs" = "totalJobs" + 1, "totalEarnings" = "totalEarnings" + $1 WHERE "id" = $2 OR "user_id" = $2`,
-            [finalPrice, request.driverId]
-          );
+          
+          const driver = await queryRunner.manager.findOne('DriverEntity', {
+            where: [{ id: request.driverId }, { user: { id: request.driverId } }],
+            relations: ['user']
+          }) as any;
+
+          if (driver) {
+            let commission = 0;
+            const reqTypeStr = String(request.type).toUpperCase();
+            
+            if (reqTypeStr === 'BOTTLED') {
+              commission = (request.quantity || 1) * 3;
+            } else if (reqTypeStr === 'TANKER') {
+              const volume = request.tankerDetails?.volume || request.quantity || 0;
+              const waterType = (request.tankerDetails?.waterType || driver.waterType || '').toLowerCase();
+              
+              if (waterType === 'spring' || waterType === 'مياه ينابيع') {
+                commission = volume * 0.3;
+              } else if (waterType === 'well' || waterType === 'مياه آبار') {
+                commission = Math.ceil(volume / 1500) * 50;
+              } else {
+                // Default fallback if type is unknown
+                commission = Math.ceil(volume / 1500) * 50; 
+              }
+            }
+
+            const newDebt = Number(driver.appCommissionDebt || 0) + commission;
+            const isSuspended = newDebt >= 2000;
+
+            await queryRunner.manager.query(
+              `UPDATE "drivers" SET "totalJobs" = "totalJobs" + 1, "totalEarnings" = "totalEarnings" + $1, "app_commission_debt" = $2, "is_suspended" = $3 WHERE "id" = $4 OR "user_id" = $4`,
+              [finalPrice, newDebt, isSuspended, request.driverId]
+            );
+
+            if (commission > 0) {
+              const { v4: uuidv4 } = require('uuid');
+              await queryRunner.manager.query(
+                `INSERT INTO "wallet_transactions" ("id", "driverId", "amount", "type", "requestId", "created_at", "updated_at") VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+                [uuidv4(), driver.id, commission, 'COMMISSION', request.id]
+              );
+            }
+            
+            // Sync to Redis Metadata so Radar knows instantly
+            try {
+              const targetMetadataId = request.driver?.user?.id || request.driverId;
+              await this.driverMetadataService.updateMetadata(targetMetadataId as string, {
+                isSuspended: isSuspended,
+              });
+            } catch (error: any) {
+              this.logger.error(`Failed to sync isSuspended to metadata: ${error.message}`);
+            }
+          }
         }
       }
 

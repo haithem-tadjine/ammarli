@@ -1,10 +1,15 @@
 import { UpdateUserReqDto } from '@/api/user/dto/update-user.req.dto';
-import { EnumField } from '@/decorators/field.decorators';
+import { EnumFieldOptional, NumberFieldOptional } from '@/decorators/field.decorators';
 import { DriverTypeEnum } from '../enums/driver-type.enum';
 
 export class UpdateDriverReqDto extends UpdateUserReqDto {
-  @EnumField(() => DriverTypeEnum, {
+  @EnumFieldOptional(() => DriverTypeEnum, {
     description: 'Type of the driver',
   })
-  type: DriverTypeEnum;
+  type?: DriverTypeEnum;
+
+  @NumberFieldOptional({
+    description: 'Default price for fast accept feature',
+  })
+  defaultPrice?: number;
 }

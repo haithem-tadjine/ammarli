@@ -103,6 +103,14 @@ const DriverProfileScreen = () => {
             subLabel="السمة، الإشعارات، اللغة" 
             onPress={() => router.push('/(driver)/settings/app-settings' as any)}
           />
+          {((registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType === 'spring') || registeredDriver?.driverType === 'Bottled') && (
+            <MenuItem 
+              icon="cash-fast" 
+              label="التسعير السريع (Fast Accept)" 
+              subLabel="تحديد الأسعار الافتراضية لقبول الطلبات المباشر" 
+              onPress={() => router.push('/(driver)/settings/pricing' as any)}
+            />
+          )}
           <MenuItem 
             icon="help-circle-outline" 
             label="المساعدة والدعم" 

@@ -13,6 +13,7 @@ export interface DriverMetadata {
   rating: number;
   lat?: number;
   lng?: number;
+  isSuspended?: boolean;
 }
 
 @Injectable()
@@ -34,7 +35,9 @@ export class DriverMetadataService {
     // Convert all values to strings/numbers safe for Redis
     const payload: Record<string, string | number> = {};
     Object.entries(data).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) payload[k] = v;
+      if (v !== undefined && v !== null) {
+        payload[k] = typeof v === 'boolean' ? (v ? 'true' : 'false') : (v as string | number);
+      }
     });
 
     await this.redisLibsService.hset(
@@ -62,6 +65,7 @@ export class DriverMetadataService {
       rating: parseFloat(data.rating || '5.0'),
       lat: data.lat ? parseFloat(data.lat) : undefined,
       lng: data.lng ? parseFloat(data.lng) : undefined,
+      isSuspended: data.isSuspended === 'true',
     };
   }
 

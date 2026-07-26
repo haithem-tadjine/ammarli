@@ -274,6 +274,8 @@ export default function DriverDashboardScreen() {
   const setDriverBusy    = useDriverStore(s => s.setDriverBusy);
   const refuseDriverOrder = useDriverStore(s => s.refuseDriverOrder);
   const markOrderAsCompleted = useDriverStore(s => s.markOrderAsCompleted);
+  const isSuspended      = useDriverStore(s => s.isSuspended);
+  const appCommissionDebt = useDriverStore(s => s.appCommissionDebt);
 
   // اسم السائق: يأخذ اولا من بيانات السائق (بعد جلب البروفايل) ثم من auth store
   const authProfile    = useAuthStore(s => s.userProfile);
@@ -389,7 +391,11 @@ export default function DriverDashboardScreen() {
       image: null
     })) || [];
 
-    const params = {
+    const isSpringTanker = registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType === 'spring';
+    const isBottled = registeredDriver?.driverType === 'Bottled';
+    const hasDefaultPrice = registeredDriver?.defaultPrice !== undefined && registeredDriver?.defaultPrice > 0;
+
+    const params: any = {
       customerName: currentOffer?.customer?.name || 'الزبون',
       customerPhone: currentOffer?.customer?.phone || '',
       customerLat: currentOffer?.deliveryAddress?.lat?.toString() || '',
@@ -404,6 +410,26 @@ export default function DriverDashboardScreen() {
       items: JSON.stringify(orderItems),
     };
     useDriverStore.getState().setDriverStatus('BUSY');
+
+    if ((isSpringTanker || isBottled) && hasDefaultPrice) {
+      let calculatedTotal = 0;
+      if (isSpringTanker) {
+        const requestedLiters = parseFloat(params.capacity) || 1000;
+        calculatedTotal = (requestedLiters / 20) * registeredDriver.defaultPrice!;
+      } else if (isBottled) {
+        calculatedTotal = orderItems.reduce((sum: number, item: any) => sum + (item.qty * registeredDriver.defaultPrice!), 0);
+      }
+      
+      if (calculatedTotal > 0) {
+        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal);
+        params.price = calculatedTotal.toString();
+        router.push({
+          pathname: '/(driver)/order-details' as any,
+          params,
+        });
+        return;
+      }
+    }
 
     router.push({
       pathname: '/(driver)/order-acceptance' as any,
@@ -524,7 +550,7 @@ export default function DriverDashboardScreen() {
           </View>
           <View style={[styles.statCardTarget, { backgroundColor: COLORS.primary }]}>
             <Text style={[styles.statLabelTarget, { color: '#FFF' }]}>أرباح اليوم</Text>
-            <Text style={[styles.statValueTarget, { color: '#FFF' }]}>{totalEarnings.toLocaleString('ar-DZ')} د.ج</Text>
+            <Text style={[styles.statValueTarget, { color: '#FFF' }]}>{(totalEarnings || 0).toLocaleString('ar-DZ')} د.ج</Text>
           </View>
         </View>
 
@@ -542,12 +568,25 @@ export default function DriverDashboardScreen() {
             />
           )}
 
+          {isSuspended && (
+            <View style={{ backgroundColor: '#FEF2F2', padding: 12, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#FEE2E2', alignItems: 'center' }}>
+               <MaterialCommunityIcons name="alert-circle" size={24} color={COLORS.danger} style={{ marginBottom: 5 }} />
+               <Text style={{ fontFamily: 'Cairo-Bold', color: COLORS.danger, textAlign: 'center' }}>
+                 تم إيقاف حسابك مؤقتاً لتجاوز ديون العمولة ({(appCommissionDebt || 0).toLocaleString('ar-DZ')} د.ج).
+               </Text>
+               <Text style={{ fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 4 }}>
+                 يرجى تسديد المستحقات للعميل لإعادة تفعيل حسابك واستقبال الطلبات.
+               </Text>
+            </View>
+          )}
+
           <TouchableOpacity 
             activeOpacity={0.8} 
-            onPress={toggleStatus}
+            onPress={isSuspended ? undefined : toggleStatus}
             style={[
               styles.mainActionButtonTarget,
-              isOnline ? styles.buttonOnlineTarget : styles.buttonOfflineTarget
+              isOnline ? styles.buttonOnlineTarget : styles.buttonOfflineTarget,
+              isSuspended && { backgroundColor: '#CBD5E1', opacity: 0.8 }
             ]}
           >
             <Text style={styles.buttonTextTarget}>
@@ -555,7 +594,7 @@ export default function DriverDashboardScreen() {
             </Text>
           </TouchableOpacity>
           
-          {isOnline && <Text style={styles.statusSubtextTarget}>جاري استقبال الطلبات...</Text>}
+          {isOnline && !isSuspended && <Text style={styles.statusSubtextTarget}>جاري استقبال الطلبات...</Text>}
         </View>
 
         {/* لوحة المعلومات مفلترة حسب نوع المياه / فئة السائق */}

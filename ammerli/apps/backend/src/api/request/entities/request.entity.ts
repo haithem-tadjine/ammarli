@@ -113,6 +113,18 @@ export class RequestEntity extends AbstractEntity {
   cancelReason: string;
 
   /**
+   * The Wilaya (State/Province) where the order was delivered.
+   */
+  @Column({ nullable: true })
+  wilaya: string;
+
+  /**
+   * The Commune (City/Municipality) where the order was delivered.
+   */
+  @Column({ nullable: true })
+  commune: string;
+
+  /**
    * FK to the target Product being requested.
    */
   @Column({ type: 'uuid', nullable: true })

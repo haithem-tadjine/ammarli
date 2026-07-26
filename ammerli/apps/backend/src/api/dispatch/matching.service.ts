@@ -92,6 +92,9 @@ export class MatchingService {
 
       if (meta.status !== 'AVAILABLE') continue;
 
+      // Filter out suspended drivers (Debt exceeded max limit)
+      if (meta.isSuspended === true) continue;
+
       // Filter out drivers who have explicitly refused this request
       if (request.refusedDrivers?.includes(id as Uuid)) continue;
 

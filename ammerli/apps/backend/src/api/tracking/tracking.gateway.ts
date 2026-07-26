@@ -147,6 +147,7 @@ export class TrackingGateway
     if (userId) {
       const eventMap: Record<string, string> = {
         ACCEPTED: 'request_accepted',
+        LOCKED: 'request_accepted',
         ARRIVED: 'driver_arrived',
         DELIVERED: 'request_completed',
         CANCELLED: 'request_cancelled',
@@ -158,6 +159,7 @@ export class TrackingGateway
       const eventName = eventMap[status];
       if (eventName) {
         // Broadcast to all instances
+        if (msg.status === 'LOCKED') msg.status = 'ACCEPTED';
         this.server.to(`user_${userId}`).emit(eventName, msg);
       }
     }

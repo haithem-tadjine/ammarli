@@ -10,6 +10,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
 } from '@nestjs/common';
 
@@ -22,6 +23,7 @@ import { DriverResDto } from './dto/driver.res.dto';
 import { ListDriverReqDto } from './dto/list-driver.req.dto';
 import { LoadMoreDriversReqDto } from './dto/load-more-drivers.req.dto';
 import { UpdateDriverReqDto } from './dto/update-driver.req.dto';
+import { RechargeWalletReqDto } from './dto/recharge-wallet.req.dto';
 
 import { TrackingService } from '../tracking/tracking.service';
 
@@ -57,6 +59,19 @@ export class DriverController {
   })
   async getMyProfile(@CurrentUser() user: any): Promise<DriverResDto> {
     return await this.driverService.findByUserId(user.id);
+  }
+
+  @Patch('me')
+  @ApiAuth({
+    type: DriverResDto,
+    summary: 'Update current authenticated driver profile',
+  })
+  async updateMyProfile(
+    @CurrentUser() user: any,
+    @Body() reqDto: UpdateDriverReqDto,
+  ) {
+    const driver = await this.driverService.findByUserId(user.id);
+    return this.driverService.update(driver.id as Uuid, reqDto);
   }
 
   @Get('dashboard')
@@ -120,6 +135,17 @@ export class DriverController {
     @Body() reqDto: UpdateDriverReqDto,
   ) {
     return this.driverService.update(id, reqDto);
+  }
+
+  @Post(':id/recharge')
+  @ApiAuth({ summary: 'Recharge a driver balance (pay debt)' })
+  @ApiParam({ name: 'id', type: 'String' })
+  rechargeWallet(
+    @Param('id', ParseUUIDPipe) id: Uuid,
+    @Body() reqDto: RechargeWalletReqDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.driverService.rechargeWallet(id, reqDto.amount, user.id);
   }
 
   @Delete(':id')

@@ -54,6 +54,15 @@ export class DriverEntity extends AbstractEntity {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalEarnings: number;
 
+  @Column({ name: 'app_commission_debt', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  appCommissionDebt: number;
+
+  @Column({ name: 'is_suspended', type: 'boolean', default: false })
+  isSuspended: boolean;
+
   @Column({ type: 'json', nullable: true })
   inventory: Record<string, any>;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  defaultPrice?: number;
 }
