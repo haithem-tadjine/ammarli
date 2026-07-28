@@ -12,18 +12,29 @@ export class UserSeeder1722335726360 implements Seeder {
   ): Promise<any> {
     const repository = dataSource.getRepository(UserEntity);
 
-    const adminUser = await repository.findOneBy({ phone: '+213675432567' });
-    if (!adminUser) {
-      await repository.insert(
-        new UserEntity({
-          phone: '+213675432567',
-          password: '12345678',
-          bio: "hello, i'm a backend developer",
-          image: 'https://example.com/avatar.png',
-          createdBy: SYSTEM_USER_ID,
-          updatedBy: SYSTEM_USER_ID,
-        }),
-      );
+    const mockUsers = [
+      { phone: '+213555000000', role: 'SUPER_ADMIN', name: 'Super Admin' },
+      { phone: '+213555111111', role: 'WILAYA_MANAGER', name: 'Wilaya Manager' },
+      { phone: '+213555222222', role: 'COMMUNE_MANAGER', name: 'Commune Manager' },
+      { phone: '+213555333333', role: 'AGENT', name: 'Agent (Cashier)' },
+    ];
+
+    for (const u of mockUsers) {
+      const existing = await repository.findOneBy({ phone: u.phone });
+      if (!existing) {
+        await repository.insert(
+          new UserEntity({
+            firstName: u.name,
+            lastName: 'Test',
+            phone: u.phone,
+            password: 'password123',
+            role: u.role as any,
+            bio: `I am a ${u.role}`,
+            createdBy: SYSTEM_USER_ID,
+            updatedBy: SYSTEM_USER_ID,
+          }),
+        );
+      }
     }
 
     const userFactory = factoryManager.get(UserEntity);

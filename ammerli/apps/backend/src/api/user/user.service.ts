@@ -13,6 +13,7 @@ import assert from 'assert';
 import { plainToInstance } from 'class-transformer';
 import { Repository } from 'typeorm';
 import { CreateUserReqDto } from './dto/create-user.req.dto';
+import { CreateManagerReqDto } from './dto/create-manager.req.dto';
 import { ListUserReqDto } from './dto/list-user.req.dto';
 import { LoadMoreUsersReqDto } from './dto/load-more-users.req.dto';
 import { UpdateUserReqDto } from './dto/update-user.req.dto';
@@ -77,6 +78,38 @@ export class UserService {
   }
 
   /**
+   * Creates a new manager in the system (Wilaya Manager, Commune Manager, or Agent).
+   */
+  async createManager(dto: CreateManagerReqDto): Promise<UserResDto> {
+    const { phone, password, role, managedWilaya, managedCommune, firstName, lastName } = dto;
+
+    const user = await this.userRepository.findOne({
+      where: [{ phone }],
+    });
+
+    if (user) {
+      throw new ValidationException(ErrorMessageConstants.USER.PHONE_EXISTS);
+    }
+
+    const newUser = new UserEntity({
+      phone,
+      password,
+      role,
+      firstName,
+      lastName,
+      managedWilaya,
+      managedCommune,
+      createdBy: SYSTEM_USER_ID,
+      updatedBy: SYSTEM_USER_ID,
+    });
+
+    const savedUser = await this.userRepository.save(newUser);
+    this.logger.debug(savedUser);
+
+    return plainToInstance(UserResDto, savedUser);
+  }
+
+  /**
    * Retrieves a paginated list of users using offset-based pagination.
    *
    * @param reqDto - Pagination and filtering parameters
@@ -91,6 +124,10 @@ export class UserService {
     const query = this.userRepository
       .createQueryBuilder('user')
       .orderBy('user.createdAt', 'DESC');
+
+    if (reqDto.role) {
+      query.andWhere('user.role = :role', { role: reqDto.role });
+    }
     const [users, metaDto] = await paginate<UserEntity>(query, reqDto, {
       skipCount: false,
       takeAll: false,
@@ -183,7 +220,22 @@ export class UserService {
    * await userService.remove('uuid');
    */
   async remove(id: Uuid) {
-    await this.userRepository.findOneByOrFail({ id });
-    await this.userRepository.softDelete(id);
+    const user = await this.userRepository.findOneByOrFail({ id });
+    await this.userRepository.softRemove(user);
+  }
+
+  /**
+   * Get basic user statistics
+   */
+  async getUserStats() {
+    const totalUsers = await this.userRepository.count();
+    const customers = await this.userRepository.count({ where: { role: 'CLIENT' as any } });
+    const drivers = await this.userRepository.count({ where: { role: 'DRIVER' as any } });
+
+    return {
+      totalUsers,
+      customers,
+      drivers,
+    };
   }
 }

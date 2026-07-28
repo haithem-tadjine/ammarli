@@ -42,7 +42,7 @@
     nestjs-i18n "^10.6.0"
     nestjs-pino "^4.5.0"
     nodemailer "^7.0.12"
-    pg "^8.16.3"
+    pg "^8.22.0"
     pino-http "^11.0.0"
     pino-pretty "^13.1.3"
     redlock "5.0.0-beta.2"
@@ -1122,6 +1122,11 @@
   version "8.57.1"
   resolved "https://registry.npmjs.org/@eslint/js/-/js-8.57.1.tgz"
   integrity sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==
+
+"@faker-js/faker@^10.5.0":
+  version "10.5.0"
+  resolved "https://registry.npmjs.org/@faker-js/faker/-/faker-10.5.0.tgz"
+  integrity sha512-bsxD8WLS5lIj7aaoCx1YJkktqYj5vlBUE6HWzu2Q51ksrGJ0H737ECCKlFU7Yf8Br45z9t99frBp/J7kzbMPAg==
 
 "@fastify/busboy@^3.0.0":
   version "3.2.0"

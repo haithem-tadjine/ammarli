@@ -113,6 +113,30 @@ export class UserEntity extends AbstractEntity {
   deletedAt: Date;
 
   /**
+   * For WILAYA_MANAGER, the wilaya they manage.
+   */
+  @Column({ nullable: true })
+  managedWilaya?: string;
+
+  /**
+   * For COMMUNE_MANAGER, the commune they manage.
+   */
+  @Column({ nullable: true })
+  managedCommune?: string;
+
+  /**
+   * Manager or Agent's available balance to recharge others.
+   */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  walletBalance: number;
+
+  /**
+   * Current accumulated debt for Drivers or Agents.
+   */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  debt: number;
+
+  /**
    * Active and historical login sessions for this user.
    */
   @OneToMany(() => SessionEntity, (session) => session.user)

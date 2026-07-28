@@ -78,8 +78,13 @@ export class AuthService {
    */
   async signIn(dto: LoginReqDto): Promise<LoginResDto> {
     const { phone, password } = dto;
+    const whereCondition: any = { phone: dto.phone };
+    if (dto.role) {
+      whereCondition.role = dto.role;
+    }
+
     const user = await this.userRepository.findOne({
-      where: { phone: dto.phone, role: dto.role },
+      where: whereCondition,
     });
 
     const isPasswordValid =

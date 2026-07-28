@@ -78,4 +78,11 @@ export class DriverMetadataService {
     const results = await Promise.all(promises);
     return results.filter((r) => r !== null) as DriverMetadata[];
   }
+
+  /**
+   * Update the suspension status of a driver.
+   */
+  async setSuspensionStatus(driverId: string, isSuspended: boolean): Promise<void> {
+    await this.updateMetadata(driverId, { isSuspended });
+  }
 }

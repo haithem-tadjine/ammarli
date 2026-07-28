@@ -14,6 +14,7 @@ import { UserModule } from '../user/user.module';
 import { DriverModule } from '../driver/driver.module';
 import { DispatchModule } from '../dispatch/dispatch.module';
 import { GeocodingModule } from '@/libs/geocoding/geocoding.module';
+import { SettingModule } from '../setting/setting.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { GeocodingModule } from '@/libs/geocoding/geocoding.module';
     forwardRef(() => DriverModule),
     forwardRef(() => DispatchModule),
     GeocodingModule,
+    SettingModule,
   ],
   controllers: [RequestController],
   providers: [RequestService, RequestCacheRepository],

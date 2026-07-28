@@ -1,5 +1,5 @@
 import {
-  EnumField,
+  EnumFieldOptional,
   PasswordField,
   StringField,
 } from '@/decorators/field.decorators';
@@ -35,6 +35,6 @@ export class LoginReqDto {
   /**
    * User Role (CLIENT, DRIVER)
    */
-  @EnumField(() => UserRoleEnum)
-  role!: UserRoleEnum;
+  @EnumFieldOptional(() => UserRoleEnum)
+  role?: UserRoleEnum;
 }

@@ -18,6 +18,8 @@ import { ProductModule } from './product/product.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { WilayaModule } from './wilaya/wilaya.module';
 import { PromoModule } from './promo/promo.module';
+import { WalletModule } from './wallet/wallet.module';
+import { SettingModule } from './setting/setting.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { PromoModule } from './promo/promo.module';
     PricingModule,
     StatisticsModule,
     PromoModule,
+    WalletModule,
+    SettingModule,
   ],
 })
 export class ApiModule {}

@@ -30,6 +30,7 @@ import { RequestEntity } from './entities/request.entity';
 import { DriverMetadataService } from '../driver/driver-metadata.service';
 import { UserService } from '../user/user.service';
 import { GeocodingService } from '@/libs/geocoding/geocoding.service';
+import { SettingService } from '../setting/setting.service';
 
 /**
  * Service managing the lifecycle of customer requests.
@@ -51,6 +52,7 @@ export class RequestService {
     private readonly driverMetadataService: DriverMetadataService,
     private readonly geocodingService: GeocodingService,
     private readonly dataSource: DataSource,
+    private readonly settingService: SettingService,
   ) {
     this.logger.setContext(RequestService.name);
   }
@@ -322,38 +324,50 @@ export class RequestService {
           }) as any;
 
           if (driver) {
+            const settings = await this.settingService.getSettings();
+            
             let commission = 0;
             const reqTypeStr = String(request.type).toUpperCase();
             
             if (reqTypeStr === 'BOTTLED') {
-              commission = (request.quantity || 1) * 3;
+              commission = (request.quantity || 1) * Number(settings.bottledCommission);
             } else if (reqTypeStr === 'TANKER') {
               const volume = request.tankerDetails?.volume || request.quantity || 0;
               const waterType = (request.tankerDetails?.waterType || driver.waterType || '').toLowerCase();
               
               if (waterType === 'spring' || waterType === 'مياه ينابيع') {
-                commission = volume * 0.3;
+                commission = volume * Number(settings.tankerSpringCommission);
               } else if (waterType === 'well' || waterType === 'مياه آبار') {
-                commission = Math.ceil(volume / 1500) * 50;
+                commission = Math.ceil(volume / Number(settings.tankerWellVolumeUnit)) * Number(settings.tankerWellCommission);
               } else {
                 // Default fallback if type is unknown
-                commission = Math.ceil(volume / 1500) * 50; 
+                commission = Math.ceil(volume / Number(settings.tankerWellVolumeUnit)) * Number(settings.tankerWellCommission); 
               }
             }
 
-            const newDebt = Number(driver.appCommissionDebt || 0) + commission;
-            const isSuspended = newDebt >= 2000;
+            let currentBalance = Number(driver.walletBalance || 0);
+            let newDebt = Number(driver.appCommissionDebt || 0);
+
+            if (currentBalance >= commission) {
+              currentBalance -= commission;
+            } else {
+              const remainingCommission = commission - currentBalance;
+              currentBalance = 0;
+              newDebt += remainingCommission;
+            }
+
+            const isSuspended = settings.enableAutoSuspend ? newDebt >= Number(settings.maxDebtAllowed) : false;
 
             await queryRunner.manager.query(
-              `UPDATE "drivers" SET "totalJobs" = "totalJobs" + 1, "totalEarnings" = "totalEarnings" + $1, "app_commission_debt" = $2, "is_suspended" = $3 WHERE "id" = $4 OR "user_id" = $4`,
-              [finalPrice, newDebt, isSuspended, request.driverId]
+              `UPDATE "drivers" SET "totalJobs" = "totalJobs" + 1, "totalEarnings" = "totalEarnings" + $1, "app_commission_debt" = $2, "walletBalance" = $3, "is_suspended" = $4 WHERE "id" = $5 OR "user_id" = $5`,
+              [finalPrice, newDebt, currentBalance, isSuspended, request.driverId]
             );
 
             if (commission > 0) {
               const { v4: uuidv4 } = require('uuid');
               await queryRunner.manager.query(
-                `INSERT INTO "wallet_transactions" ("id", "driverId", "amount", "type", "requestId", "created_at", "updated_at") VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-                [uuidv4(), driver.id, commission, 'COMMISSION', request.id]
+                `INSERT INTO "wallet_transactions" ("id", "receiver_id", "amount", "type", "created_at", "updated_at") VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+                [uuidv4(), driver.user?.id || driver.id, commission, 'COMMISSION']
               );
             }
             

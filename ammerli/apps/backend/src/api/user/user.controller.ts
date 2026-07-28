@@ -18,6 +18,7 @@ import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { ListUserReqDto } from './dto/list-user.req.dto';
 import { LoadMoreUsersReqDto } from './dto/load-more-users.req.dto';
 import { UpdateUserReqDto } from './dto/update-user.req.dto';
+import { CreateManagerReqDto } from './dto/create-manager.req.dto';
 import { UserResDto } from './dto/user.res.dto';
 import { UserService } from './user.service';
 
@@ -90,6 +91,15 @@ export class UserController {
   }
 
   /**
+   * Retrieves basic user statistics (total, clients, drivers)
+   */
+  @Get('stats')
+  @ApiAuth({ summary: 'Get user statistics' })
+  async getStats() {
+    return await this.userService.getUserStats();
+  }
+
+  /**
    * Retrieves a specific user's details by their UUID.
    *
    * @param id - The UUID of the target user
@@ -141,11 +151,20 @@ export class UserController {
    * Initiates the password change process for the current user.
    *
    * @returns A placeholder string for the change-password flow
-   * @todo Implement actual password change logic
+   * @todo Implement actual password change flow
    */
   @ApiAuth()
   @Post('me/change-password')
   async changePassword() {
     return 'change-password';
+  }
+
+  /**
+   * Create a new manager (Super Admin, Wilaya Manager, Commune Manager, or Agent)
+   */
+  @Post('managers')
+  @ApiAuth({ type: UserResDto, summary: 'Create a new manager (Super Admin only in real scenario)' })
+  async createManager(@Body() dto: CreateManagerReqDto): Promise<UserResDto> {
+    return await this.userService.createManager(dto);
   }
 }

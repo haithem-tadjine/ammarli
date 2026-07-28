@@ -19,12 +19,16 @@ import { LoadMoreDriversReqDto } from './dto/load-more-drivers.req.dto';
 import { UpdateDriverReqDto } from './dto/update-driver.req.dto';
 import { DriverEntity } from './entities/driver.entity';
 import { DriverTypeEnum } from './enums/driver-type.enum';
+import { forwardRef, Inject } from '@nestjs/common';
+import { DriverMetadataService } from './driver-metadata.service';
 
 @Injectable()
 export class DriverService {
   constructor(
     @InjectRepository(DriverEntity)
     private readonly driverRepository: Repository<DriverEntity>,
+    @Inject(forwardRef(() => DriverMetadataService))
+    private readonly driverMetadataService: DriverMetadataService,
   ) {}
 
   async createProfile(
@@ -164,32 +168,39 @@ export class DriverService {
   }
 
   async rechargeWallet(driverId: Uuid, amount: number, processedById: Uuid) {
-    const driver = await this.driverRepository.findOneOrFail({ where: { id: driverId } });
+    const driver = await this.driverRepository.findOneOrFail({ where: { id: driverId }, relations: ['user'] });
     
     // Decrement debt
     let newDebt = Number(driver.appCommissionDebt || 0) - amount;
-    if (newDebt < 0) newDebt = 0; // Or allow negative debt (credit)? Usually debt floor is 0.
+    let newWalletBalance = Number(driver.walletBalance || 0);
+
+    if (newDebt < 0) {
+      newWalletBalance += Math.abs(newDebt);
+      newDebt = 0;
+    }
 
     // If debt is below limit (e.g. 2000), unsuspend
     const isSuspended = newDebt >= 2000;
 
     await this.driverRepository.manager.query(
-      `UPDATE "drivers" SET "app_commission_debt" = $1, "is_suspended" = $2 WHERE "id" = $3`,
-      [newDebt, isSuspended, driverId]
+      `UPDATE "drivers" SET "app_commission_debt" = $1, "walletBalance" = $2, "is_suspended" = $3 WHERE "id" = $4`,
+      [newDebt, newWalletBalance, isSuspended, driverId]
     );
 
     const { v4: uuidv4 } = require('uuid');
     await this.driverRepository.manager.query(
-      `INSERT INTO "wallet_transactions" ("id", "driverId", "amount", "type", "processedById", "created_at", "updated_at") VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-      [uuidv4(), driverId, amount, 'RECHARGE', processedById]
+      `INSERT INTO "wallet_transactions" ("id", "receiver_id", "amount", "type", "sender_id", "created_at", "updated_at") VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+      [uuidv4(), driver.user?.id || driverId, amount, 'RECHARGE', processedById]
     );
 
     // Sync to redis
     try {
-      const { DriverMetadataService } = require('./driver-metadata.service');
-      // Hacky dynamic require if not injected, better to just let the matching service read it or inject it.
-      // Wait, driver.service is in the same module. Let's see if DriverMetadataService is injected.
-    } catch(e) {}
+      if (this.driverMetadataService) {
+        await this.driverMetadataService.setSuspensionStatus(driverId, isSuspended);
+      }
+    } catch(e) {
+      console.error('Failed to sync suspension status to Redis:', e);
+    }
     
     return {
       success: true,

@@ -9,12 +9,12 @@ import { StatisticsService } from './statistics.service';
 
 /**
  * Controller for system-wide statistics.
- * Access is restricted to users with the ADMIN role.
+ * Access is restricted to users with the ADMIN, SUPER_ADMIN, and WILAYA_MANAGER roles.
  */
 @ApiTags('Statistics')
 @ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
-@Roles(UserRoleEnum.ADMIN)
+@Roles(UserRoleEnum.ADMIN, UserRoleEnum.SUPER_ADMIN, UserRoleEnum.WILAYA_MANAGER)
 @Controller('v1/statistics')
 export class StatisticsController {
   constructor(private readonly statisticsService: StatisticsService) {}

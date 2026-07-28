@@ -59,6 +59,26 @@ export class UserResDto {
   @Expose()
   image?: string;
 
+  @StringField()
+  @Expose()
+  role: string;
+
+  @StringFieldOptional()
+  @Expose()
+  managedWilaya?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  managedCommune?: string;
+
+  @StringFieldOptional()
+  @Expose()
+  walletBalance?: string | number;
+
+  @StringFieldOptional()
+  @Expose()
+  debt?: string | number;
+
   /**
    * Timestamp when the user account was created.
    */
