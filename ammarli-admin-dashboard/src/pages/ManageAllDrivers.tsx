@@ -39,7 +39,7 @@ export default function ManageAllDrivers() {
         <h2 style={{ margin: 0 }}>تقرير مستخدمي التطبيق</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+      <div className="responsive-grid-equal animate-fade-in" style={{ animationDelay: '0.1s' }}>
         
         <div className="glass-panel text-center" style={{ padding: '40px 24px' }}>
           <div style={{ width: '80px', height: '80px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#3b82f6' }}>

@@ -46,4 +46,7 @@ export class DriverResDto {
   @NumberFieldOptional()
   @Expose()
   defaultPrice?: number;
+
+  @Expose()
+  isSuspended?: boolean;
 }

@@ -8,6 +8,8 @@ import { UserEntity } from '../user/entities/user.entity';
 import { OrderMetricProvider } from './providers/order-metric.provider';
 import { RevenueMetricProvider } from './providers/revenue-metric.provider';
 import { UserMetricProvider } from './providers/user-metric.provider';
+import { ProductMetricProvider } from './providers/product-metric.provider';
+import { CommuneManagersMetricProvider } from './providers/commune-managers-metric.provider';
 import { StatisticsController } from './statistics.controller';
 import { StatisticsService } from './statistics.service';
 
@@ -30,6 +32,8 @@ import { StatisticsService } from './statistics.service';
     UserMetricProvider,
     OrderMetricProvider,
     RevenueMetricProvider,
+    ProductMetricProvider,
+    CommuneManagersMetricProvider,
   ],
   exports: [StatisticsService],
 })

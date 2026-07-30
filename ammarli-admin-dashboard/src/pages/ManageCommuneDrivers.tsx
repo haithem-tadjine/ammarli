@@ -60,41 +60,43 @@ export default function ManageCommuneDrivers() {
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>جاري تحميل البيانات...</div>
         ) : (
-          <table style={{ width: '100%', textAlign: 'right', borderCollapse: 'collapse', marginTop: '16px' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)' }}>
-                <th style={{ padding: '12px' }}>اسم السائق</th>
-                <th style={{ padding: '12px' }}>رقم الهاتف</th>
-                <th style={{ padding: '12px' }}>الديون المتراكمة (DZD)</th>
-                <th style={{ padding: '12px' }}>الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDrivers.length === 0 ? (
-                <tr>
-                  <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    لا يوجد نتائج للبحث
-                  </td>
+          <div className="table-responsive">
+            <table style={{ width: '100%', textAlign: 'right', borderCollapse: 'collapse', marginTop: '16px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '12px' }}>اسم السائق</th>
+                  <th style={{ padding: '12px' }}>رقم الهاتف</th>
+                  <th style={{ padding: '12px' }}>الديون المتراكمة (DZD)</th>
+                  <th style={{ padding: '12px' }}>الإجراءات</th>
                 </tr>
-              ) : (
-                filteredDrivers.map((driver) => (
-                  <tr key={driver.id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'all 0.2s ease' }} className="hover:bg-slate-800/50">
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{driver.name}</td>
-                    <td style={{ padding: '12px' }}>{driver.phone}</td>
-                    <td style={{ padding: '12px', color: driver.debt > 3000 ? '#fca5a5' : 'inherit' }}>
-                      {driver.debt.toLocaleString()} 
-                      {driver.debt > 3000 && <AlertTriangle size={14} style={{ display: 'inline', marginRight: '4px', color: '#ef4444' }} />}
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', background: '#10b981', borderColor: '#10b981' }}>
-                        <Wallet size={14} /> تسديد الدين (شحن)
-                      </button>
+              </thead>
+              <tbody>
+                {filteredDrivers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      لا يوجد نتائج للبحث
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredDrivers.map((driver) => (
+                    <tr key={driver.id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'all 0.2s ease' }} className="hover:bg-slate-800/50">
+                      <td style={{ padding: '12px', fontWeight: 'bold' }}>{driver.name}</td>
+                      <td style={{ padding: '12px' }}>{driver.phone}</td>
+                      <td style={{ padding: '12px', color: driver.debt > 3000 ? '#fca5a5' : 'inherit' }}>
+                        {driver.debt.toLocaleString()} 
+                        {driver.debt > 3000 && <AlertTriangle size={14} style={{ display: 'inline', marginRight: '4px', color: '#ef4444' }} />}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <button className="btn-primary" style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', background: '#10b981', borderColor: '#10b981' }}>
+                          <Wallet size={14} /> تسديد الدين (شحن)
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

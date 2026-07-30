@@ -22,7 +22,7 @@ export class LoginReqDto {
     }
     return value;
   })
-  @IsPhoneNumber('DZ')
+  @IsPhoneNumber()
   @StringField()
   phone!: string;
 

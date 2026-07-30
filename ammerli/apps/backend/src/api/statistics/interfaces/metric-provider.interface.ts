@@ -24,4 +24,5 @@ export interface MetricFilters {
   startDate?: Date;
   endDate?: Date;
   granularity?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  wilaya?: string;
 }

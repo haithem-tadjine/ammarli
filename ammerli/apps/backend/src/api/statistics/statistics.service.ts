@@ -10,6 +10,8 @@ import {
 import { OrderMetricProvider } from './providers/order-metric.provider';
 import { RevenueMetricProvider } from './providers/revenue-metric.provider';
 import { UserMetricProvider } from './providers/user-metric.provider';
+import { ProductMetricProvider } from './providers/product-metric.provider';
+import { CommuneManagersMetricProvider } from './providers/commune-managers-metric.provider';
 
 /**
  * Service orchestrating the computation of various system statistics.
@@ -26,6 +28,8 @@ export class StatisticsService {
     private readonly userProvider: UserMetricProvider,
     private readonly orderProvider: OrderMetricProvider,
     private readonly revenueProvider: RevenueMetricProvider,
+    private readonly productProvider: ProductMetricProvider,
+    private readonly communeManagersProvider: CommuneManagersMetricProvider,
     private readonly redisScriptService: RedisScriptService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {
@@ -33,6 +37,8 @@ export class StatisticsService {
       this.userProvider,
       this.orderProvider,
       this.revenueProvider,
+      this.productProvider,
+      this.communeManagersProvider,
     ];
   }
 
@@ -65,6 +71,7 @@ export class StatisticsService {
       startDate: query.startDate ? new Date(query.startDate) : undefined,
       endDate: query.endDate ? new Date(query.endDate) : undefined,
       granularity: query.granularity,
+      wilaya: query.wilaya,
     };
 
     const results = await Promise.all(
@@ -79,23 +86,8 @@ export class StatisticsService {
     return data;
   }
 
-  /**
-   * Retrieves a specific metric by its provider name.
-   * Leverages caching (1 hour).
-   *
-   * @param name - The name of the metric provider (e.g., 'users', 'revenue').
-   * @param query - Filtering options.
-   * @returns the computed metric for the provider.
-   * @throws {Error} if provider is not found.
-   */
   async getMetricByName(name: string, query: StatisticsQueryDto): Promise<any> {
-    const cacheKey = `${this.CACHE_PREFIX}report:${name}:${JSON.stringify(query)}`;
-    const cachedData = await this.cacheManager.get<any>(cacheKey);
-
-    if (cachedData) {
-      this.logger.debug(`Returning cached report for ${name}: ${cacheKey}`);
-      return cachedData;
-    }
+    this.logger.log(`Generating report for metric: ${name}`);
 
     const provider = this.providers.find((p) => p.name === name);
     if (!provider) {
@@ -106,11 +98,10 @@ export class StatisticsService {
       startDate: query.startDate ? new Date(query.startDate) : undefined,
       endDate: query.endDate ? new Date(query.endDate) : undefined,
       granularity: query.granularity,
+      wilaya: query.wilaya,
     };
 
     const data = await provider.compute(filters);
-
-    await this.cacheManager.set(cacheKey, data, this.CACHE_TTL * 1000);
     return data;
   }
 

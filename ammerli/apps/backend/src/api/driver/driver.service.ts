@@ -196,7 +196,7 @@ export class DriverService {
     // Sync to redis
     try {
       if (this.driverMetadataService) {
-        await this.driverMetadataService.setSuspensionStatus(driverId, isSuspended);
+        await this.driverMetadataService.setSuspensionStatus(driver.user?.id || driverId, isSuspended);
       }
     } catch(e) {
       console.error('Failed to sync suspension status to Redis:', e);

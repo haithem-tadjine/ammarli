@@ -48,7 +48,7 @@ export default function Login() {
   };
 
   return (
-    <div className="w-full flex items-center" style={{ minHeight: '100vh', justifyContent: 'center', background: '#DCEBFC' }}>
+    <div className="w-full flex items-center" style={{ minHeight: '100dvh', justifyContent: 'center', background: '#DCEBFC', padding: 'env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)' }}>
       <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '360px', padding: '40px 32px', textAlign: 'center', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}>
         
         <h1 style={{ color: 'var(--accent-color)', fontSize: '36px', fontWeight: 'bold', margin: '0 0 40px 0', fontFamily: 'serif' }}>

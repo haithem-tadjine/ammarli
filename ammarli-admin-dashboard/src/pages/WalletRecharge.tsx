@@ -106,7 +106,7 @@ export default function WalletRecharge() {
       {/* User Info & Recharge Section */}
       {userData && (
         <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: '16px', borderTop: '4px solid #f6d365' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '24px' }}>
+          <div className="responsive-grid-equal" style={{ alignItems: 'flex-start' }}>
             
             {/* User Details */}
             <div style={{ flex: '1 1 300px' }}>

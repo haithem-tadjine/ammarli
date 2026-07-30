@@ -12,6 +12,7 @@ import ManageAllDrivers from './pages/ManageAllDrivers.tsx';
 import FinancialReports from './pages/FinancialReports.tsx';
 import Settings from './pages/Settings.tsx';
 import WalletRecharge from './pages/WalletRecharge.tsx';
+import ManageCommuneReports from './pages/ManageCommuneReports.tsx';
 import Layout from './components/Layout.tsx';
 import './App.css';
 
@@ -40,6 +41,7 @@ function App() {
             {/* Wilaya Manager Routes */}
             <Route path="/wilaya/communes" element={<ManageCommune />} />
             <Route path="/wilaya/agents" element={<ManageAgents />} />
+            <Route path="/wilaya/commune-reports" element={<ManageCommuneReports />} />
 
 
 

@@ -107,6 +107,16 @@ export class RedisLibsService {
   }
 
   /**
+   * Returns the number of members in a sorted set.
+   *
+   * @param key - Redis key of the sorted set.
+   * @returns Number of members in the set.
+   */
+  async zcard(key: string): Promise<number> {
+    return this.client.zcard(key);
+  }
+
+  /**
    * Checks existence of multiple keys using a pipeline.
    *
    * @param keys - Array of Redis keys to check.

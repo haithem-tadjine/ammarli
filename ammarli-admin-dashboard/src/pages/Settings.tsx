@@ -88,7 +88,7 @@ export default function Settings() {
         </div>
       )}
 
-      <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+      <form onSubmit={handleSave} className="responsive-grid-equal">
         {/* Financial Settings */}
         <div className="glass-panel animate-fade-in" style={{ animationDelay: '0.1s', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>

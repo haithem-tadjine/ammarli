@@ -60,12 +60,14 @@ export class TrackingGateway
 
       let driverType = undefined;
       let waterType = undefined;
+      let isSuspended = undefined;
       try {
         // NOTE: The app sends userProfile.id (= userId), not the driver table PK.
         // Use findByUserId to resolve the correct driver record.
         const driver = await this.driverService.findByUserId(driverId as any);
         driverType = driver.type;
         waterType = driver.waterType;
+        isSuspended = driver.isSuspended;
       } catch (e) {
         this.logger.warn(
           `Could not find driver details for userId ${driverId} during connection: ${e?.message}`,
@@ -76,6 +78,7 @@ export class TrackingGateway
         driverId,
         driverType,
         waterType,
+        isSuspended,
       );
       this.logger.log(`${LogConstants.TRACKING.DRIVER_CONNECTED}: ${driverId}`);
       

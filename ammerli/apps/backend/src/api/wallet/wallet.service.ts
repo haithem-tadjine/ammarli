@@ -109,7 +109,7 @@ export class WalletService {
           
           if (!driver.isSuspended) {
             try {
-              await this.driverMetadataService.setSuspensionStatus(driver.id, false);
+              await this.driverMetadataService.setSuspensionStatus(receiverId, false);
             } catch(e) {
               console.error('Failed to sync suspension status to Redis:', e);
             }

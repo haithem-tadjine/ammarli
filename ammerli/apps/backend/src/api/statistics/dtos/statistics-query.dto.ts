@@ -23,4 +23,8 @@ export class StatisticsQueryDto {
   @IsOptional()
   @IsEnum(['hourly', 'daily', 'weekly', 'monthly'])
   granularity?: 'hourly' | 'daily' | 'weekly' | 'monthly' = 'daily';
+
+  @ApiPropertyOptional({ description: 'Filter by specific wilaya name' })
+  @IsOptional()
+  wilaya?: string;
 }

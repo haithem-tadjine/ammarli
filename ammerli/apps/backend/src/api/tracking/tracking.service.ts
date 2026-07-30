@@ -190,12 +190,14 @@ export class TrackingService {
     driverId: string,
     driverType?: string,
     waterType?: string,
+    isSuspended?: boolean,
   ): Promise<void> {
     await this.driverMetadataService.updateMetadata(driverId, {
       status: 'AVAILABLE',
       lastJobTimestamp: Date.now(),
       driverType,
       waterType,
+      ...(isSuspended !== undefined ? { isSuspended } : {}),
     });
 
     // Read last known location from metadata

@@ -74,7 +74,7 @@ export default function ManageWilaya() {
         <h2 style={{ margin: 0 }}>إدارة مدراء الولايات</h2>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '32px', alignItems: 'start' }}>
+      <div className="responsive-grid" style={{ alignItems: 'start' }}>
         {/* Add Manager Form */}
         <div className="glass-panel animate-fade-in" style={{ animationDelay: '0.1s', position: 'sticky', top: '24px' }}>
           <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.2rem', paddingBottom: '16px', borderBottom: '1px solid var(--glass-border)' }}>

@@ -32,7 +32,7 @@ export class RegisterReqDto {
     }
     return value;
   })
-  @IsPhoneNumber('DZ')
+  @IsPhoneNumber()
   @StringField()
   phone!: string;
 

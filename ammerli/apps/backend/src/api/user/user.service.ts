@@ -19,6 +19,8 @@ import { LoadMoreUsersReqDto } from './dto/load-more-users.req.dto';
 import { UpdateUserReqDto } from './dto/update-user.req.dto';
 import { UserResDto } from './dto/user.res.dto';
 import { UserEntity } from './entities/user.entity';
+import { RedisLibsService } from '@/libs/redis/redis-libs.service';
+import { RedisConstants } from '@/constants/redis.constants';
 
 /**
  * Service responsible for managing user-related business logic.
@@ -33,6 +35,7 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    private readonly redisLibsService: RedisLibsService,
   ) {}
 
   /**
@@ -232,10 +235,20 @@ export class UserService {
     const customers = await this.userRepository.count({ where: { role: 'CLIENT' as any } });
     const drivers = await this.userRepository.count({ where: { role: 'DRIVER' as any } });
 
+    let activeDrivers = 0;
+    try {
+      if (this.redisLibsService) {
+        activeDrivers = await this.redisLibsService.zcard(RedisConstants.KEYS.DRIVERS_GEO_INDEX);
+      }
+    } catch (e) {
+      this.logger.error(`Failed to get active drivers count: ${e.message}`);
+    }
+
     return {
       totalUsers,
       customers,
       drivers,
+      activeDrivers,
     };
   }
 }
