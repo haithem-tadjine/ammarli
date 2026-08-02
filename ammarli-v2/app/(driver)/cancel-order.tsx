@@ -12,41 +12,30 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { 
   ChevronRight, 
-  UserX, 
-  MapPinOff, 
-  Wrench, 
-  AlertTriangle,
-  UserMinus
+  Clock, 
+  AlertCircle, 
+  XCircle 
 } from 'lucide-react-native';
 import { useDriverStore } from '../../src/store/useDriverStore';
 
 const THEME_NAVY = '#002147';
-const THEME_YELLOW = '#F3CD0D'; // Yellow used in the driver app
+const THEME_YELLOW = '#F3CD0D';
 
-export default function DriverCancelOrderScreen() {
+export default function CancelOrderScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const cancelDriverOrder = useDriverStore((s) => s.cancelDriverOrder);
-  const addPastTrip = useDriverStore((s) => s.addPastTrip);
-
-  const params = useLocalSearchParams<{
-    customerName?: string;
-    price?: string;
-    orderType?: string;
-    orderNumber?: string;
-  }>();
   
   const [selectedReason, setSelectedReason] = useState<number | null>(null);
 
   const reasons = [
-    { id: 1, text: 'الزبون لم يحضر', icon: <UserX color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
-    { id: 2, text: 'موقع التوصيل خاطئ', icon: <MapPinOff color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
-    { id: 3, text: 'عطل في المركبة', icon: <Wrench color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
-    { id: 4, text: 'زحمة مرور شديدة', icon: <AlertTriangle color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
-    { id: 5, text: 'الزبون طلب الإلغاء', icon: <UserMinus color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
+    { id: 1, text: 'الزبون لا يرد', icon: <XCircle color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
+    { id: 2, text: 'عنوان خاطئ', icon: <AlertCircle color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
+    { id: 3, text: 'عطل في المركبة', icon: <XCircle color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
+    { id: 4, text: 'وقت الانتظار طويل جداً', icon: <Clock color={THEME_NAVY} size={26} strokeWidth={1.5} /> },
   ];
 
   const handleSelectReason = (id: number) => {
@@ -64,36 +53,8 @@ export default function DriverCancelOrderScreen() {
     
     const finalReason = reasons.find(r => r.id === selectedReason)?.text || 'غير معروف';
 
-    const now = new Date();
-    const dateLabel = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase();
-    const timeLabel = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    
-    // Add to trips manually since active order might not be set in the store
-    addPastTrip({
-      id: params.orderNumber || String(Math.floor(10000 + Math.random() * 90000)),
-      date: dateLabel,
-      time: timeLabel,
-      orderSummary: getOrderLabel(params.orderType),
-      customerName: params.customerName || 'زبون غير معروف',
-      deliveryType: 'Cancelled Delivery',
-      amount: Number(params.price || 0),
-      status: 'Cancelled',
-      cancelReason: finalReason,
-    });
-
-    cancelDriverOrder(finalReason); // clear active order if it exists
+    cancelDriverOrder(finalReason);
     router.replace('/(driver)/(tabs)' as any);
-  };
-
-  // مساعد لترجمة نوع الطلب
-  const getOrderLabel = (type?: string) => {
-    switch (type) {
-      case 'bottles': return 'مياه معدنية معبأة';
-      case 'well_water': return 'صهريج مياه آبار';
-      case 'construction_water': return 'صهريج مياه أشغال';
-      case 'spring_water': return 'مياه ينابيع طبيعية';
-      default: return 'طلب مياه';
-    }
   };
 
   return (

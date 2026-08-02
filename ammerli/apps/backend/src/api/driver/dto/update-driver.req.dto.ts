@@ -9,7 +9,10 @@ export class UpdateDriverReqDto extends UpdateUserReqDto {
   type?: DriverTypeEnum;
 
   @NumberFieldOptional({
-    description: 'Default price for fast accept feature',
+    description: 'Default price per 20L bucket for spring tanker drivers (fast accept)',
   })
   defaultPrice?: number;
+
+  // أسعار القوارير لسائقي المياه المعبأة (fast accept)
+  bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
 }

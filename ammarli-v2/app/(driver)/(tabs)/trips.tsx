@@ -177,7 +177,7 @@ export default function DriverTripsScreen() {
     title: pt.orderSummary,
     date: pt.date + ' ' + pt.time,
     customer: pt.customerName,
-    price: pt.amount.toFixed(2),
+    price: (pt.amount || 0).toFixed(2),
     status: pt.status === 'Completed' ? 'مكتمل' : 'ملغي',
     cancelReason: pt.cancelReason
   }));

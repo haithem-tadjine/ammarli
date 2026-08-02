@@ -125,24 +125,34 @@ export class DispatchService {
    */
   private async reserveAndDispatchBestDriver(
     request: RequestResDto,
-    scoredCandidates: { driverId: string; distanceKm: number; score: number; debug: Record<string, number> }[],
+    scoredCandidates: { driverId: string; distanceKm: number; score: number; debug: Record<string, number>; metadata?: any }[],
   ): Promise<DriverLocationResDto[]> {
     for (const candidate of scoredCandidates) {
       const metadataKey = RedisConstants.KEYS.driverMetadata(candidate.driverId);
+      
+      const isRetail = candidate.metadata?.driverType === 'BOTTLED' || 
+                       (candidate.metadata?.driverType === 'TANKER' && candidate.metadata?.waterType?.toLowerCase() === 'spring');
 
-      // Atomic check-and-set: AVAILABLE -> BUSY
-      const reserved = await this.redisScriptService.eval(
-        'RESERVE_DRIVER',
-        [metadataKey],
-        ['AVAILABLE', 'BUSY'],
-      );
-
-      if (reserved !== 1) {
-        // Another request reserved this driver a millisecond ago — skip to next
-        this.logger.debug(
-          `Driver ${candidate.driverId} was not AVAILABLE (atomic reserve failed), skipping to next candidate for request ${request.id}`,
+      if (isRetail) {
+        // Retail drivers allow multiple orders, so we don't reserve them to BUSY.
+        // We just verify they are still AVAILABLE.
+        const status = await this.redisLibsService.hget(metadataKey, 'status');
+        if (status !== 'AVAILABLE') {
+          this.logger.debug(`Retail Driver ${candidate.driverId} is not AVAILABLE, skipping`);
+          continue;
+        }
+      } else {
+        // Wholesale drivers must be locked to BUSY to prevent multiple orders
+        const reserved = await this.redisScriptService.eval(
+          'RESERVE_DRIVER',
+          [metadataKey],
+          ['AVAILABLE', 'BUSY'],
         );
-        continue;
+
+        if (reserved !== 1) {
+          this.logger.debug(`Wholesale Driver ${candidate.driverId} was not AVAILABLE (atomic reserve failed), skipping`);
+          continue;
+        }
       }
 
       // Successfully reserved — proceed with dispatch
@@ -388,8 +398,28 @@ export class DispatchService {
       request.driver = plainToInstance(DriverResDto, driver, {
         excludeExtraneousValues: true,
       });
+
+      // Recalculate price if driver has a custom price per unit
+      if (driver.defaultPrice && driver.defaultPrice > 0) {
+        let calculatedTotal = 0;
+        const isSpringTanker = request.type === 'TANKER' && request.tankerDetails?.waterType?.toLowerCase() === 'spring';
+        
+        if (isSpringTanker) {
+          const requestedLiters = request.tankerDetails?.volume || 1000;
+          calculatedTotal = (requestedLiters / 20) * driver.defaultPrice;
+        } else if (request.type === 'BOTTLED' && request.bottledItems) {
+          const items = Object.values(request.bottledItems) as any[];
+          calculatedTotal = items.reduce((sum, item) => sum + ((item.qty || 1) * driver.defaultPrice), 0);
+        }
+
+        if (calculatedTotal > 0) {
+          request.totalPrice = calculatedTotal;
+        }
+      }
+
       await this.requestService.updateRequest(requestId, {
         driver: request.driver,
+        totalPrice: request.totalPrice,
       });
     }
 
@@ -398,14 +428,25 @@ export class DispatchService {
       // The socket connects with userId — that's the driverMetadata key
       const driverUserId = driver.user?.id;
       if (driverUserId) {
-        await this.driverMetadataService.updateMetadata(driverUserId, {
-          status: 'BUSY',
-          lastJobTimestamp: Date.now(),
-        });
-        this.logger.log(`Driver ${driverUserId} marked as BUSY in metadata`);
+        const meta = await this.driverMetadataService.getMetadata(driverUserId);
+        const isRetail = meta && (meta.driverType === 'BOTTLED' || 
+                        (meta.driverType === 'TANKER' && meta.waterType?.toLowerCase() === 'spring'));
+                        
+        if (isRetail) {
+          await this.driverMetadataService.updateMetadata(driverUserId, {
+            lastJobTimestamp: Date.now(),
+          });
+          this.logger.log(`Driver ${driverUserId} is retail, keeping AVAILABLE`);
+        } else {
+          await this.driverMetadataService.updateMetadata(driverUserId, {
+            status: 'BUSY',
+            lastJobTimestamp: Date.now(),
+          });
+          this.logger.log(`Wholesale Driver ${driverUserId} marked as BUSY in metadata`);
+        }
       }
     } catch (e) {
-      this.logger.warn(`Failed to mark driver BUSY: ${e?.message}`);
+      this.logger.warn(`Failed to update driver status: ${e?.message}`);
     }
 
     this.logger.infoStructured(LogConstants.REQUEST.ACCEPTED, {

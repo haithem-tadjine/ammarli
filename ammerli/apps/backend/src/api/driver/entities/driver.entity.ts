@@ -65,4 +65,8 @@ export class DriverEntity extends AbstractEntity {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   defaultPrice?: number;
+
+  // أسعار القوارير: فاردو 0.5L، فاردو 1.5L، قارورة 5L
+  @Column({ name: 'bottled_prices', type: 'json', nullable: true })
+  bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
 }

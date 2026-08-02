@@ -42,7 +42,7 @@ export default function TripCompletionScreen() {
   const handleComplete = async () => {
     setIsLoading(true);
     try {
-      await completeDriverOrder();
+      await completeDriverOrder(0, orderId);
       
       router.replace({
         pathname: '/(driver)/customer-rating',

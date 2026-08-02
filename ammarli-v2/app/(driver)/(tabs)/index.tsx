@@ -266,7 +266,7 @@ export default function DriverDashboardScreen() {
   // قراءة بيانات السائق من Store مباشرة
   const registeredDriver = useDriverStore(s => s.registeredDriver);
   const driverStatus     = useDriverStore(s => s.driverStatus);
-  const activeDriverOrder = useDriverStore(s => s.activeDriverOrder);
+  const activeDriverOrders = useDriverStore(s => s.activeDriverOrders);
   const incomingOrdersQueue = useDriverStore(s => s.incomingOrdersQueue);
   const currentOffer = incomingOrdersQueue[0];
   const totalEarnings    = useDriverStore(s => s.totalEarnings);
@@ -391,11 +391,14 @@ export default function DriverDashboardScreen() {
       image: null
     })) || [];
 
-    const isSpringTanker = registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType === 'spring';
+    const isSpringTanker = registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType?.toLowerCase() === 'spring';
     const isBottled = registeredDriver?.driverType === 'Bottled';
     const hasDefaultPrice = registeredDriver?.defaultPrice !== undefined && registeredDriver?.defaultPrice > 0;
+    const hasBottledPrices = registeredDriver?.bottledPrices !== undefined
+      && Object.values(registeredDriver.bottledPrices).every((v) => v > 0);
 
     const params: any = {
+      orderId: currentOffer.orderId,
       customerName: currentOffer?.customer?.name || 'الزبون',
       customerPhone: currentOffer?.customer?.phone || '',
       customerLat: currentOffer?.deliveryAddress?.lat?.toString() || '',
@@ -409,24 +412,38 @@ export default function DriverDashboardScreen() {
       rating: '5.0',
       items: JSON.stringify(orderItems),
     };
-    useDriverStore.getState().setDriverStatus('BUSY');
 
-    if ((isSpringTanker || isBottled) && hasDefaultPrice) {
-      let calculatedTotal = 0;
-      if (isSpringTanker) {
-        const requestedLiters = parseFloat(params.capacity) || 1000;
-        calculatedTotal = (requestedLiters / 20) * registeredDriver.defaultPrice!;
-      } else if (isBottled) {
-        calculatedTotal = orderItems.reduce((sum: number, item: any) => sum + (item.qty * registeredDriver.defaultPrice!), 0);
-      }
-      
+    // ✅ سائقو الجملة (آبار/أشغال) فقط يتحولون لـ BUSY — سائقو التجزئة يبقون AVAILABLE
+    const isRetail = isSpringTanker || isBottled;
+    if (!isRetail) {
+      useDriverStore.getState().setDriverStatus('BUSY');
+    }
+
+    // ── Fast Accept: حساب السعر تلقائياً ──
+    if (isSpringTanker && hasDefaultPrice) {
+      // ينابيع: سعر الدلو × (اللترات ÷ 20)
+      const requestedLiters = parseFloat(params.capacity) || 1000;
+      const calculatedTotal = (requestedLiters / 20) * registeredDriver!.defaultPrice!;
       if (calculatedTotal > 0) {
-        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal);
+        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
         params.price = calculatedTotal.toString();
-        router.push({
-          pathname: '/(driver)/order-details' as any,
-          params,
-        });
+        router.push({ pathname: '/(driver)/order-details' as any, params });
+        return;
+      }
+    }
+
+    if (isBottled && hasBottledPrices) {
+      // قوارير: لكل حجم سعره الخاص (0.5L, 1.5L, 5L)
+      const prices = registeredDriver!.bottledPrices!;
+      const calculatedTotal = orderItems.reduce((sum: number, item: any) => {
+        const size = item.unit as '0.5L' | '1.5L' | '5L';
+        const unitPrice = prices[size] ?? 0;
+        return sum + (item.qty * unitPrice);
+      }, 0);
+      if (calculatedTotal > 0) {
+        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
+        params.price = calculatedTotal.toString();
+        router.push({ pathname: '/(driver)/order-details' as any, params });
         return;
       }
     }
@@ -603,21 +620,26 @@ export default function DriverDashboardScreen() {
 
         {/* قسم الطلبات الحالية المشترك */}
         <View style={styles.orderSection}>
-           <Text style={styles.sectionTitle}>الطلبات الحالية</Text>
-           {(activeDriverOrder && activeDriverOrder.status !== 'pending') ? (
-             <TouchableOpacity 
-               activeOpacity={0.9}
-               style={styles.activeOrderCard}
-               onPress={() => router.push({ pathname: '/(driver)/order-details' as any })}
-             >
-                <View style={styles.activeOrderHeader}>
-                   <Ionicons name="car-sport" size={46} color={COLORS.primary} />
-                   <View style={{ flex: 1, marginLeft: 10 }}>
-                     <Text style={styles.activeOrderName}>لديك طلب قيد المعالجة</Text>
-                     <Text style={styles.activeOrderAddress}>انقر للمتابعة</Text>
-                   </View>
-                </View>
-             </TouchableOpacity>
+           <Text style={styles.sectionTitle}>الطلبات الحالية ({activeDriverOrders.filter(o => o.status !== 'pending').length})</Text>
+           {activeDriverOrders.filter(o => o.status !== 'pending').length > 0 ? (
+             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 15 }}>
+               {activeDriverOrders.filter(o => o.status !== 'pending').map(order => (
+                 <TouchableOpacity 
+                   key={order.orderId}
+                   activeOpacity={0.9}
+                   style={[styles.activeOrderCard, { width: width * 0.8, marginHorizontal: 0 }]}
+                   onPress={() => router.push({ pathname: '/(driver)/order-details' as any, params: { orderId: order.orderId } })}
+                 >
+                    <View style={styles.activeOrderHeader}>
+                       <Ionicons name="car-sport" size={46} color={COLORS.primary} />
+                       <View style={{ flex: 1, marginLeft: 10 }}>
+                         <Text style={styles.activeOrderName}>{order.customer.name}</Text>
+                         <Text style={styles.activeOrderAddress}>{order.deliveryAddress.label}</Text>
+                       </View>
+                    </View>
+                 </TouchableOpacity>
+               ))}
+             </ScrollView>
            ) : (
              <View style={styles.emptyOrder}><Text style={styles.emptyText}>لا توجد طلبات حالياً قيد التوصيل</Text></View>
            )}

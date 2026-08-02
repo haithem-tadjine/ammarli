@@ -25,6 +25,7 @@ export interface RegisteredDriver {
   brands?: string[];
   location?: { lat: number; lng: number };
   defaultPrice?: number;
+  bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
 }
 
 export interface DriverOrderItem {
@@ -105,6 +106,7 @@ interface DriverState {
   registeredDriver: RegisteredDriver | null;
   driverStatus: DriverStatus;
   activeDriverOrder: ActiveDriverOrder | null;
+  activeDriverOrders: ActiveDriverOrder[];
   incomingOrdersQueue: ActiveDriverOrder[];
 
   // Financials
@@ -147,7 +149,7 @@ interface DriverState {
   acceptDriverOrder: (order: ActiveDriverOrder) => Promise<void>;
   rejectDriverOrder: (orderId: string) => Promise<void>;
   refuseDriverOrder: (requestId: string) => void;
-  updateDriverOrderStatus: (status: DriverOrderStatus, price?: number) => Promise<void>;
+  updateDriverOrderStatus: (status: DriverOrderStatus, price?: number, orderId?: string) => Promise<void>;
   completeDriverOrder: () => void;
   cancelDriverOrder: (reason: string) => void;
   addPastTrip: (trip: PastTrip) => void;
@@ -166,7 +168,7 @@ interface DriverState {
   _heartbeatTimer: ReturnType<typeof setInterval> | null;
 
   completeDelivery: (earnings: number, quantityLiters: number) => void;
-  markOrderAsCompleted: (orderData: { price: number; customerName: string }) => void;
+  markOrderAsCompleted: (orderData: { orderId: string; price: number; customerName: string }) => void;
   clearStore: () => void;
 }
 
@@ -200,6 +202,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
   registeredDriver: null,
   driverStatus: 'OFFLINE',
   isOnline: false,
+  activeDriverOrders: [],
   activeDriverOrder: null,
   incomingOrdersQueue: [],
 
@@ -239,6 +242,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     registeredDriver: null,
     driverStatus: 'OFFLINE',
     isOnline: false,
+    activeDriverOrders: [],
     activeDriverOrder: null,
     incomingOrdersQueue: [],
     totalEarnings: 0,
@@ -296,15 +300,16 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         const d = res.data;
         set({
           registeredDriver: {
-            name:       `${d.user?.firstName || ''} ${d.user?.lastName || ''}`.trim() || 'السائق',
-            phone:      d.user?.phone || '',
-            truckPlate: d.truckPlate || '',
-            capacity:   d.capacity || 5000,
-            waterType:  d.waterType || 'spring',
-            driverType: d.type === 'TANKER' ? 'Tanker' : 'Bottled',
-            brands:     d.inventory ? Object.keys(d.inventory) : ['Ifri', 'Guedila'],
-            location:   { lat: 36.752887, lng: 3.042048 },
-            defaultPrice: d.defaultPrice,
+            name:          `${d.user?.firstName || ''} ${d.user?.lastName || ''}`.trim() || 'السائق',
+            phone:         d.user?.phone || '',
+            truckPlate:    d.truckPlate || '',
+            capacity:      d.capacity || 5000,
+            waterType:     d.waterType || 'spring',
+            driverType:    d.type === 'TANKER' ? 'Tanker' : 'Bottled',
+            brands:        d.inventory ? Object.keys(d.inventory) : ['Ifri', 'Guedila'],
+            location:      { lat: 36.752887, lng: 3.042048 },
+            defaultPrice:  d.defaultPrice,
+            bottledPrices: d.bottledPrices,
           },
         });
       }
@@ -449,10 +454,12 @@ export const useDriverStore = create<DriverState>((set, get) => ({
   handleSocketCancel: (orderId?: string) => {
     set((state) => {
       // If the cancelled order matches the active order, clear it
-      if (!orderId || state.activeDriverOrder?.orderId === orderId) {
+      if (!orderId || state.activeDriverOrders.some(o => o.orderId === orderId)) {
+        const remainingOrders = state.activeDriverOrders.filter(o => o.orderId !== orderId);
         return {
-          activeDriverOrder: null,
-          driverStatus: 'AVAILABLE'
+          activeDriverOrders: remainingOrders,
+          activeDriverOrder: remainingOrders[0] || null,
+          driverStatus: remainingOrders.length > 0 ? state.driverStatus : 'AVAILABLE'
         };
       }
       // Otherwise, just ensure it's removed from the queue
@@ -465,11 +472,17 @@ export const useDriverStore = create<DriverState>((set, get) => ({
   acceptDriverOrder: async (order) => {
     try {
       await api.post(`/requests/${order.orderId}/lock`);
-      set((state) => ({
-        activeDriverOrder: { ...order, status: 'accepted' },
-        incomingOrdersQueue: state.incomingOrdersQueue.filter(o => o.orderId !== order.orderId),
-        driverStatus: 'BUSY',
-      }));
+      const isRetail = get().registeredDriver?.driverType === 'Bottled' || 
+                       (get().registeredDriver?.driverType === 'Tanker' && get().registeredDriver?.waterType === 'spring');
+      set((state) => {
+        const newOrders = [...state.activeDriverOrders, { ...order, status: 'accepted' as any }];
+        return {
+          activeDriverOrders: newOrders,
+          activeDriverOrder: newOrders[0],
+          incomingOrdersQueue: state.incomingOrdersQueue.filter(o => o.orderId !== order.orderId),
+          driverStatus: isRetail ? 'AVAILABLE' : 'BUSY',
+        };
+      });
     } catch (e) { 
       console.error('Failed to accept order:', e); 
       throw e;
@@ -483,11 +496,16 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       console.error('Failed to reject order:', e);
     }
     // Instantly remove from queue and clear active driver order if it matches
-    set((state) => ({
-      incomingOrdersQueue: state.incomingOrdersQueue.filter(o => o.orderId !== orderId),
-      activeDriverOrder: state.activeDriverOrder?.orderId === orderId ? null : state.activeDriverOrder,
-      driverStatus: state.activeDriverOrder?.orderId === orderId ? 'AVAILABLE' : state.driverStatus,
-    }));
+    set((state) => {
+      const remainingOrders = state.activeDriverOrders.filter(o => o.orderId !== orderId);
+      const isActiveMatch = state.activeDriverOrders.some(o => o.orderId === orderId);
+      return {
+        incomingOrdersQueue: state.incomingOrdersQueue.filter(o => o.orderId !== orderId),
+        activeDriverOrders: remainingOrders,
+        activeDriverOrder: remainingOrders[0] || null,
+        driverStatus: isActiveMatch && remainingOrders.length === 0 ? 'AVAILABLE' : state.driverStatus,
+      };
+    });
   },
 
   refuseDriverOrder: async (requestId) => {
@@ -497,51 +515,65 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     // DO NOT clear activeDriverOrder here. The UI will shift the queue, active is only for accepted orders.
   },
 
-  updateDriverOrderStatus: async (status, price?: number) => {
-    const activeId = get().activeDriverOrder?.orderId;
-    if (activeId) {
-      if (status === 'arrived') await api.post(`/requests/${activeId}/arrived`);
-      if (status === 'driving') await api.post(`/requests/${activeId}/start`, { price });
-    }
-    set((s) => ({
-      activeDriverOrder: s.activeDriverOrder
-        ? { ...s.activeDriverOrder, status }
-        : null,
-    }));
-  },
-
-  completeDriverOrder: async (quantityLiters: number = 0) => {
-    const activeId = get().activeDriverOrder?.orderId;
+  updateDriverOrderStatus: async (status, price?: number, orderId?: string) => {
+    const activeId = orderId || get().activeDriverOrder?.orderId;
     if (activeId) {
       try {
-        await api.post(`/requests/${activeId}/complete`);
-      } catch (e) { console.error('Failed to complete order:', e); }
+        if (status === 'arrived') await api.post(`/requests/${activeId}/arrived`);
+        if (status === 'driving') await api.post(`/requests/${activeId}/start`, { price });
+      } catch (e: any) {
+        console.error('Failed to update order status (arrived/driving):', e?.response?.data || e.message);
+        // We catch the error here so it doesn't crash the calling function (handleAccept)
+        // This ensures the driver is still navigated to the order-details screen.
+      }
     }
+    
     set((s) => {
-      if (!s.activeDriverOrder) return { activeDriverOrder: null };
+      const activeId = orderId || s.activeDriverOrder?.orderId;
+      if (!activeId) return {};
+      
+      const newOrders = s.activeDriverOrders.map(o => 
+        o.orderId === activeId ? { ...o, status, ...(price !== undefined && { total: price }) } : o
+      );
+      
+      return {
+        activeDriverOrders: newOrders,
+        activeDriverOrder: newOrders[0] || null
+      };
+    });
+  },
 
-      const earned = s.activeDriverOrder.total;
+  completeDriverOrder: async (quantityLiters: number = 0, orderId?: string) => {
+    const activeId = orderId || get().activeDriverOrder?.orderId;
+    if (!activeId) return;
+
+    try {
+      await api.post(`/requests/${activeId}/complete`);
+    } catch (e) { console.error('Failed to complete order:', e); }
+
+    set((s) => {
+      const targetOrder = s.activeDriverOrders.find(o => o.orderId === activeId);
+      if (!targetOrder) return {};
+
+      const earned = targetOrder.total;
+      const remainingOrders = s.activeDriverOrders.filter(o => o.orderId !== activeId);
       const commission = Math.round(earned * 0.1);
-      const now = new Date();
-
-      const dateLabel = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase();
-      const timeLabel = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
       const newTrip: PastTrip = {
-        id: s.activeDriverOrder.orderId,
-        date: dateLabel,
-        time: timeLabel,
-        orderSummary: s.activeDriverOrder.items.map((i) => i.description).join(', ') || 'Delivery',
-        customerName: s.activeDriverOrder.customer.name,
+        id: targetOrder.orderId,
+        date: new Date().toLocaleDateString('ar-DZ'),
+        time: new Date().toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }),
+        orderSummary: targetOrder.items.map((i) => i.description).join(', ') || 'Delivery',
+        customerName: targetOrder.customer.name,
         deliveryType: 'Delivery',
         amount: earned,
         status: 'Completed',
       };
 
       const newTransaction: DriverTransaction = {
-        id: s.activeDriverOrder.orderId,
-        customerName: s.activeDriverOrder.customer.name,
-        date: `${dateLabel} · ${timeLabel}`,
+        id: targetOrder.orderId,
+        customerName: targetOrder.customer.name,
+        date: new Date().toLocaleDateString('ar-DZ'),
         amount: earned,
       };
 
@@ -554,10 +586,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       const newRemaining = Math.max(0, currentRemaining - quantityLiters);
 
       return {
-        activeDriverOrder: null,
-        driverStatus: 'AVAILABLE',
+        activeDriverOrders: remainingOrders,
+        activeDriverOrder: remainingOrders[0] || null,
+        driverStatus: remainingOrders.length > 0 ? s.driverStatus : 'AVAILABLE',
         totalEarnings: s.totalEarnings + earned,
-        walletBalance: s.walletBalance + earned, // Wait, walletBalance isn't real earnings if it's cash, but keeping it
+        walletBalance: s.walletBalance + earned,
         appCommissionDebt: s.appCommissionDebt + commission,
         completedTrips: s.completedTrips + 1,
         weeklyStats: updatedWeekly,
@@ -574,15 +607,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     });
 
     // ── إعادة تفعيل استقبال الطلبيات الجديدة ───────────────────────────────
-    // بعد انتهاء الطلبية، يُرسل السائق موقعه مجدداً للـ Backend
-    // لإعادة تسجيله في الـ GeoIndex والبدء في استقبال الـ dispatch_offer
     try {
       const { socketService } = await import('../services/socket');
-
-      // لا حاجة لإعادة ربط الـ listeners لأنها متصلة دائماً في الخلفية عبر startLocationTracking
-      // فقط نقوم بإرسال الموقع لتحديث الـ GeoIndex في Redis
-
-      // إعادة إرسال الموقع لتحديث الـ GeoIndex في Redis
       const driver = useDriverStore.getState().registeredDriver;
       if (driver?.location) {
         socketService.emitLocationUpdate(driver.location.lat, driver.location.lng);
@@ -593,8 +619,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     }
   },
 
-  cancelDriverOrder: async (reason) => {
-    const activeId = get().activeDriverOrder?.orderId;
+  cancelDriverOrder: async (reason, orderId?: string) => {
+    const activeId = orderId || get().activeDriverOrder?.orderId;
     if (activeId) {
       const payload = { reason: reason || 'Driver cancelled due to unforeseen circumstances' };
       console.log('[DEBUG API] Cancelling order with payload:', payload); 
@@ -603,28 +629,27 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       } catch (e) { console.error('Failed to cancel order:', e); }
     }
     set((s) => {
-      if (!s.activeDriverOrder) return { activeDriverOrder: null };
-
-      const now = new Date();
-      const dateLabel = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase();
-      const timeLabel = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const targetOrder = s.activeDriverOrders.find(o => o.orderId === activeId);
+      if (!targetOrder) return {};
 
       const cancelledTrip: PastTrip = {
-        id: s.activeDriverOrder.orderId,
-        date: dateLabel,
-        time: timeLabel,
-        orderSummary: s.activeDriverOrder.items.map((i) => i.description).join(', ') || 'Delivery',
-        customerName: s.activeDriverOrder.customer.name,
+        id: targetOrder.orderId,
+        date: new Date().toLocaleDateString('ar-DZ'),
+        time: new Date().toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }),
+        orderSummary: targetOrder.items.map((i) => i.description).join(', ') || 'Delivery',
+        customerName: targetOrder.customer.name,
         deliveryType: 'Cancelled Delivery',
         amount: 0,
         status: 'Cancelled',
         cancelReason: reason,
       };
 
+      const remainingOrders = s.activeDriverOrders.filter(o => o.orderId !== activeId);
       return {
-        activeDriverOrder: null,
-        driverStatus: 'AVAILABLE',
         pastTrips: [cancelledTrip, ...s.pastTrips],
+        activeDriverOrders: remainingOrders,
+        activeDriverOrder: remainingOrders[0] || null,
+        driverStatus: remainingOrders.length > 0 ? s.driverStatus : 'AVAILABLE'
       };
     });
   },
@@ -727,7 +752,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         
         const state = useDriverStore.getState();
         const orderId = data?.id || data?.orderId;
-        const isActiveOrder = state.activeDriverOrder?.orderId === orderId;
+        const isActiveOrder = state.activeDriverOrders.some(o => o.orderId === orderId);
         const isIncomingOrder = state.incomingOrdersQueue.some(o => o.orderId === orderId);
 
         if (isActiveOrder || isIncomingOrder) {
@@ -848,10 +873,14 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         idx === todayIdx ? { ...stat, amount: stat.amount + price } : stat
       );
 
+      const remainingOrders = s.activeDriverOrders.filter(o => o.orderId !== orderData.orderId);
+
       return {
-        totalEarnings: s.totalEarnings + price,
+        completedTrips: s.completedTrips + price,
         completedTripsCount: s.completedTripsCount + 1,
-        completedTrips: s.completedTrips + 1,
+        activeDriverOrders: remainingOrders,
+        activeDriverOrder: remainingOrders[0] || null,
+        driverStatus: remainingOrders.length > 0 ? s.driverStatus : 'AVAILABLE',
         tripHistory: [newHistoryItem, ...s.tripHistory],
         weeklyStats: updatedWeekly,
         walletBalance: s.walletBalance + price,

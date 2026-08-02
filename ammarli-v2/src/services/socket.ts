@@ -40,6 +40,10 @@ class SocketService {
 
     this.socket.on('connect_error', (err) => {
       console.warn('[Socket] Connection error:', err.message);
+      if (err.message === 'Unauthorized' || err.message.includes('jwt expired')) {
+        const { useAuthStore } = require('../store/useAuthStore');
+        useAuthStore.getState().logout();
+      }
     });
   }
 
@@ -64,6 +68,10 @@ class SocketService {
 
     this.socket.on('connect_error', (err) => {
       console.warn('[Socket] Driver connection error:', err.message);
+      if (err.message === 'Unauthorized' || err.message.includes('jwt expired')) {
+        const { useAuthStore } = require('../store/useAuthStore');
+        useAuthStore.getState().logout();
+      }
     });
   }
 

@@ -71,8 +71,21 @@ export default function CustomerRatingScreen() {
   };
 
   const finishProcess = () => {
-    // state is already cleared in trip-completion.tsx
-    router.replace('/(driver)/(tabs)' as any);
+    // Check if there are other active orders
+    const activeDriverOrders = useDriverStore.getState().activeDriverOrders;
+    if (activeDriverOrders.length > 0) {
+      const nextOrder = activeDriverOrders[0];
+      router.replace({
+        pathname: '/(driver)/order-details',
+        params: { 
+          orderId: nextOrder.orderId, 
+          customerName: nextOrder.customer?.name || '', 
+          address: nextOrder.deliveryAddress?.label || '' 
+        }
+      } as any);
+    } else {
+      router.replace('/(driver)/(tabs)' as any);
+    }
   };
 
   const handleSubmit = async () => {

@@ -130,7 +130,7 @@ const DriverEarningsScreen = () => {
              <Text style={{ textAlign: 'center', color: COLORS.textSecondary, marginTop: 20, fontFamily: 'Cairo-Regular' }}>لا توجد عمليات بعد</Text>
            ) : (
              transactions.map((t, idx) => (
-               <TransactionItem key={t.id || idx} name={t.customerName} date={t.date} amount={t.amount.toLocaleString('ar-DZ')} />
+               <TransactionItem key={t.id || idx} name={t.customerName} date={t.date} amount={(t.amount || 0).toLocaleString('ar-DZ')} />
              ))
            )}
         </View>

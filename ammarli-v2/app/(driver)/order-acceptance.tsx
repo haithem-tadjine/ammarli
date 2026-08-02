@@ -45,7 +45,8 @@ export default function OrderAcceptanceScreen() {
 
   const params = useLocalSearchParams<{ orderId: string; avatarUrl?: string }>();
   
-  const activeDriverOrder = useDriverStore(s => s.activeDriverOrder);
+  const activeDriverOrders = useDriverStore(s => s.activeDriverOrders);
+  const activeDriverOrder = activeDriverOrders.find(o => o.orderId === params.orderId) || activeDriverOrders[0];
   const registeredDriver = useDriverStore(s => s.registeredDriver);
   
   const order = activeDriverOrder;
@@ -132,7 +133,7 @@ export default function OrderAcceptanceScreen() {
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setConfirmed(true);
-    updateDriverOrderStatus('driving', totalPrice);
+    updateDriverOrderStatus('driving', totalPrice, activeDriverOrder?.orderId);
     setTimeout(() => {
       router.replace({
         pathname: '/(driver)/order-details' as any,

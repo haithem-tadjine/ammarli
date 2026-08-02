@@ -133,7 +133,6 @@ export class RequestService {
       .createQueryBuilder('request')
       .leftJoinAndSelect('request.user', 'user')
       .leftJoinAndSelect('request.driver', 'driver')
-      .leftJoinAndSelect('request.product', 'product')
       .orderBy('request.createdAt', 'DESC');
 
     applyFiltersToQueryBuilder(query, reqDto, {

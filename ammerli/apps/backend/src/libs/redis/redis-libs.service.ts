@@ -150,6 +150,17 @@ export class RedisLibsService {
   }
 
   /**
+   * Gets a specific field value from a hash.
+   *
+   * @param key - Redis key of the hash.
+   * @param field - Field to retrieve.
+   * @returns Value of the field, or null if it doesn't exist.
+   */
+  async hget(key: string, field: string): Promise<string | null> {
+    return this.client.hget(key, field);
+  }
+
+  /**
    * Gets all fields and values from a hash.
    *
    * @param key - Redis key of the hash.

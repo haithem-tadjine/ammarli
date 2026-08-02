@@ -48,5 +48,8 @@ export class DriverResDto {
   defaultPrice?: number;
 
   @Expose()
+  bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
+
+  @Expose()
   isSuspended?: boolean;
 }
