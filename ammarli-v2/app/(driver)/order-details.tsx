@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useDriverStore } from '../../src/store/useDriverStore';
+import { useDriverAlert } from '../../src/hooks/useDriverAlert';
 
 const COLORS = {
   primary:       '#002147',
@@ -56,6 +57,7 @@ export default function OrderDetailsScreen() {
     customerLat:  string;
     customerLng:  string;
     avatarUrl:    string;
+    capacity?:    string;
   }>();
 
   const registeredDriver = useDriverStore(state => state.registeredDriver);
@@ -92,6 +94,7 @@ export default function OrderDetailsScreen() {
   // For the banner animation
   const bannerAnim = useRef(new Animated.Value(-150)).current;
   const currentOffer = incomingOffers[0];
+  useDriverAlert(!!currentOffer);
 
   useEffect(() => {
     if (currentOffer) {
@@ -372,10 +375,10 @@ export default function OrderDetailsScreen() {
                   <View style={[styles.tabDot, isSelected && styles.tabDotActive]} />
                   <View style={{ alignItems: 'flex-start' }}>
                     <Text style={[styles.tabName, isSelected && styles.tabNameActive]} numberOfLines={1}>
-                      {item.customer?.name?.split(' ')[0] || `طلب ${index + 1}`}
+                      {item.customer?.name || `طلب ${index + 1}`}
                     </Text>
-                    <Text style={styles.tabSub}>
-                      {item.deliveryAddress?.distance || '---'}
+                    <Text style={[styles.tabSub, isSelected && styles.tabSubActive]}>
+                      {item.items?.[0]?.qty ? `${item.items[0].qty} ${orderType === 'bottles' ? 'قارورة' : 'لتر'}` : (params.capacity ? `${params.capacity} ${orderType === 'bottles' ? 'قارورة' : 'لتر'}` : '1000 لتر')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -386,133 +389,67 @@ export default function OrderDetailsScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollArea}>
 
-          {/* ── بطاقة الحالة (داكنة) ── */}
+          {/* ── بطاقة الحالة (داكنة) مع معلومات العميل ── */}
           <View style={styles.statusCard}>
             <View style={styles.statusRow}>
               <View style={styles.statusBadge}>
                 <Text style={styles.statusText}>قيد التنفيذ</Text>
               </View>
-              <Text style={styles.orderLabel}>رقم الطلب</Text>
+              <Text style={styles.orderLabel}>رقم الطلب #{orderNumber}</Text>
             </View>
-            <Text style={styles.orderNumber}>#{orderNumber}</Text>
+            
+            <View style={styles.customerDarkRow}>
+              <View style={{ flex: 1, alignItems: 'flex-start' }}>
+                <Text style={styles.customerNameDark}>{customerName}</Text>
+                <Text style={styles.customerPhoneDark}>{customerPhone}</Text>
+              </View>
+              <TouchableOpacity style={styles.callIconBtn} onPress={handleCall} activeOpacity={0.8}>
+                <Ionicons name="call" size={22} color={COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.dateRow}>
               <Ionicons name="calendar-outline" size={16} color="rgba(255,255,255,0.6)" />
               <Text style={styles.dateText}>{dateLabel} • {timeLabel}</Text>
             </View>
           </View>
 
-          {/* ── معلومات العميل ── */}
-          <Text style={styles.sectionHeader}>معلومات العميل</Text>
-          <View style={styles.infoCard}>
-            <View style={styles.customerRow}>
-              {activeDriverOrder?.customer?.avatarUrl || params.avatarUrl ? (
-                <Image
-                  source={{ uri: (activeDriverOrder?.customer?.avatarUrl || params.avatarUrl) as string }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Ionicons name="person" size={24} color="#64748B" />
-                </View>
-              )}
-              <View style={styles.customerInfo}>
-                <Text style={styles.customerName}>{customerName}</Text>
-                <Text style={styles.customerPhone}>{customerPhone}</Text>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={13} color={COLORS.secondary} />
-                  <Text style={styles.ratingText}>{params.rating ?? '5.0'}</Text>
-                  <View style={styles.dot} />
-                  <Text style={styles.ratingText}>{distance}</Text>
-                </View>
-              </View>
+          {/* ── عنوان التوصيل المدمج ── */}
+          <Text style={styles.sectionHeader}>موقع التوصيل</Text>
+          <View style={styles.addressCompactCard}>
+            <View style={styles.addressIconBox}>
+              <Ionicons name="location" size={22} color={COLORS.primary} />
             </View>
+            <View style={{ flex: 1, alignItems: 'flex-start', paddingHorizontal: 12 }}>
+              <Text style={styles.addressTitle}>عنوان التوصيل</Text>
+              <Text style={styles.addressSub} numberOfLines={1}>{address}</Text>
+            </View>
+            <TouchableOpacity style={styles.navSmallBtn} onPress={handleNavigate} activeOpacity={0.8}>
+              <MaterialCommunityIcons name="navigation-variant" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
 
-          {/* ── عنوان التوصيل ── */}
-          <TouchableOpacity
-            style={styles.infoCard}
-            activeOpacity={0.85}
-            onPress={handleNavigate}
-          >
-            <View style={styles.addressRow}>
-              <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
-                <Ionicons name="navigate" size={22} color="#2563EB" />
+          {/* ── الحجم والسعر ── */}
+          <Text style={styles.sectionHeader}>تفاصيل الطلب</Text>
+          <View style={styles.priceSizeCard}>
+            <View style={styles.priceSizeHalf}>
+              <View style={styles.psIconBox}>
+                <MaterialCommunityIcons name="water" size={22} color="#2563EB" />
               </View>
-              <View style={{ flex: 1, alignItems: 'flex-start' }}>
-                <Text style={styles.addressTitle}>عنوان التوصيل</Text>
-                <Text style={styles.addressSub}>{address}</Text>
-              </View>
-              {/* زر قوقل ماب */}
-              <View style={styles.navBadge}>
-                <MaterialCommunityIcons name="google-maps" size={20} color="#2563EB" />
-              </View>
+              <Text style={styles.psLabel}>الكمية / الحجم</Text>
+              <Text style={styles.psValue}>
+                {activeDriverOrder?.items?.[0]?.qty || params.capacity || '1000'} {orderType === 'bottles' ? 'قارورة' : 'لتر'}
+              </Text>
             </View>
-            {/* خريطة مصغرة */}
-            <View style={styles.miniMapContainer}>
-              <Image
-                source={{ uri:
-                  `https://maps.googleapis.com/maps/api/staticmap` +
-                  `?size=600x250&maptype=roadmap` +
-                  `&markers=color:blue%7C${driverLat},${driverLng}` +
-                  `&markers=color:red%7C${customerLat},${customerLng}` +
-                  `&key=YOUR_API_KEY`
-                }}
-                style={styles.miniMap}
-                defaultSource={require('../../assets/images/icon.png')}
-              />
-              <View style={styles.mapPinCustomer}>
-                <Ionicons name="location" size={34} color="#EF4444" />
-              </View>
-              <View style={styles.mapPinDriver}>
-                <Ionicons name="car" size={28} color="#2563EB" />
-              </View>
-              {/* طبقة شفافة قابلة للضغط */}
-              <TouchableOpacity
-                style={styles.mapOverlay}
-                activeOpacity={0.8}
-                onPress={handleNavigate}
-              >
-                <View style={styles.openMapsBtn}>
-                  <MaterialCommunityIcons name="google-maps" size={18} color="#FFFFFF" />
-                  <Text style={styles.openMapsText}>فتح قوقل ماب</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
+            
+            <View style={styles.psDivider} />
 
-          {/* ── محتوى الطلب ── */}
-          <Text style={styles.sectionHeader}>محتوى الطلب</Text>
-          <View style={styles.invoiceCard}>
-            {activeDriverOrder?.items?.map((item, idx) => (
-              <View style={styles.billItem} key={idx}>
-                <Text style={styles.billPrice}>{(item.price || 0).toLocaleString('ar-DZ')} د.ج</Text>
-                <View style={{ alignItems: 'flex-start', flex: 1 }}>
-                  <Text style={styles.billName}>{item.description}</Text>
-                  <Text style={styles.billSub}>{item.detail}</Text>
-                </View>
-                <View style={[styles.billIcon, { backgroundColor: meta.bg }]}>
-                  <MaterialCommunityIcons name={item.icon as any || meta.icon} size={22} color={meta.color} />
-                </View>
+            <View style={styles.priceSizeHalf}>
+              <View style={[styles.psIconBox, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="cash" size={22} color="#16A34A" />
               </View>
-            )) || (
-              <View style={styles.billItem}>
-                <Text style={styles.billPrice}>{(price || 0).toLocaleString('ar-DZ')} د.ج</Text>
-                <View style={{ alignItems: 'flex-start', flex: 1 }}>
-                  <Text style={styles.billName}>{meta.label}</Text>
-                  <Text style={styles.billSub}>الطلبية الرئيسية</Text>
-                </View>
-                <View style={[styles.billIcon, { backgroundColor: meta.bg }]}>
-                  <MaterialCommunityIcons name={meta.icon as any} size={22} color={meta.color} />
-                </View>
-              </View>
-            )}
-
-            <View style={styles.divider} />
-
-
-            <View style={[styles.totalRow, { marginTop: 12 }]}>
-              <Text style={styles.grandTotalVal}>{(total || 0).toLocaleString('ar-DZ')} د.ج</Text>
-              <Text style={styles.grandTotalLabel}>الإجمالي</Text>
+              <Text style={styles.psLabel}>السعر الإجمالي</Text>
+              <Text style={[styles.psValue, { color: '#16A34A' }]}>{(total || 0).toLocaleString('ar-DZ')} د.ج</Text>
             </View>
           </View>
 
@@ -531,11 +468,6 @@ export default function OrderDetailsScreen() {
 
         {/* ── أزرار الأسفل ── */}
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.callButton} onPress={handleCall} activeOpacity={0.8}>
-            <Ionicons name="call-outline" size={20} color={COLORS.primary} style={{ marginRight: 10 }} />
-            <Text style={styles.callText}>اتصال بالعميل</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.completeButton, completing && { opacity: 0.7 }]}
             onPress={handleComplete}
@@ -570,12 +502,12 @@ const styles = StyleSheet.create({
   // Order Tabs strip
   tabsContainer: { paddingHorizontal: 15, paddingVertical: 10, gap: 10 },
   tab: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.white, borderRadius: 16,
-    paddingHorizontal: 14, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: COLORS.white, borderRadius: 18,
+    paddingHorizontal: 16, paddingVertical: 14,
     borderWidth: 1.5, borderColor: 'transparent',
-    elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6,
-    minWidth: 120,
+    elevation: 3, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8,
+    minWidth: 140,
   },
   tabActive: {
     backgroundColor: COLORS.primary, borderColor: COLORS.secondary,
@@ -587,65 +519,61 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary,
   },
   tabName: {
-    fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary,
+    fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.primary,
   },
   tabNameActive: {
     color: COLORS.white,
   },
   tabSub: {
-    fontSize: 11, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, marginTop: 1,
+    fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, marginTop: 2,
+  },
+  tabSubActive: {
+    color: 'rgba(255,255,255,0.8)',
   },
 
   scrollArea: { paddingHorizontal: 20 },
 
   // Status card (dark)
   statusCard: {
-    backgroundColor: COLORS.primary, borderRadius: 30, padding: 25,
-    marginTop: 15, elevation: 10,
-    shadowColor: COLORS.primary, shadowOpacity: 0.25, shadowRadius: 15,
+    backgroundColor: COLORS.primary, borderRadius: 22, padding: 20,
+    marginTop: 15, elevation: 8,
+    shadowColor: COLORS.primary, shadowOpacity: 0.2, shadowRadius: 10,
   },
   statusRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusBadge: { backgroundColor: 'rgba(243,205,13,0.2)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10 },
+  statusBadge: { backgroundColor: 'rgba(243,205,13,0.2)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
   statusText:  { color: COLORS.secondary, fontSize: 12, fontFamily: 'Cairo-Bold' },
-  orderLabel:  { color: 'rgba(255,255,255,0.6)', fontFamily: 'Cairo-SemiBold' },
-  orderNumber: { fontSize: 38, fontFamily: 'Cairo-Black', color: COLORS.white, textAlign: 'left', marginTop: 5 },
-  dateRow:     { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
-  dateText:    { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Cairo-SemiBold' },
+  orderLabel:  { color: 'rgba(255,255,255,0.7)', fontFamily: 'Cairo-Bold', fontSize: 13 },
+  customerDarkRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 },
+  customerNameDark: { fontSize: 22, fontFamily: 'Cairo-Black', color: COLORS.white, textAlign: 'left' },
+  customerPhoneDark: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+  callIconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.secondary, justifyContent: 'center', alignItems: 'center' },
+  dateRow:     { flexDirection: 'row', alignItems: 'center', marginTop: 15, gap: 8 },
+  dateText:    { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontFamily: 'Cairo-SemiBold' },
 
-  sectionHeader: { fontSize: 15, fontFamily: 'Cairo-Black', color: COLORS.primary, textAlign: 'left', marginTop: 25, marginBottom: 15 },
+  sectionHeader: { fontSize: 14, fontFamily: 'Cairo-Black', color: COLORS.primary, textAlign: 'left', marginTop: 20, marginBottom: 12 },
 
-  // Info cards
-  infoCard:   { backgroundColor: COLORS.white, borderRadius: 22, padding: 15, marginBottom: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.03 },
-  customerRow: { flexDirection: 'row', alignItems: 'center', gap: 15 },
-  avatar:      { width: 60, height: 60, borderRadius: 30 },
-  customerInfo: { flex: 1, alignItems: 'flex-start' },
-  customerName: { fontSize: 18, fontFamily: 'Cairo-Bold', color: COLORS.primary },
-  customerPhone: { fontSize: 13, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
-  ratingRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  ratingText:  { fontSize: 12, fontFamily: 'Cairo-Bold', color: COLORS.textSecondary },
-  dot:         { width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#CBD5E1' },
+  // Compact Address Card
+  addressCompactCard: { 
+    flexDirection: 'row', alignItems: 'center', 
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 12, 
+    elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6 
+  },
+  addressIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  addressTitle: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.primary },
+  addressSub:  { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, marginTop: 2 },
+  navSmallBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center', elevation: 3 },
 
-  addressRow:  { flexDirection: 'row', alignItems: 'center', gap: 15, marginBottom: 15 },
-  iconBox:     { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  addressTitle: { fontSize: 16, fontFamily: 'Cairo-Bold', color: COLORS.primary },
-  addressSub:  { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
-  miniMapContainer: { height: 130, borderRadius: 16, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
-  miniMap:     { width: '100%', height: '100%' },
-  mapPin:      { position: 'absolute' },
-
-  // Invoice
-  invoiceCard: { backgroundColor: COLORS.white, borderRadius: 25, padding: 20, elevation: 2 },
-  billItem:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 15 },
-  billIcon:    { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  billName:    { fontSize: 16, fontFamily: 'Cairo-Bold', color: COLORS.primary },
-  billSub:     { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
-  billPrice:   { fontSize: 16, fontFamily: 'Cairo-Black', color: COLORS.primary },
-  divider:     { height: 1, backgroundColor: COLORS.border, marginVertical: 15 },
-  totalRow:    { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-  totalLabel:  { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
-  totalVal:    { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary },
-  grandTotalLabel: { fontSize: 20, fontFamily: 'Cairo-Black', color: COLORS.primary },
-  grandTotalVal:   { fontSize: 22, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  // Price & Size Card
+  priceSizeCard: { 
+    flexDirection: 'row', alignItems: 'center', 
+    backgroundColor: COLORS.white, borderRadius: 18, padding: 15, 
+    elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6 
+  },
+  priceSizeHalf: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  psDivider: { width: 1, height: '80%', backgroundColor: COLORS.border, marginHorizontal: 10 },
+  psIconBox: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  psLabel: { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
+  psValue: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary, marginTop: 2 },
 
   // Success
   successBanner: {
@@ -659,33 +587,7 @@ const styles = StyleSheet.create({
   footer:          { paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
   completeButton:  { height: 60, backgroundColor: COLORS.secondary, borderRadius: 18, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 5 },
   completeText:    { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary },
-  callButton:      { height: 60, borderWidth: 2, borderColor: COLORS.primary, borderRadius: 18, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  callText:        { fontSize: 16, fontFamily: 'Cairo-Bold', color: COLORS.primary },
   cancelLink:      { textAlign: 'center', color: COLORS.danger, fontFamily: 'Cairo-Bold', textDecorationLine: 'underline', marginTop: 5 },
-
-  // ── Navigation / Map ──────────────────────────────────────────────────────
-  navBadge: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center', alignItems: 'center',
-    marginRight: 10,
-  },
-  mapPinCustomer: { position: 'absolute', top: '30%', right: '55%' },
-  mapPinDriver:   { position: 'absolute', top: '50%', right: '30%' },
-  mapOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 10,
-  },
-  openMapsBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 18, paddingVertical: 8,
-    borderRadius: 20,
-    shadowColor: '#2563EB', shadowOpacity: 0.35, shadowRadius: 8, elevation: 5,
-  },
-  openMapsText: { fontSize: 13, fontFamily: 'Cairo-Bold', color: '#FFFFFF' },
 
   // Upcoming Orders
   upcomingCard: {

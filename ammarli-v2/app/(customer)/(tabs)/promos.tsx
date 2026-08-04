@@ -1,24 +1,19 @@
 import ScreenContainer from '../../../components/ScreenContainer';
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  StatusBar,
-  Alert,
-  Platform,
-  KeyboardAvoidingView,
-  ActivityIndicator
+  StyleSheet, View, Text, TextInput, TouchableOpacity,
+  FlatList, StatusBar, Alert, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Image
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCustomerStore } from '../../../src/store/useCustomerStore';
+import * as Haptics from 'expo-haptics';
 
-const THEME_NAVY = '#002147';
-const THEME_YELLOW = '#FFCC00';
+const NAVY = '#012047';
+const YELLOW = '#F3CD0D';
+const WHITE = '#FFFFFF';
+const BG = '#F8FAFC';
 
 export default function PromotionsScreen() {
   const insets = useSafeAreaInsets();
@@ -33,96 +28,124 @@ export default function PromotionsScreen() {
   }, [fetchPromos]);
 
   const handleApplyPromo = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!promoCode.trim()) {
       Alert.alert('تنبيه', 'يرجى إدخال رمز ترويجي أولاً');
       return;
     }
-    console.warn('TODO: Connect promo apply to backend');
     Alert.alert('قريباً', 'ميزة الرموز الترويجية قيد التطوير');
   };
 
   const handleUseOffer = (title: string) => {
-    console.warn(`TODO: Connect use offer (${title}) to backend`);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('قريباً', 'استخدام العروض قيد التطوير');
   };
 
   const renderHeader = () => (
-    <>
-      <Text style={styles.headerTitle}>العروض والخصومات</Text>
+    <View style={styles.headerContainer}>
+      <Text style={styles.pageTitle}>العروض والخصومات</Text>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>إضافة رمز ترويجي</Text>
-        <View style={styles.inputRow}>
-          <TouchableOpacity style={styles.applyButton} onPress={handleApplyPromo}>
-            <Text style={styles.applyButtonText}>تطبيق</Text>
-          </TouchableOpacity>
+      {/* Promo Code Input */}
+      <View style={styles.promoInputWrapper}>
+        <View style={styles.inputInner}>
+          {/* 1st element in row-reverse -> rendered on the RIGHT */}
+          <View style={styles.inputIconWrap}>
+            <MaterialCommunityIcons name="ticket-percent-outline" size={24} color="#64748B" />
+          </View>
+          
+          {/* 2nd element -> rendered in MIDDLE */}
           <TextInput
             style={styles.input}
-            placeholder="أدخل الرمز هنا..."
-            placeholderTextColor="#8E8E93"
+            placeholder="أدخل رمز الكوبون..."
+            placeholderTextColor="#94A3B8"
             value={promoCode}
             onChangeText={setPromoCode}
             textAlign="right"
+            autoCapitalize="characters"
           />
+
+          {/* 3rd element in row-reverse -> rendered on the LEFT */}
+          <TouchableOpacity style={styles.applyBtn} onPress={handleApplyPromo} activeOpacity={0.8}>
+            <Text style={styles.applyBtnText}>تطبيق</Text>
+          </TouchableOpacity>
         </View>
       </View>
-      <Text style={styles.sectionLabel}>العروض المتاحة</Text>
-    </>
+
+      <Text style={styles.sectionTitle}>العروض المتاحة</Text>
+    </View>
   );
 
   const renderEmpty = () => {
     if (isLoadingPromos) {
       return (
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color={THEME_NAVY} />
-          <Text style={styles.emptyText}>جاري تحميل العروض...</Text>
+          <ActivityIndicator size="large" color={NAVY} />
+          <Text style={styles.emptySubtitle}>جاري البحث عن أحدث العروض...</Text>
         </View>
       );
     }
     return (
       <View style={styles.emptyContainer}>
-        <Feather name="inbox" size={48} color="#8E8E93" />
-        <Text style={styles.emptyText}>لا توجد عروض حالياً، ترقبوا جديدنا!</Text>
+        <View style={styles.emptyIconCircle}>
+          <MaterialCommunityIcons name="ticket-outline" size={50} color="#CBD5E1" />
+        </View>
+        <Text style={styles.emptyTitle}>لا توجد عروض حالياً</Text>
+        <Text style={styles.emptySubtitle}>ستظهر هنا جميع الخصومات والقسائم الترويجية الخاصة بك فور توفرها.</Text>
       </View>
     );
   };
 
   const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.offerCard}>
-      <TouchableOpacity style={styles.useButton} onPress={() => handleUseOffer(item.title)}>
-        <Text style={styles.useButtonText}>استخدام</Text>
-      </TouchableOpacity>
-      <View style={styles.offerInfo}>
-        <Text style={styles.offerTitle}>{item.title}</Text>
-        <Text style={styles.offerSubtitle}>{item.description || item.subtitle}</Text>
+    <View style={styles.ticketCard}>
+      {/* 1st element in row-reverse -> Right side: Icon/Value */}
+      <View style={styles.ticketRight}>
+        <View style={styles.discountBadge}>
+          <MaterialCommunityIcons name={item.icon || 'star-four-points'} size={32} color={YELLOW} />
+        </View>
       </View>
-      <View style={styles.iconContainer}>
-        <Feather name={item.icon || 'gift'} color={THEME_YELLOW} size={28} />
+
+      {/* 2nd element -> Dashed divider */}
+      <View style={styles.dashedDivider}>
+        <View style={styles.notchTop} />
+        <View style={styles.dashLine} />
+        <View style={styles.notchBottom} />
+      </View>
+
+      {/* 3rd element in row-reverse -> Left side: Action & Details */}
+      <View style={styles.ticketContent}>
+        <View style={styles.ticketHeader}>
+          <Text style={styles.ticketTitle} numberOfLines={1}>{item.title}</Text>
+        </View>
+        <Text style={styles.ticketDesc} numberOfLines={2}>{item.description || item.subtitle || 'استمتع بهذا العرض الحصري.'}</Text>
+        
+        <TouchableOpacity style={styles.useBtn} onPress={() => handleUseOffer(item.title)} activeOpacity={0.8}>
+          <Text style={styles.useBtnText}>استخدام العرض</Text>
+          <Ionicons name="arrow-back" size={14} color={WHITE} />
+        </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
     <ScreenContainer style={styles.container}>
-      <StatusBar hidden={false} barStyle="dark-content" />
+      <StatusBar hidden={false} barStyle="dark-content" backgroundColor={BG} />
       
-      <View style={[styles.safeArea, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <KeyboardAvoidingView 
-          behavior="padding" 
-          style={{ flex: 1 }}
-         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}>
-          <FlatList
-            data={promos}
-            keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
-            renderItem={renderItem}
-            ListHeaderComponent={renderHeader}
-            ListEmptyComponent={renderEmpty}
-            contentContainerStyle={[styles.scrollContent, { flexGrow: 1, paddingBottom: 80 + insets.bottom }]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          />
-        </KeyboardAvoidingView>
-      </View>
+      <KeyboardAvoidingView 
+        behavior="padding" 
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}
+      >
+        <FlatList
+          data={promos}
+          keyExtractor={(item, index) => item.id ? item.id.toString() : index.toString()}
+          renderItem={renderItem}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20, paddingBottom: 100 + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
@@ -130,127 +153,204 @@ export default function PromotionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FB',
-  },
-  safeArea: {
-    flex: 1,
+    backgroundColor: BG,
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 40,
+    paddingHorizontal: 20,
   },
-  headerTitle: {
-    fontSize: 28,
+  
+  // Header
+  headerContainer: {
+    marginBottom: 25,
+  },
+  pageTitle: {
+    fontSize: 26,
     fontFamily: 'Cairo-Bold',
-    color: '#000',
-    textAlign: 'left',
-    marginBottom: 35,
+    color: NAVY,
+    textAlign: 'right',
+    marginBottom: 20,
   },
-  section: {
+  
+  // Promo Input
+  promoInputWrapper: {
+    backgroundColor: WHITE,
+    borderRadius: 20,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
     marginBottom: 30,
   },
-  sectionLabel: {
-    fontSize: 18,
-    fontFamily: 'Cairo-Bold',
-    color: '#000',
-    textAlign: 'left',
-    marginBottom: 15,
-  },
-  inputRow: {
+  inputInner: {
     flexDirection: 'row-reverse',
-    backgroundColor: '#FFF',
-    borderRadius: 15,
-    height: 60,
     alignItems: 'center',
-    paddingHorizontal: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
+    borderColor: '#E2E8F0',
+  },
+  inputIconWrap: {
+    padding: 15,
   },
   input: {
     flex: 1,
+    height: 56,
     fontSize: 16,
-    fontFamily: 'Cairo-Regular',
-    color: '#000',
-    paddingRight: 10,
-  },
-  applyButton: {
-    backgroundColor: THEME_NAVY,
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  applyButtonText: {
-    color: '#FFF',
     fontFamily: 'Cairo-Bold',
-    fontSize: 14,
+    color: NAVY,
+    textAlign: 'right',
+    paddingHorizontal: 10,
   },
-  offerCard: {
-    flexDirection: 'row-reverse',
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 15,
-    marginBottom: 15,
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-  },
-  iconContainer: {
-    width: 55,
-    height: 55,
-    backgroundColor: '#F2F2F7',
+  applyBtn: {
+    backgroundColor: NAVY,
+    height: 44,
+    paddingHorizontal: 20,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 15,
+    marginLeft: 6,
   },
-  offerInfo: {
-    flex: 1,
-    alignItems: 'flex-end',
-    marginRight: 15,
-  },
-  offerTitle: {
-    fontSize: 15,
+  applyBtnText: {
+    color: WHITE,
     fontFamily: 'Cairo-Bold',
-    color: THEME_NAVY,
-    textAlign: 'left',
-    marginBottom: 4,
+    fontSize: 15,
   },
-  offerSubtitle: {
+
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: 'Cairo-Bold',
+    color: '#334155',
+    textAlign: 'right',
+    marginBottom: 15,
+  },
+
+  // Ticket Card
+  ticketCard: {
+    flexDirection: 'row-reverse',
+    backgroundColor: WHITE,
+    borderRadius: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+    height: 130,
+  },
+  ticketRight: {
+    width: 90,
+    backgroundColor: NAVY,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
+  discountBadge: {
+    width: 54, height: 54, borderRadius: 27,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  ticketContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  ticketHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  ticketTitle: {
+    fontSize: 16,
+    fontFamily: 'Cairo-Bold',
+    color: NAVY,
+    textAlign: 'right',
+    flex: 1,
+  },
+  ticketDesc: {
     fontSize: 12,
     fontFamily: 'Cairo-Regular',
-    color: '#8E8E93',
-    textAlign: 'left',
+    color: '#64748B',
+    textAlign: 'right',
+    marginTop: 2,
+    lineHeight: 18,
   },
-  useButton: {
-    backgroundColor: THEME_NAVY,
-    paddingHorizontal: 15,
+  useBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: NAVY,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 12,
+    gap: 6,
+    marginTop: 8,
   },
-  useButtonText: {
-    color: '#FFF',
-    fontSize: 13,
+  useBtnText: {
+    color: WHITE,
+    fontSize: 12,
     fontFamily: 'Cairo-Bold',
   },
+
+  // Dashed Divider
+  dashedDivider: {
+    width: 1,
+    height: '100%',
+    position: 'relative',
+    alignItems: 'center',
+  },
+  dashLine: {
+    width: 1,
+    height: '100%',
+    borderStyle: 'dashed',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 1,
+  },
+  notchTop: {
+    position: 'absolute',
+    top: -10,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: BG,
+    zIndex: 1,
+  },
+  notchBottom: {
+    position: 'absolute',
+    bottom: -10,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: BG,
+    zIndex: 1,
+  },
+
+  // Empty State
   emptyContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 40,
+    paddingTop: 60,
   },
-  emptyText: {
-    marginTop: 15,
-    fontFamily: 'Cairo-SemiBold',
-    fontSize: 16,
-    color: '#8E8E93',
+  emptyIconCircle: {
+    width: 100, height: 100, borderRadius: 50,
+    backgroundColor: WHITE,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: 'Cairo-Bold',
+    color: NAVY,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Regular',
+    color: '#64748B',
     textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 30,
   },
 });

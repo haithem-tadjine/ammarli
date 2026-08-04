@@ -83,7 +83,11 @@ export class RequestController {
   })
   async findAll(
     @Query() reqDto: ListRequestReqDto,
+    @CurrentUser() user: UserResDto,
   ): Promise<OffsetPaginatedDto<RequestResDto>> {
+    if (user.role === 'CLIENT') {
+      reqDto.userId = user.id as string;
+    }
     return this.requestService.findAll(reqDto);
   }
 

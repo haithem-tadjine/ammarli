@@ -156,7 +156,7 @@ export default function CustomerRegisterScreen() {
       <View style={styles.header}>
         <SafeAreaView>
           <View style={styles.logoWrapper}>
-            <Image source={require('../../assets/images/logo.png')} style={{width: 100, height: 100, marginBottom: 10}} resizeMode="contain" />
+            <Image source={require('../../assets/images/logo.png')} style={{width: 60, height: 60, marginBottom: 5}} resizeMode="contain" />
             <Text style={styles.brandName}>AMMARLI</Text>
           </View>
         </SafeAreaView>
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   flexOne:   { flex: 1 },
 
   // Header / Logo
-  header:      { height: height * 0.3, justifyContent: 'center', alignItems: 'center' },
+  header:      { height: height * 0.15, justifyContent: 'center', alignItems: 'center', marginTop: Platform.OS === 'android' ? 20 : 0 },
   logoWrapper: { alignItems: 'center' },
   logoIcon:    { width: 70, height: 70, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   dropOutline: {
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   },
   dropFill:  { width: 15, height: 15, backgroundColor: THEME_YELLOW, borderRadius: 7.5 },
   brandName: {
-    fontSize: 36, fontWeight: '900', color: WHITE,
+    fontSize: 24, fontWeight: '900', color: WHITE,
     letterSpacing: 2,
     fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif-black',
   },

@@ -28,7 +28,7 @@ import { api } from '../../src/services/api';
 const { width } = Dimensions.get('window');
 
 const COLORS = {
-  primary:   '#003366',
+  primary:   '#012047',
   secondary: '#F3CD0D',
   white:     '#FFFFFF',
   textGray:  '#64748B',
@@ -298,8 +298,8 @@ const DriverRegistrationScreen = () => {
   );
 
   return (
-    <ScreenContainer style={[styles.container, { paddingTop: Platform.OS === 'ios' ? insets.top : 0 }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} translucent={false} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} translucent={false} />
 
       {/* ── Success Modal ──────────────────────────────────────────────── */}
       <Modal visible={successModal} transparent animationType="fade">
@@ -328,29 +328,34 @@ const DriverRegistrationScreen = () => {
         </View>
       </Modal>
 
-      {/* Header */}
-      <View style={[styles.logoContainer, { marginTop: insets.top > 0 ? insets.top : 20 }]}>
-        <Text style={styles.logoText}>AMMARLI</Text>
-      </View>
-
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name='chevron-forward' size={28} color={COLORS.primary} />
+      {/* ── Navy Header with Logo ──────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.absoluteBack} onPress={() => router.back()}>
+          <Ionicons name='chevron-forward' size={28} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>إنشاء حساب سائق</Text>
-        <View style={{ width: 44 }} />
+        <View style={styles.logoWrapper}>
+          <Image source={require('../../assets/images/logo.png')} style={{width: 60, height: 60, marginBottom: 5}} resizeMode="contain" />
+          <Text style={styles.logoBrandName}>AMMARLI</Text>
+        </View>
       </View>
 
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.scrollContent, { flexGrow: 1, paddingBottom: insets.bottom + 30 }]}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {FormContent}
+          <View style={styles.formCard}>
+            <Text style={styles.cardHeaderTitle}>إنشاء حساب سائق</Text>
+            {FormContent}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenContainer>
+    </View>
   );
 };
 
@@ -359,15 +364,27 @@ const DriverRegistrationScreen = () => {
 const CARD_W = (width - 65) / 2;
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: COLORS.white },
+  container:    { flex: 1, backgroundColor: COLORS.primary },
   
-  logoContainer: { alignItems: 'center', marginBottom: 20 },
-  logoText: { fontSize: 18, fontFamily: 'Cairo-Bold', color: COLORS.primary, letterSpacing: 4 },
+  // Header / Logo
+  header:      { height: Dimensions.get('window').height * 0.15, justifyContent: 'center', alignItems: 'center', marginTop: Platform.OS === 'android' ? 20 : 0 },
+  logoWrapper: { alignItems: 'center' },
+  logoBrandName: {
+    fontSize: 24, fontWeight: '900', color: COLORS.white,
+    letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif-black',
+  },
+  absoluteBack: { position: 'absolute', top: 20, right: 20, zIndex: 10, width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
 
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 10 },
-  headerTitle:  { fontSize: 20, fontWeight: '800', color: COLORS.primary },
-  backButton:   { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { paddingHorizontal: 25, paddingTop: 10 },
+  // Scroll / Card
+  scrollContent: { paddingHorizontal: 25, paddingBottom: 40 },
+  formCard: {
+    backgroundColor: COLORS.white, borderRadius: 35, padding: 30, width: '100%',
+    elevation: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 15 }, shadowOpacity: 0.3, shadowRadius: 25,
+  },
+  cardHeaderTitle: { fontSize: 20, fontWeight: '900', color: COLORS.primary, textAlign: 'center', marginBottom: 20, fontFamily: 'Cairo-Bold' },
+
   formSection:  { marginBottom: 10 },
   sectionLabel: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginBottom: 12, textAlign: 'left', marginTop: 15 },
 

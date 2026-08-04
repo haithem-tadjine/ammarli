@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar, Phone, Star, Truck, X } from 'lucide-react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
 import { useCustomerStore, ScheduledOrder, DriverInfo } from '../../../src/store/useCustomerStore';
 import { SkeletonList } from '../../../components/SkeletonLoader';
@@ -28,9 +28,10 @@ import * as Haptics from 'expo-haptics';
 import ScreenContainer, { TAB_BAR_HEIGHT, MIN_BOTTOM_INSET } from '../../../components/ScreenContainer';
 
 const { width, height } = Dimensions.get('window');
-const THEME_NAVY = '#012047';
-const THEME_GOLD = '#D4AF37';
-const BACKGROUND_LIGHT = '#F8F9FA';
+const NAVY = '#012047';
+const YELLOW = '#F3CD0D';
+const BG = '#F8FAFC';
+const WHITE = '#FFFFFF';
 
 interface ScheduledOrderCardProps {
   status?: 'pending' | 'accepted';
@@ -38,162 +39,89 @@ interface ScheduledOrderCardProps {
   onCardPress: () => void;
 }
 
-/**
- * ScheduledOrderCard Component
- * Features dynamic states: 'pending' (searching) and 'accepted' (confirmed)
- * Includes Pulse animation for pending state and Slide-in for driver info.
- */
 const ScheduledOrderCard = React.memo(({ status = 'pending', orderData, onCardPress }: ScheduledOrderCardProps) => {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
   const isAccepted = status === 'accepted';
-
-  // Pulse Animation for Pending State
-  useEffect(() => {
-    if (status === 'pending') {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
-        ])
-      ).start();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [status, pulseAnim]);
-
-  // Slide-in Animation for Accepted State
-  useEffect(() => {
-    if (isAccepted) {
-      Animated.spring(slideAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isAccepted, slideAnim]);
 
   const handleCall = (phone?: string) => {
     if (phone) Linking.openURL(`tel:${phone}`);
   };
 
   return (
-    <Animated.View 
-      style={[
-        styles.card, 
-        isAccepted && styles.acceptedBorder,
-        !isAccepted && { transform: [{ scale: pulseAnim }] }
-      ]}
+    <TouchableOpacity 
+      activeOpacity={0.9} 
+      onPress={onCardPress} 
+      style={[styles.card, isAccepted && styles.cardAccepted]}
     >
-      <TouchableOpacity activeOpacity={0.9} onPress={onCardPress} disabled={!isAccepted}>
-        
-        {/* A. Top Section: Status & Product */}
-        <View style={styles.cardHeader}>
-          {/* Status Badge (Left - RTL) */}
-          <View style={[styles.statusBadge, isAccepted ? styles.confirmedBadge : styles.pendingBadge]}>
-            <Text style={[styles.statusBadgeText, isAccepted ? styles.confirmedText : styles.pendingText]}>
-              {isAccepted ? 'موعد مؤكد' : 'قيد البحث'}
-            </Text>
-            {!isAccepted && <ActivityIndicator size="small" color={THEME_GOLD} style={{ marginRight: 6 }} />}
+      {/* Header: Title and Status */}
+      <View style={styles.cardHeader}>
+        {/* Right side in RTL (1st JSX element) */}
+        <View style={styles.cardHeaderRight}>
+          <View style={styles.iconBox}>
+            <MaterialCommunityIcons 
+              name={orderData.iconName || 'water-outline'} 
+              size={24} 
+              color={NAVY}
+            />
           </View>
-
-          {/* Product Icon & Title (Right - RTL) */}
-          <View style={styles.productRow}>
-             <Text style={styles.productTitle}>{orderData.title}</Text>
-             <View style={[styles.iconContainer, { justifyContent: 'center', alignItems: 'center' }]}>
-               <MaterialCommunityIcons 
-                 name={orderData.iconName || 'bottle-wine-outline'} 
-                 size={32} 
-                 color={THEME_NAVY}
-               />
-             </View>
-          </View>
+          <Text style={styles.cardTitle} numberOfLines={1}>{orderData.title}</Text>
         </View>
 
-        {/* B. Middle Section: The Core Schedule */}
-        <View style={styles.scheduleBanner}>
-          <Text style={styles.scheduleTime}>{orderData.schedule}</Text>
-          <Calendar size={18} color={THEME_GOLD} style={{ marginLeft: 10 }} />
+        {/* Left side in RTL (2nd JSX element) */}
+        <View style={[styles.statusBadge, isAccepted ? styles.badgeSuccess : styles.badgeWarning]}>
+          <Text style={[styles.statusText, isAccepted ? styles.textSuccess : styles.textWarning]}>
+            {isAccepted ? 'موعد مؤكد' : 'جاري البحث'}
+          </Text>
+          {!isAccepted && <ActivityIndicator size="small" color="#D97706" style={{ marginRight: 4 }} />}
         </View>
+      </View>
 
-        {/* C. Bottom Section: Trust Building (Accepted Only) */}
-        {isAccepted && (
-          <Animated.View 
-            style={[
-              styles.driverSection, 
-              { 
-                opacity: slideAnim,
-                transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] 
-              }
-            ]}
-          >
-            <View style={styles.divider} />
-            <View style={styles.driverRow}>
-              {/* Call Button (Left - RTL) */}
-              <TouchableOpacity 
-                style={styles.callCircle} 
-                onPress={() => handleCall(orderData.driver?.phone)}
-              >
-                <Phone size={20} color={THEME_NAVY} fill={THEME_NAVY} />
-              </TouchableOpacity>
+      <View style={styles.divider} />
 
-              {/* Driver Info (Center) */}
-              <View style={styles.driverDetails}>
-                <Text style={styles.driverName}>{orderData.driver?.name}</Text>
-                <View style={styles.ratingRow}>
-                   <Text style={styles.ratingText}>{orderData.driver?.rating}</Text>
-                   <Star size={14} color={THEME_GOLD} fill={THEME_GOLD} />
-                </View>
-              </View>
+      {/* Schedule Info */}
+      <View style={styles.scheduleRow}>
+        <Ionicons name="calendar-outline" size={18} color="#64748B" />
+        <Text style={styles.scheduleText}>{orderData.schedule}</Text>
+      </View>
 
-              {/* Driver Avatar (Right - RTL) */}
-              <View style={styles.avatarWrapper}>
-                <Image source={{ uri: orderData.driver?.image }} style={styles.driverAvatar} />
-              </View>
+      {/* Driver Info (If Accepted) */}
+      {isAccepted && orderData.driver && (
+        <View style={styles.driverBox}>
+          <Image source={{ uri: orderData.driver.image }} style={styles.driverImg} />
+          <View style={styles.driverInfo}>
+            <Text style={styles.driverName}>{orderData.driver.name}</Text>
+            <View style={styles.ratingBox}>
+              <Ionicons name="star" size={12} color={YELLOW} />
+              <Text style={styles.ratingText}>{orderData.driver.rating}</Text>
             </View>
-          </Animated.View>
-        )}
-
-      </TouchableOpacity>
-    </Animated.View>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.callBtn} 
+            onPress={() => handleCall(orderData.driver?.phone)}
+          >
+            <Ionicons name="call" size={18} color={WHITE} />
+          </TouchableOpacity>
+        </View>
+      )}
+    </TouchableOpacity>
   );
 });
 ScheduledOrderCard.displayName = 'ScheduledOrderCard';
 
-// ─── Empty State ──────────────────────────────────────────────────────────────
+// Empty State Component
 const EmptyActivities = React.memo(({ onPress, title, subtitle }: { onPress: () => void, title?: string, subtitle?: string }) => (
-  <View style={emptyStyles.container}>
-    <Svg width={120} height={120} viewBox="0 0 120 120" fill="none">
-      <Circle cx="60" cy="60" r="56" fill="#F0F4FF" />
-      <Rect x="35" y="38" width="50" height="52" rx="6" fill="#E2E8F0" />
-      <Rect x="42" y="48" width="36" height="5" rx="2.5" fill="#94A3B8" />
-      <Rect x="42" y="58" width="26" height="4" rx="2" fill="#CBD5E1" />
-      <Rect x="42" y="67" width="30" height="4" rx="2" fill="#CBD5E1" />
-      <Circle cx="82" cy="82" r="18" fill="#012047" />
-      <Line x1="82" y1="74" x2="82" y2="82" stroke="#FFCC00" strokeWidth="2.5" strokeLinecap="round" />
-      <Line x1="82" y1="86" x2="82" y2="89" stroke="#FFCC00" strokeWidth="2.5" strokeLinecap="round" />
-    </Svg>
-    <Text style={emptyStyles.title}>{title || 'لا توجد طلبات مجدولة بعد'}</Text>
-    <Text style={emptyStyles.subtitle}>{subtitle || 'جدوِّل طلبك الآن لاستقبال مياهك في الوقت المناسب'}</Text>
-    <TouchableOpacity style={emptyStyles.ctaButton} onPress={onPress} activeOpacity={0.8}>
-      <Text style={emptyStyles.ctaText}>اطلب مياهك الآن</Text>
+  <View style={styles.emptyContainer}>
+    <View style={styles.emptyIconCircle}>
+      <MaterialCommunityIcons name="clipboard-text-outline" size={50} color="#CBD5E1" />
+    </View>
+    <Text style={styles.emptyTitle}>{title || 'لا توجد طلبات مجدولة'}</Text>
+    <Text style={styles.emptySubtitle}>{subtitle || 'اطلب مياهك الآن لكي تظهر هنا فور جدولتها.'}</Text>
+    <TouchableOpacity style={styles.emptyBtn} onPress={onPress} activeOpacity={0.8}>
+      <Text style={styles.emptyBtnText}>اطلب مياهك الآن</Text>
     </TouchableOpacity>
   </View>
 ));
 EmptyActivities.displayName = 'EmptyActivities';
-
-const emptyStyles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
-  title: { fontSize: 20, fontFamily: 'Cairo-Bold', color: '#012047', textAlign: 'center', marginTop: 24, marginBottom: 10 },
-  subtitle: { fontSize: 14, fontFamily: 'Cairo-Regular', color: '#8E8E93', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
-  ctaButton: {
-    backgroundColor: '#FFCC00', paddingHorizontal: 36, paddingVertical: 14,
-    borderRadius: 30, elevation: 4,
-    shadowColor: '#FFCC00', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
-  },
-  ctaText: { fontSize: 16, fontFamily: 'Cairo-Bold', color: '#012047' },
-});
 
 export default function MyActivitiesScreen() {
   const [activeTab, setActiveTab] = useState('upcoming');
@@ -224,295 +152,259 @@ export default function MyActivitiesScreen() {
   );
 
   const pastOrdersList = pastOrders.filter(o => o.status === 'delivered' || o.status === 'cancelled');
-  const currentPastList = pastOrdersList;
 
   const openOrderDetails = (order: ScheduledOrder) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedOrderDetails(order);
     setBottomSheetVisible(true);
   };
 
-  const handleReorder = (order: any) => {
-    console.log('Reordering:', order);
-    Alert.alert('جاري التحويل', 'جاري تحويلك إلى السلة...');
+  const handleReorder = (item: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert('قريباً', 'جاري تحويلك إلى السلة لإعادة الطلب...');
   };
 
   const handleRate = () => {
-    console.warn('TODO: Connect rating logic');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert('قريباً', 'ميزة التقييم قيد التطوير');
   };
 
   return (
-    <ScreenContainer
-      edges={['top']}
-      backgroundColor="#FFF"
-      statusBarStyle="dark-content"
-      statusBarColor="#FFF"
-    >
-      <ScreenContainer backgroundColor="#FFF" statusBarStyle="dark-content" statusBarColor="#FFF">
-        {/* Header Section */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>الطلبات المجدولة</Text>
-        </View>
+    <ScreenContainer edges={['top']} backgroundColor={BG} statusBarStyle="dark-content" statusBarColor={BG}>
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.pageTitle}>نشاطاتي</Text>
+      </View>
 
-        {/* Dynamic Tabs */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]} 
-            onPress={() => setActiveTab('upcoming')}
-          >
-            <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>القادمة</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'past' && styles.activeTab]} 
-            onPress={() => setActiveTab('past')}
-          >
-            <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>السابقة</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Tabs */}
+      <View style={styles.tabsWrapper}>
+        <TouchableOpacity 
+          style={[styles.tabBtn, activeTab === 'upcoming' && styles.tabBtnActive]} 
+          onPress={() => { Haptics.selectionAsync(); setActiveTab('upcoming'); }}
+        >
+          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>الطلبات الحالية</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.tabBtn, activeTab === 'past' && styles.tabBtnActive]} 
+          onPress={() => { Haptics.selectionAsync(); setActiveTab('past'); }}
+        >
+          <Text style={[styles.tabText, activeTab === 'past' && styles.tabTextActive]}>الطلبات السابقة</Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Content Scroll View 
-             paddingBottom = ارتفاع الـ TabBar الفعلي + MIN_BOTTOM_INSET للحماية + 20 كفراغ إضافي */}
-        {isLoading ? (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_INSET) + 20 }]}>
-            <SkeletonList type="card" count={3} />
-          </ScrollView>
-        ) : (
-          <FlatList
-            data={activeTab === 'upcoming' ? (scheduledOrders as any[]) : (currentPastList as any[])}
-            keyExtractor={(item: any) => item.id ? item.id.toString() : Math.random().toString()}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_INSET) + 20 }]}
-            ListEmptyComponent={
-              activeTab === 'upcoming' ? (
-                <EmptyActivities onPress={() => router.replace('/(customer)/(tabs)')} />
-              ) : (
-                <EmptyActivities 
-                  onPress={() => router.replace('/(customer)/(tabs)')} 
-                  title="لا توجد طلبات سابقة" 
-                  subtitle="اطلب مياهك الآن لكي يظهر سجلك هنا"
+      {isLoading ? (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + insets.bottom + 20 }]}>
+          <SkeletonList type="card" count={3} />
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={activeTab === 'upcoming' ? scheduledOrders : pastOrdersList}
+          keyExtractor={(item: any) => item.id ? item.id.toString() : Math.random().toString()}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_INSET) + 20 }]}
+          ListEmptyComponent={
+            <EmptyActivities 
+              onPress={() => router.replace('/(customer)/(tabs)')} 
+              title={activeTab === 'past' ? "لا توجد طلبات سابقة" : undefined}
+              subtitle={activeTab === 'past' ? "اطلب مياهك الآن لكي يظهر سجلك هنا" : undefined}
+            />
+          }
+          renderItem={({ item }: { item: any }) => {
+            if (activeTab === 'upcoming') {
+              return (
+                <ScheduledOrderCard
+                  status={item.status}
+                  orderData={item}
+                  onCardPress={() => openOrderDetails(item)}
                 />
-              )
-            }
-            renderItem={({ item }: { item: any }) => {
-              if (activeTab === 'upcoming') {
-                return (
-                  <ScheduledOrderCard
-                    status={item.status}
-                    orderData={item}
-                    onCardPress={() => openOrderDetails(item)}
-                  />
-                );
-              } else {
-                const isCancelled = item.status === 'cancelled';
-                const orderSummaryText = item.waterType ? `مياه ${item.waterType}` : (item.items && item.items.length > 0 ? `${item.items.length} منتجات` : 'طلب مياه');
-                return (
-                  <View style={[styles.oldOrderCard, isCancelled && { borderColor: '#FCA5A5', borderWidth: 1 }]}>
-                    <View style={styles.cardMainRow}>
-                      <View style={styles.orderInfo}>
-                        <Text style={[styles.orderTitle, isCancelled && { color: '#EF4444' }]} numberOfLines={2}>
-                          {isCancelled ? 'طلب ملغى' : orderSummaryText}
-                        </Text>
-                        <Text style={styles.orderTime}>{item.orderTime || item.time || '10:00 ص'}</Text>
-                        {isCancelled && item.cancelReason ? (
-                          <Text style={[styles.orderPrice, { color: '#EF4444', fontSize: 14, marginTop: 4 }]}>السبب: {item.cancelReason}</Text>
-                        ) : (
-                          <Text style={styles.orderPrice}>{item.price ? `${item.price} د.ج` : 'لم يتم التحديد بعد'}</Text>
-                        )}
-                      </View>
-                      <View style={styles.iconContainerBox}>
-                        <View style={[styles.iconGlow, isCancelled && { backgroundColor: '#FEF2F2', elevation: 0, borderWidth: 1, borderColor: '#FCA5A5' }]}>
-                          {isCancelled ? (
-                            <X color="#EF4444" size={24} strokeWidth={2.5} />
-                          ) : (
-                            <Truck color="#FFF" size={24} strokeWidth={2.5} />
-                          )}
-                        </View>
-                      </View>
+              );
+            } else {
+              const isCancelled = item.status === 'cancelled';
+              const orderSummaryText = item.waterType ? `مياه ${item.waterType}` : (item.items && item.items.length > 0 ? `${item.items.length} منتجات` : 'طلب مياه');
+              
+              return (
+                <View style={styles.pastCard}>
+                  <View style={styles.pastCardTop}>
+                    <View style={styles.pastCardInfo}>
+                      <Text style={[styles.pastCardTitle, isCancelled && { color: '#EF4444' }]} numberOfLines={2}>
+                        {isCancelled ? 'طلب ملغى' : orderSummaryText}
+                      </Text>
+                      <Text style={styles.pastCardTime}>{item.orderTime || item.time || '10:00 ص'}</Text>
+                      <Text style={[styles.pastCardPrice, isCancelled && { color: '#EF4444', fontSize: 14 }]}>
+                        {isCancelled ? `السبب: ${item.cancelReason || 'غير محدد'}` : (item.price ? `${item.price} د.ج` : 'السعر غير محدد')}
+                      </Text>
                     </View>
-
-                    {!isCancelled && (
-                      <View style={styles.cardActions}>
-                        <TouchableOpacity style={styles.rateButton} onPress={handleRate}>
-                          <Text style={styles.rateButtonText}>تقييم</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.reorderButton} onPress={() => handleReorder(item)}>
-                          <Text style={styles.reorderButtonText}>إعادة طلب</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
+                    <View style={[styles.pastIconBox, isCancelled && styles.pastIconBoxCancelled]}>
+                      {isCancelled ? (
+                        <Ionicons name="close" size={24} color="#EF4444" />
+                      ) : (
+                        <MaterialCommunityIcons name="check-decagram" size={28} color={NAVY} />
+                      )}
+                    </View>
                   </View>
-                );
-              }
-            }}
-          />
-        )}
 
-      {/* Bottom Sheet Modal */}
-      <Modal
-        visible={isBottomSheetVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setBottomSheetVisible(false)}
-      >
+                  {!isCancelled && (
+                    <View style={styles.pastCardActions}>
+                      <TouchableOpacity style={styles.reorderBtn} onPress={() => handleReorder(item)}>
+                        <Text style={styles.reorderBtnText}>إعادة الطلب</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.rateBtn} onPress={handleRate}>
+                        <Text style={styles.rateBtnText}>تقييم</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            }
+          }}
+        />
+      )}
+
+      {/* Bottom Sheet */}
+      <Modal visible={isBottomSheetVisible} transparent animationType="slide" onRequestClose={() => setBottomSheetVisible(false)}>
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackdrop} 
-            activeOpacity={1} 
-            onPress={() => setBottomSheetVisible(false)} 
-          />
-          <View style={styles.bottomSheet}>
-            <View style={styles.bottomSheetHeader}>
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setBottomSheetVisible(false)} />
+          <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            
+            <View style={styles.bsHeader}>
+              <Text style={styles.bsTitle}>تفاصيل الموعد</Text>
               <TouchableOpacity onPress={() => setBottomSheetVisible(false)} style={styles.closeBtn}>
-                <X color={THEME_NAVY} size={24} />
+                <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
-              <Text style={styles.bottomSheetTitle}>تفاصيل الموعد</Text>
             </View>
             
             {selectedOrderDetails && (
-              <View style={styles.bottomSheetContent}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailValue}>{selectedOrderDetails.title}</Text>
-                  <Text style={styles.detailLabel}>الخدمة:</Text>
+              <View style={styles.bsContent}>
+                <View style={styles.bsRow}>
+                  <Text style={styles.bsLabel}>الخدمة:</Text>
+                  <Text style={styles.bsValue}>{selectedOrderDetails.title}</Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailValue}>{selectedOrderDetails.schedule}</Text>
-                  <Text style={styles.detailLabel}>التاريخ والوقت:</Text>
+                <View style={styles.bsRow}>
+                  <Text style={styles.bsLabel}>التاريخ والوقت:</Text>
+                  <Text style={styles.bsValue}>{selectedOrderDetails.schedule}</Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailValue, { color: selectedOrderDetails.status === 'accepted' ? '#D4AF37' : '#8E8E93', fontFamily: 'Cairo-Bold' }]}>
-                    {selectedOrderDetails.status === 'accepted' ? 'موعد مؤكد' : 'قيد البحث'}
-                  </Text>
-                  <Text style={styles.detailLabel}>الحالة:</Text>
+                <View style={styles.bsRow}>
+                  <Text style={styles.bsLabel}>الحالة:</Text>
+                  <View style={[styles.statusBadge, selectedOrderDetails.status === 'accepted' ? styles.badgeSuccess : styles.badgeWarning]}>
+                    <Text style={[styles.statusText, selectedOrderDetails.status === 'accepted' ? styles.textSuccess : styles.textWarning]}>
+                      {selectedOrderDetails.status === 'accepted' ? 'موعد مؤكد' : 'جاري البحث'}
+                    </Text>
+                  </View>
                 </View>
-                
+
                 {selectedOrderDetails.driver && (
-                  <View style={styles.driverFullDetails}>
-                    <Image source={{ uri: selectedOrderDetails.driver.image }} style={styles.driverLargeImage} />
-                    <Text style={styles.driverLargeName}>{selectedOrderDetails.driver.name}</Text>
-                    <Text style={styles.driverTruckInfo}>شاحنة توصيل مياه</Text>
-                    <TouchableOpacity style={styles.fullCallBtn} onPress={() => {
-                      if (selectedOrderDetails.driver?.phone) {
-                        Linking.openURL(`tel:${selectedOrderDetails.driver.phone}`);
-                      }
-                    }}>
-                      <Phone size={20} color={THEME_NAVY} fill={THEME_NAVY} />
-                      <Text style={styles.fullCallBtnText}>الاتصال بالسائق</Text>
+                  <View style={styles.bsDriverBox}>
+                    <Image source={{ uri: selectedOrderDetails.driver.image }} style={styles.bsDriverImg} />
+                    <Text style={styles.bsDriverName}>{selectedOrderDetails.driver.name}</Text>
+                    <Text style={styles.bsDriverRole}>سائق توصيل</Text>
+                    
+                    <TouchableOpacity style={styles.bsCallBtn} onPress={() => Linking.openURL(`tel:${selectedOrderDetails.driver?.phone}`)}>
+                      <Text style={styles.bsCallBtnText}>اتصال بالسائق</Text>
+                      <Ionicons name="call" size={20} color={NAVY} />
                     </TouchableOpacity>
                   </View>
                 )}
               </View>
             )}
+
           </View>
         </View>
       </Modal>
-    </ScreenContainer>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
-  header: { paddingHorizontal: 25, paddingTop: 16, paddingBottom: 15 },
-  headerTitle: { fontSize: 28, fontFamily: 'Cairo-Bold', color: THEME_NAVY, textAlign: 'center' },
+  header: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 15 },
+  pageTitle: { fontSize: 26, fontFamily: 'Cairo-Bold', color: NAVY, textAlign: 'right' },
   
-  tabContainer: { flexDirection: 'row-reverse', borderBottomWidth: 1, borderBottomColor: '#E5E5EA', marginHorizontal: 25 },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 18 },
-  activeTab: { borderBottomWidth: 4, borderBottomColor: THEME_NAVY },
-  tabText: { fontSize: 18, color: '#8E8E93', fontFamily: 'Cairo-Bold' },
-  activeTabText: { color: THEME_NAVY },
-  
-  scrollContent: { padding: 20 },
+  // Tabs (Using flexDirection: 'row' so 1st item is Right in RTL)
+  tabsWrapper: { flexDirection: 'row', backgroundColor: '#E2E8F0', marginHorizontal: 20, borderRadius: 16, padding: 4, marginBottom: 15 },
+  tabBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
+  tabBtnActive: { backgroundColor: WHITE, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  tabText: { fontSize: 15, fontFamily: 'Cairo-SemiBold', color: '#64748B' },
+  tabTextActive: { color: NAVY, fontFamily: 'Cairo-Bold' },
 
-  // New Scheduled Card Styles
+  scrollContent: { paddingHorizontal: 20 },
+
+  // Upcoming Cards
   card: {
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    padding: 18,
-    marginVertical: 12,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 15 },
-      android: { elevation: 6 },
-    }),
+    backgroundColor: WHITE, borderRadius: 20, padding: 16, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
+    borderWidth: 1, borderColor: 'transparent',
   },
-  acceptedBorder: {
-    borderWidth: 1.5,
-    borderColor: THEME_GOLD,
-  },
-  cardHeader: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  productRow: { flexDirection: 'row-reverse', alignItems: 'center' },
-  productTitle: { fontSize: 16, fontFamily: 'Cairo-Bold', color: THEME_NAVY, marginRight: 12 },
-  iconContainer: { width: 45, height: 45, backgroundColor: BACKGROUND_LIGHT, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  productIcon: { width: 35, height: 35 },
+  cardAccepted: { borderColor: YELLOW },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cardHeaderRight: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  iconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginLeft: 12 },
+  cardTitle: { fontSize: 16, fontFamily: 'Cairo-Bold', color: NAVY, flex: 1, textAlign: 'right' },
   
-  statusBadge: { flexDirection: 'row-reverse', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  confirmedBadge: { backgroundColor: THEME_GOLD },
-  pendingBadge: { backgroundColor: BACKGROUND_LIGHT, borderWidth: 1, borderColor: '#EEE' },
-  statusBadgeText: { fontSize: 12, fontFamily: 'Cairo-Bold' },
-  confirmedText: { color: '#FFF' },
-  pendingText: { color: '#8E8E93' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  badgeSuccess: { backgroundColor: '#D1FAE5' },
+  badgeWarning: { backgroundColor: '#FEF3C7' },
+  statusText: { fontSize: 12, fontFamily: 'Cairo-Bold' },
+  textSuccess: { color: '#059669', fontSize: 12, fontFamily: 'Cairo-Bold' },
+  textWarning: { color: '#D97706', fontSize: 12, fontFamily: 'Cairo-Bold' },
 
-  scheduleBanner: {
-    backgroundColor: BACKGROUND_LIGHT,
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 15,
-    marginBottom: 5,
+  divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 12 },
+
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', marginBottom: 12, gap: 8 },
+  scheduleText: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: '#475569' },
+
+  driverBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 12, borderRadius: 16, marginTop: 4 },
+  driverImg: { width: 40, height: 40, borderRadius: 20, marginLeft: 12 },
+  driverInfo: { flex: 1, alignItems: 'flex-start' },
+  driverName: { fontSize: 15, fontFamily: 'Cairo-Bold', color: NAVY },
+  ratingBox: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  ratingText: { fontSize: 12, fontFamily: 'Cairo-Bold', color: '#64748B' },
+  callBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: NAVY, justifyContent: 'center', alignItems: 'center', marginRight: 'auto' },
+
+  // Past Cards
+  pastCard: {
+    backgroundColor: WHITE, borderRadius: 20, padding: 16, marginBottom: 16,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
   },
-  scheduleTime: { fontSize: 17, fontFamily: 'Cairo-Bold', color: THEME_NAVY },
-
-  driverSection: { marginTop: 15 },
-  divider: { height: 1, backgroundColor: '#F2F2F7', marginBottom: 15 },
-  driverRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
-  avatarWrapper: { borderWidth: 2, borderColor: THEME_GOLD, borderRadius: 25, padding: 2 },
-  driverAvatar: { width: 40, height: 40, borderRadius: 20 },
-  driverDetails: { flex: 1, alignItems: 'flex-end', marginRight: 15 },
-  driverName: { fontSize: 16, fontFamily: 'Cairo-Bold', color: THEME_NAVY },
-  ratingRow: { flexDirection: 'row-reverse', alignItems: 'center', marginTop: 2 },
-  ratingText: { fontSize: 12, color: '#8E8E93', marginRight: 4, fontFamily: 'Cairo-Bold' },
+  pastCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  pastCardInfo: { flex: 1, alignItems: 'flex-start' },
+  pastCardTitle: { fontSize: 15, fontFamily: 'Cairo-Bold', color: NAVY, textAlign: 'right', marginBottom: 4 },
+  pastCardTime: { fontSize: 13, fontFamily: 'Cairo-SemiBold', color: '#94A3B8', marginBottom: 8 },
+  pastCardPrice: { fontSize: 18, fontFamily: 'Cairo-Bold', color: NAVY },
   
-  callCircle: { width: 40, height: 40, backgroundColor: BACKGROUND_LIGHT, borderRadius: 20, justifyContent: 'center', alignItems: 'center', elevation: 2 },
+  pastIconBox: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginLeft: 15 },
+  pastIconBoxCancelled: { backgroundColor: '#FEF2F2' },
+  
+  pastCardActions: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9', gap: 12 },
+  reorderBtn: { backgroundColor: YELLOW, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
+  reorderBtnText: { color: NAVY, fontFamily: 'Cairo-Bold', fontSize: 14 },
+  rateBtn: { backgroundColor: '#F1F5F9', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
+  rateBtnText: { color: NAVY, fontFamily: 'Cairo-Bold', fontSize: 14 },
 
-  // Old Card Styles (for past orders)
-  oldOrderCard: {
-    backgroundColor: '#FFF', borderRadius: 24, padding: 20, marginBottom: 20,
-    elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12,
-  },
-  cardMainRow: { flexDirection: 'row-reverse', justifyContent: 'flex-end', marginBottom: 20 },
-  orderInfo: { flex: 1, marginRight: 20, alignItems: 'flex-end' },
-  orderTitle: { fontSize: 14, color: THEME_NAVY, fontFamily: 'Cairo-SemiBold', textAlign: 'left', lineHeight: 22 },
-  orderTime: { fontSize: 13, color: '#8E8E93', fontFamily: 'Cairo-SemiBold', marginTop: 10 },
-  orderPrice: { fontSize: 22, fontFamily: 'Cairo-Bold', color: THEME_NAVY, marginTop: 6 },
-  iconContainerBox: { justifyContent: 'center', alignItems: 'flex-start' },
-  iconGlow: { width: 60, height: 60, backgroundColor: THEME_NAVY, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8 },
-  cardActions: { flexDirection: 'row-reverse', justifyContent: 'flex-start', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F2F2F7', paddingTop: 15 },
-  reorderButton: { backgroundColor: '#FFCC00', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 30, elevation: 3, marginLeft: 15 },
-  reorderButtonText: { color: THEME_NAVY, fontFamily: 'Cairo-Bold', fontSize: 16 },
-  rateButton: { backgroundColor: '#F8F9FB', paddingHorizontal: 25, paddingVertical: 12, borderRadius: 30, borderWidth: 1.5, borderColor: '#E2E8F0' },
-  rateButtonText: { color: THEME_NAVY, fontFamily: 'Cairo-Bold', fontSize: 16 },
+  // Empty State
+  emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 30 },
+  emptyIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: WHITE, justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  emptyTitle: { fontSize: 20, fontFamily: 'Cairo-Bold', color: NAVY, marginBottom: 8, textAlign: 'center' },
+  emptySubtitle: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 30 },
+  emptyBtn: { backgroundColor: NAVY, paddingHorizontal: 30, paddingVertical: 14, borderRadius: 20 },
+  emptyBtnText: { color: WHITE, fontFamily: 'Cairo-Bold', fontSize: 16 },
 
-  // Bottom Sheet Modal
-  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject },
-  bottomSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, paddingBottom: 25, minHeight: height * 0.45 },
-  bottomSheetHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  bottomSheetTitle: { fontSize: 20, fontFamily: 'Cairo-Bold', color: THEME_NAVY },
-  closeBtn: { backgroundColor: '#F2F2F7', padding: 8, borderRadius: 20 },
-  bottomSheetContent: { flex: 1 },
-  detailRow: { flexDirection: 'row-reverse', justifyContent: 'flex-end', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' },
-  detailLabel: { fontSize: 15, fontFamily: 'Cairo-Regular', color: '#8E8E93', marginLeft: 15, width: 100, textAlign: 'left' },
-  detailValue: { flex: 1, fontSize: 15, fontFamily: 'Cairo-SemiBold', color: THEME_NAVY, textAlign: 'left' },
-  driverFullDetails: { alignItems: 'center', marginTop: 25, padding: 20, backgroundColor: '#F8F9FB', borderRadius: 20 },
-  driverLargeImage: { width: 80, height: 80, borderRadius: 40, marginBottom: 10 },
-  driverLargeName: { fontSize: 18, fontFamily: 'Cairo-Bold', color: THEME_NAVY, marginBottom: 5 },
-  driverTruckInfo: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: '#8E8E93', marginBottom: 20 },
-  fullCallBtn: { flexDirection: 'row-reverse', backgroundColor: THEME_GOLD, paddingHorizontal: 25, paddingVertical: 12, borderRadius: 30, alignItems: 'center' },
-  fullCallBtnText: { fontSize: 16, fontFamily: 'Cairo-Bold', color: '#FFF', marginLeft: 10 }
+  // Bottom Sheet
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,33,71,0.4)', justifyContent: 'flex-end' },
+  bottomSheet: { backgroundColor: WHITE, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24 },
+  bsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  bsTitle: { fontSize: 20, fontFamily: 'Cairo-Bold', color: NAVY },
+  closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  
+  bsContent: {},
+  bsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  bsLabel: { fontSize: 15, fontFamily: 'Cairo-SemiBold', color: '#64748B' },
+  bsValue: { fontSize: 16, fontFamily: 'Cairo-Bold', color: NAVY, flex: 1, textAlign: 'left', marginLeft: 20 },
+
+  bsDriverBox: { alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 20, padding: 20, marginTop: 25 },
+  bsDriverImg: { width: 80, height: 80, borderRadius: 40, marginBottom: 12 },
+  bsDriverName: { fontSize: 18, fontFamily: 'Cairo-Bold', color: NAVY },
+  bsDriverRole: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: '#64748B', marginBottom: 20 },
+  bsCallBtn: { flexDirection: 'row', backgroundColor: YELLOW, paddingHorizontal: 25, paddingVertical: 14, borderRadius: 20, alignItems: 'center', gap: 10, width: '100%', justifyContent: 'center' },
+  bsCallBtnText: { fontSize: 16, fontFamily: 'Cairo-Bold', color: NAVY }
 });

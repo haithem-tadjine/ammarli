@@ -1,79 +1,46 @@
 import ScreenContainer from '../../components/ScreenContainer';
 import React, { useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Switch,
-  Dimensions,
-  Image,
-  Alert,
-  Platform,
-  StatusBar,
-  I18nManager,
-  TextInput,
-  KeyboardAvoidingView
+  StyleSheet, View, Text, TouchableOpacity, ScrollView,
+  Switch, Dimensions, Image, Alert, Platform, StatusBar,
+  TextInput, KeyboardAvoidingView
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
-  ChevronLeft, 
-  Calendar, 
-  Clock, 
-  Heart, 
-  FileText, 
-  MapPin, 
-  CheckCircle2, 
-  ShoppingBag 
-} from 'lucide-react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useCustomerStore, Order, ScheduledOrder } from '../../src/store/useCustomerStore';
+import { useCustomerStore, Order } from '../../src/store/useCustomerStore';
 import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
-const THEME_NAVY = '#012047';
-const THEME_YELLOW = '#FFCC00';
-
-// تفعيل اتجاه اليمين لليسار
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
+const NAVY = '#012047';
+const YELLOW = '#F3CD0D';
+const WHITE = '#FFFFFF';
+const BG = '#F8FAFC';
 
 const ScheduleOrderScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  // استلام البيانات من الحالة العامة للتطبيق
   const draftOrder = useCustomerStore((s) => s.draftOrder);
   const userLocation = useCustomerStore((s) => s.userLocation);
   const scheduleOrder = useCustomerStore((s) => s.scheduleOrder);
-  const acceptScheduledOrder = useCustomerStore((s) => s.acceptScheduledOrder);
   const addNotification = useCustomerStore((s) => s.addNotification);
-  const addToFavorites = useCustomerStore((s) => s.addToFavorites);
 
   const { orderTitle, isTanker } = useLocalSearchParams();
 
-  // ملخص الطلبية ديناميكياً
-  const actualTitle = orderTitle ? String(orderTitle) : (draftOrder.tankerDetails ? `صهريج مياه ${draftOrder.tankerDetails.quantity} لتر` : "ماء جوديلا 0.5 لتر x30");
+  const actualTitle = orderTitle ? String(orderTitle) : (draftOrder.tankerDetails ? `صهريج مياه ${draftOrder.tankerDetails.quantity} لتر` : "طلب مياه");
   const actualIsTanker = isTanker === "true" || (!orderTitle && !!draftOrder.tankerDetails);
 
-  const orderSummary = {
-    title: actualTitle,
-    status: "تم التأكيد",
-    id: `ORD-${Math.floor(Math.random() * 10000)}`
-  };
-
-  // الموقع المحفوظ مسبقاً
-  const currentLocation = userLocation?.address || "بوزوران، طريق بسكرة، باتنة";
+  const currentLocation = userLocation?.address || "حدد موقع التوصيل";
 
   const [date, setDate] = useState("17 أفريل 2026");
-  const [time, setTime] = useState("08:12 م");
+  const [time, setTime] = useState("08:00 ص");
   const [isFavorite, setIsFavorite] = useState(false);
   const [isDraft, setIsDraft] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
-  // وظيفة لتعديل الموقع (تأخذك لصفحة الخريطة)
   const handleEditLocation = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/(customer)/location-picker');
   };
 
@@ -83,7 +50,7 @@ const ScheduleOrderScreen = () => {
       type: actualIsTanker ? 'Tanker' : 'Bottled',
       status: 'pending',
       quantity: draftOrder.tankerDetails?.quantity?.toString() || '1',
-      price: 2500, // Mock price for now
+      price: 2500,
       locationName: currentLocation,
       location: userLocation || { latitude: 0, longitude: 0 },
       waterType: (draftOrder.tankerDetails as any)?.waterType || 'spring_water',
@@ -96,17 +63,14 @@ const ScheduleOrderScreen = () => {
       console.log('Error scheduling order', e);
     }
 
-    // إضافة إشعار
     addNotification({
       title: 'تم حفظ وجدولة طلبك',
       description: `تم جدولة طلبك بنجاح لتاريخ ${date} في تمام الساعة ${time}.`,
       type: 'schedule'
     });
 
-    // إظهار رسالة النجاح في الأسفل
     setShowToast(true);
     
-    // الانتظار قليلاً ثم العودة لصفحة النشاطات مباشرة
     setTimeout(() => {
       setShowToast(false);
       router.push('/(customer)/(tabs)/activities');
@@ -115,143 +79,148 @@ const ScheduleOrderScreen = () => {
 
   return (
     <ScreenContainer style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={BG} />
       
-      <View style={styles.safeArea}>
-        {/* Header Section */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <ChevronLeft color={THEME_NAVY} size={28} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>حفظ الطلب</Text>
-          <View style={{ width: 28 }} />
-        </View>
+      {/* Header */}
+      <View style={styles.header}>
+        {/* Using row-reverse, right element first */}
+        <View style={{ width: 40 }} /> 
+        <Text style={styles.headerTitle}>جدولة الطلب</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="chevron-forward" size={28} color={NAVY} />
+        </TouchableOpacity>
+      </View>
 
-        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}>
-        <ScrollView contentContainerStyle={[styles.scrollContent, { flexGrow: 1, paddingBottom: 120 + insets.bottom }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}>
+        <ScrollView 
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 140 + insets.bottom }]} 
+          showsVerticalScrollIndicator={false} 
+          keyboardShouldPersistTaps="handled"
+        >
           
-          {/* بطاقة ملخص الطلبية الديناميكية */}
-          <View style={styles.sectionCard}>
-            <View style={styles.cardHeader}>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>{orderSummary.status}</Text>
-                <CheckCircle2 size={14} color="#34C759" />
+          {/* Order Summary Card */}
+          <View style={styles.card}>
+            <View style={styles.cardTop}>
+              <View style={styles.iconBoxWrap}>
+                 <MaterialCommunityIcons name="text-box-check-outline" size={24} color={NAVY} />
               </View>
-              <View style={styles.cardTitleRow}>
-                <Text style={styles.cardTitle}>ملخص الطلب</Text>
-                <View style={styles.iconBox}><ShoppingBag size={20} color={THEME_NAVY} /></View>
-              </View>
+              <Text style={styles.cardTitle}>ملخص الطلب</Text>
             </View>
-            
             <View style={styles.divider} />
-            
-            <View style={styles.orderDetailsRow}>
-              <TouchableOpacity>
-                <Text style={styles.editActionText}>تعديل الأصناف</Text>
-              </TouchableOpacity>
-              <Text style={styles.orderText} numberOfLines={1}>{orderSummary.title}</Text>
+            <View style={styles.cardBottom}>
+              <Text style={styles.orderTitle} numberOfLines={1}>{actualTitle}</Text>
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>قيد الجدولة</Text>
+              </View>
             </View>
           </View>
 
-          {/* قسم جدولة التوصيل التفاعلي */}
-          <Text style={styles.sectionLabel}>جدولة التوصيل</Text>
-          <View style={styles.pickerRow}>
-            <View style={styles.pickerField}>
-              <Clock size={20} color={THEME_NAVY} />
+          {/* Time & Date */}
+          <Text style={styles.sectionTitle}>موعد التوصيل</Text>
+          <View style={styles.dateTimeRow}>
+            {/* Using row-reverse inside elements for RTL rendering */}
+            <View style={styles.pickerBox}>
+              <View style={styles.pickerIcon}>
+                <Ionicons name="time-outline" size={20} color={NAVY} />
+              </View>
               <TextInput 
                 style={styles.pickerInput}
                 value={time}
                 onChangeText={setTime}
-                placeholder="08:12 م"
-                placeholderTextColor="#8E8E93"
+                placeholder="الوقت"
+                placeholderTextColor="#94A3B8"
               />
             </View>
 
-            <View style={styles.pickerField}>
-              <Calendar size={20} color={THEME_NAVY} />
+            <View style={styles.pickerBox}>
+              <View style={styles.pickerIcon}>
+                <Ionicons name="calendar-outline" size={20} color={NAVY} />
+              </View>
               <TextInput 
                 style={styles.pickerInput}
                 value={date}
                 onChangeText={setDate}
-                placeholder="17 أفريل 2026"
-                placeholderTextColor="#8E8E93"
+                placeholder="التاريخ"
+                placeholderTextColor="#94A3B8"
               />
             </View>
           </View>
 
-          {/* مفاتيح التبديل (Toggles) */}
-          <View style={styles.optionsListCard}>
+          {/* Location */}
+          <Text style={styles.sectionTitle}>موقع التوصيل</Text>
+          <TouchableOpacity style={styles.mapBox} onPress={handleEditLocation} activeOpacity={0.9}>
+            <Image source={{ uri: 'https://api.mapbox.com/styles/v1/mapbox/light-v10/static/6.1748,35.5557,14,0/600x300?access_token=YOUR_MAPBOX_TOKEN' }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+            <View style={styles.mapGradient} />
+            <View style={styles.locBubbleWrap}>
+              <View style={styles.locBubble}>
+                <Text style={styles.locText} numberOfLines={1}>{currentLocation}</Text>
+                <Ionicons name="location" size={20} color={YELLOW} />
+              </View>
+              <View style={styles.changeLocBtn}>
+                 <Text style={styles.changeLocText}>تغيير الموقع</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {/* Options */}
+          <Text style={styles.sectionTitle}>إعدادات إضافية</Text>
+          <View style={styles.optionsCard}>
             <View style={styles.optionRow}>
               <Switch 
                 value={isFavorite} 
                 onValueChange={setIsFavorite}
-                trackColor={{ false: "#D1D1D6", true: THEME_NAVY }}
+                trackColor={{ false: "#E2E8F0", true: NAVY }}
                 thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
               />
-              <View style={styles.optionInfo}>
+              <View style={styles.optionRight}>
                 <Text style={styles.optionText}>إضافة للمفضلة</Text>
-                <View style={styles.miniIconBg}>
-                  <Heart size={18} color={THEME_NAVY} fill={isFavorite ? THEME_NAVY : 'none'} />
+                <View style={styles.optionIcon}>
+                  <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={20} color={isFavorite ? '#EF4444' : NAVY} />
                 </View>
               </View>
             </View>
 
-            <View style={[styles.divider, { marginVertical: 5 }, { paddingTop: insets.top, paddingBottom: insets.bottom }]} />
+            <View style={styles.divider} />
 
             <View style={styles.optionRow}>
               <Switch 
                 value={isDraft} 
                 onValueChange={setIsDraft}
-                trackColor={{ false: "#D1D1D6", true: THEME_NAVY }}
+                trackColor={{ false: "#E2E8F0", true: NAVY }}
                 thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
               />
-              <View style={styles.optionInfo}>
-                <Text style={styles.optionText}>حفظ كمسودة</Text>
-                <View style={styles.miniIconBg}><FileText size={18} color={THEME_NAVY} /></View>
+              <View style={styles.optionRight}>
+                <Text style={styles.optionText}>حفظ كمسودة فقط</Text>
+                <View style={styles.optionIcon}>
+                  <Ionicons name={isDraft ? "document-text" : "document-text-outline"} size={20} color={NAVY} />
+                </View>
               </View>
             </View>
           </View>
 
-          {/* موقع التوصيل (ديناميكي وقابل للتعديل) */}
-          <Text style={styles.sectionLabel}>موقع التوصيل</Text>
-          <TouchableOpacity style={styles.mapContainer} onPress={handleEditLocation} activeOpacity={0.9}>
-            <Image 
-              source={{ uri: 'https://api.mapbox.com/styles/v1/mapbox/light-v10/static/6.1748,35.5557,14,0/600x300?access_token=YOUR_MAPBOX_TOKEN' }} 
-              style={styles.mapPreview}
-            />
-            <View style={styles.locationOverlay}>
-              <View style={styles.locationBubble}>
-                <Text style={styles.locationText}>{currentLocation}</Text>
-                <MapPin size={18} color="#FF3B30" />
-              </View>
-              <Text style={styles.mapHint}>انقر لتغيير الموقع</Text>
-            </View>
-          </TouchableOpacity>
-
         </ScrollView>
-        </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
 
-        {/* Footer: زر التأكيد النهائي */}
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <TouchableOpacity 
-            style={styles.confirmButton} 
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-              handleConfirmSchedule();
-            }}
-            activeOpacity={0.8}
-          >
-            <Clock size={22} color={THEME_NAVY} strokeWidth={2.5} style={{ marginLeft: 10 }} />
-            <Text style={styles.confirmButtonText}>تأكيد الجدولة</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Footer */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <TouchableOpacity 
+          style={styles.confirmBtn} 
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            handleConfirmSchedule();
+          }}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.confirmBtnText}>تأكيد الجدولة</Text>
+          <Ionicons name="checkmark-circle-outline" size={24} color={NAVY} />
+        </TouchableOpacity>
       </View>
 
-      {/* رسالة نجاح الجدولة (Toast) */}
+      {/* Toast */}
       {showToast && (
-        <View style={styles.toastContainer}>
-          <CheckCircle2 size={24} color="#FFF" style={{ marginRight: 10 }} />
-          <Text style={styles.toastText}>تمت عملية الجدولة بنجاح</Text>
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>تمت جدولة الطلب بنجاح!</Text>
+          <Ionicons name="checkmark-circle" size={24} color={WHITE} />
         </View>
       )}
     </ScreenContainer>
@@ -259,81 +228,91 @@ const ScheduleOrderScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FB' },
-  safeArea: { flex: 1 },
+  container: { flex: 1, backgroundColor: BG },
+  
   header: {
     flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, height: 60, backgroundColor: '#FFF', elevation: 2,
+    paddingHorizontal: 16, height: 60, backgroundColor: BG,
   },
-  headerTitle: { fontSize: 22, fontFamily: 'Cairo-Bold', color: THEME_NAVY },
-  backBtn: { padding: 5 },
+  headerTitle: { fontSize: 20, fontFamily: 'Cairo-Bold', color: NAVY },
+  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', backgroundColor: WHITE, borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
+  
   scrollContent: { padding: 20 },
-  sectionCard: {
-    backgroundColor: '#FFF', borderRadius: 24, padding: 20, marginBottom: 30,
-    elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12,
+  
+  sectionTitle: { fontSize: 16, fontFamily: 'Cairo-Bold', color: '#475569', textAlign: 'right', marginBottom: 12, marginTop: 10 },
+  
+  // Card
+  card: {
+    backgroundColor: WHITE, borderRadius: 20, padding: 18, marginBottom: 25,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3,
   },
-  cardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  cardTitleRow: { flexDirection: 'row-reverse', alignItems: 'center' },
-  cardTitle: { fontSize: 17, fontFamily: 'Cairo-Bold', marginLeft: 10, color: THEME_NAVY },
-  iconBox: { backgroundColor: '#F2F2F7', padding: 8, borderRadius: 12 },
-  statusBadge: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#E8F9EE', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  statusText: { color: '#34C759', fontSize: 12, fontFamily: 'Cairo-Bold', marginLeft: 6 },
-  divider: { height: 1, backgroundColor: '#F2F2F7' },
-  orderDetailsRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 },
-  orderText: { flex: 1, textAlign: 'left', fontSize: 15, color: THEME_NAVY, fontFamily: 'Cairo-SemiBold', marginRight: 15 },
-  editActionText: { color: THEME_YELLOW, fontFamily: 'Cairo-Bold', fontSize: 14 },
-  sectionLabel: { fontSize: 18, fontFamily: 'Cairo-Bold', color: THEME_NAVY, textAlign: 'left', marginBottom: 15 },
-  pickerRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', marginBottom: 30 },
-  pickerField: {
-    backgroundColor: '#FFF', width: '48%', height: 60, borderRadius: 16,
-    flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: THEME_NAVY, elevation: 2, paddingHorizontal: 10
+  cardTop: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
+  iconBoxWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  cardTitle: { fontSize: 16, fontFamily: 'Cairo-Bold', color: NAVY },
+  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 14 },
+  cardBottom: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
+  orderTitle: { fontSize: 15, fontFamily: 'Cairo-Bold', color: '#334155', flex: 1, textAlign: 'right', marginRight: 10 },
+  statusPill: { backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  statusPillText: { fontSize: 12, fontFamily: 'Cairo-Bold', color: '#D97706' },
+
+  // Date / Time
+  dateTimeRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', marginBottom: 25, gap: 12 },
+  pickerBox: {
+    flex: 1, flexDirection: 'row-reverse', alignItems: 'center',
+    backgroundColor: WHITE, borderRadius: 16, height: 56,
+    paddingHorizontal: 12, borderWidth: 1, borderColor: '#E2E8F0',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 5, elevation: 2,
   },
-  pickerInput: { marginRight: 12, fontSize: 15, fontFamily: 'Cairo-Bold', color: THEME_NAVY, flex: 1, textAlign: 'left' },
-  optionsListCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 15, marginBottom: 30, elevation: 3 },
-  optionRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
-  optionInfo: { flexDirection: 'row-reverse', alignItems: 'center' },
-  optionText: { fontSize: 16, fontFamily: 'Cairo-SemiBold', color: THEME_NAVY, marginLeft: 15 },
-  miniIconBg: { backgroundColor: '#F2F2F7', padding: 8, borderRadius: 10 },
-  mapContainer: { height: 190, borderRadius: 28, overflow: 'hidden', marginBottom: 20, elevation: 5 },
-  mapPreview: { ...StyleSheet.absoluteFillObject },
-  locationOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.05)' },
-  locationBubble: {
-    flexDirection: 'row-reverse', backgroundColor: '#FFF', paddingHorizontal: 18, paddingVertical: 12,
-    borderRadius: 22, alignItems: 'center', elevation: 6, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8
+  pickerIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
+  pickerInput: { flex: 1, fontSize: 14, fontFamily: 'Cairo-Bold', color: NAVY, textAlign: 'right', marginRight: 10 },
+
+  // Map
+  mapBox: {
+    height: 160, borderRadius: 20, overflow: 'hidden', marginBottom: 25,
+    backgroundColor: '#E2E8F0', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10,
   },
-  locationText: { fontSize: 14, fontFamily: 'Cairo-Bold', color: THEME_NAVY, marginLeft: 10 },
-  mapHint: { position: 'absolute', bottom: 12, color: '#FFF', fontSize: 12, fontFamily: 'Cairo-Bold' },
-  footer: { padding: 25, backgroundColor: '#FFF', borderTopRightRadius: 30, borderTopLeftRadius: 30, elevation: 20 },
-  confirmButton: {
-    backgroundColor: THEME_YELLOW, height: 65, borderRadius: 32.5,
-    flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center',
-    elevation: 8, shadowColor: THEME_YELLOW, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 15
+  mapGradient: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(1,32,71,0.2)' },
+  locBubbleWrap: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  locBubble: {
+    flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: WHITE,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, maxWidth: '85%',
   },
-  confirmButtonText: { fontSize: 20, fontFamily: 'Cairo-Bold', color: THEME_NAVY },
-  toastContainer: {
-    position: 'absolute',
-    bottom: 90, // فوق زر التأكيد
-    right: 20,
-    left: 20,
-    backgroundColor: '#34C759', // لون أخضر للنجاح
-    borderRadius: 15,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
+  locText: { fontSize: 13, fontFamily: 'Cairo-Bold', color: NAVY, marginRight: 8 },
+  changeLocBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' },
+  changeLocText: { color: WHITE, fontSize: 12, fontFamily: 'Cairo-Bold' },
+
+  // Options
+  optionsCard: {
+    backgroundColor: WHITE, borderRadius: 20, padding: 16, marginBottom: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 3,
   },
-  toastText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontFamily: 'Cairo-Bold',
-  }
+  optionRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  optionRight: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
+  optionIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
+  optionText: { fontSize: 15, fontFamily: 'Cairo-Bold', color: NAVY },
+
+  // Footer
+  footer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: WHITE, paddingTop: 16, paddingHorizontal: 20,
+    borderTopWidth: 1, borderTopColor: '#F1F5F9',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 15,
+  },
+  confirmBtn: {
+    height: 58, backgroundColor: YELLOW, borderRadius: 20,
+    flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 10,
+    shadowColor: YELLOW, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6,
+  },
+  confirmBtnText: { fontSize: 18, fontFamily: 'Cairo-Bold', color: NAVY },
+
+  // Toast
+  toast: {
+    position: 'absolute', bottom: 100, alignSelf: 'center',
+    backgroundColor: '#10B981', flexDirection: 'row-reverse', alignItems: 'center', gap: 10,
+    paddingHorizontal: 20, paddingVertical: 14, borderRadius: 30,
+    shadowColor: '#059669', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 10,
+  },
+  toastText: { color: WHITE, fontSize: 15, fontFamily: 'Cairo-Bold' },
 });
 
 export default ScheduleOrderScreen;

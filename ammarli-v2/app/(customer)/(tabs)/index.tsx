@@ -9,7 +9,8 @@ import {
   Dimensions,
   Modal,
   ActivityIndicator,
-  AppState
+  AppState,
+  ImageBackground
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -191,8 +192,8 @@ const AmmerliHomeScreen = () => {
       statusBarColor="#FFFFFF"
     >
       <View style={styles.container}>
-        {/* paddingBottom = ارتفاع الـ TabBar الفعلي + MIN_BOTTOM_INSET للحماية + 20 كفراغ إضافي */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_INSET) + 20 }]}>
+        {/* paddingBottom = ارتفاع الـ TabBar الفعلي + MIN_BOTTOM_INSET للحماية */}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingBottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, MIN_BOTTOM_INSET) + 5 }]}>
           
           {/* 1. Header with Dynamic Greeting and Notifications */}
           <View style={styles.header}>
@@ -228,33 +229,57 @@ const AmmerliHomeScreen = () => {
           {/* 2. Banner (Active Order or Promotional) */}
           {activeOrder && !['cancelled', 'delivered', 'expired'].includes(activeOrder.status) ? (
             <TouchableOpacity style={styles.bannerContainer} onPress={handleActiveOrderPress} activeOpacity={0.9}>
-              <View style={[styles.bannerBackground, { backgroundColor: '#FFCC00' }]}>
-                <View style={[styles.bannerTextContent, { alignItems: 'flex-start' }]}>
-                  <Text style={[styles.bannerTitle, { color: '#002147' }]}>لديك طلب نشط</Text>
-                  <Text style={[styles.bannerTitle, { color: '#002147', fontSize: 16, marginTop: 4 }]}>
+              <ImageBackground 
+                source={{ uri: 'https://images.unsplash.com/photo-1628185012359-994c657a2444?q=80&w=800&auto=format&fit=crop' }} 
+                style={styles.bannerGradient}
+                imageStyle={{ borderRadius: 24 }}
+              >
+                <LinearGradient colors={['rgba(255, 204, 0, 0.95)', 'rgba(243, 205, 13, 0.85)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
+                
+                <View style={styles.bannerTextContent}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#012047', marginRight: 6 }} />
+                    <Text style={[styles.bannerTitle, { color: '#012047', fontSize: 16, fontFamily: 'Cairo-Bold' }]}>لديك طلب نشط</Text>
+                  </View>
+                  <Text style={[styles.bannerTitle, { color: '#012047', fontSize: 26, lineHeight: 36 }]}>
                     {getOrderStatusText(activeOrder.status)}
                   </Text>
-                  <View style={[styles.bannerButtonDecoration, { backgroundColor: '#002147' }]}>
-                    <Text style={[styles.bannerButtonText, { color: '#FFF' }]}>عرض التفاصيل</Text>
+                  <View style={[styles.bannerButtonDecoration, { backgroundColor: '#012047' }]}>
+                    <Text style={[styles.bannerButtonText, { color: '#FFF' }]}>تتبع الطلب</Text>
+                    <Ionicons name="arrow-back" size={16} color="#FFF" style={{ marginLeft: 6 }} />
                   </View>
                 </View>
+                
                 <View style={styles.bannerImagePlaceholder}>
-                  <Ionicons name="car" size={60} color="#002147" style={{ opacity: 0.8 }} />
+                  <View style={styles.glassCircle}>
+                    <Ionicons name="location-outline" size={36} color="#012047" />
+                  </View>
                 </View>
-              </View>
+              </ImageBackground>
             </TouchableOpacity>
           ) : (
             <View style={styles.bannerContainer}>
-              <View style={styles.bannerBackground}>
+              <ImageBackground 
+                source={{ uri: 'https://images.unsplash.com/photo-1548882522-86105a79ad72?q=80&w=800&auto=format&fit=crop' }} 
+                style={styles.bannerGradient}
+                imageStyle={{ borderRadius: 24 }}
+              >
+                <LinearGradient colors={['rgba(1, 32, 71, 0.95)', 'rgba(1, 32, 71, 0.75)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
+                
                 <View style={styles.bannerTextContent}>
-                  <Text style={styles.bannerTitle}>مياه نقية،</Text>
-                  <Text style={styles.bannerTitle}>توصيل سريع</Text>
-                  <View style={styles.bannerButtonDecoration}>
+                  <Text style={styles.bannerTitle}>أسرع خدمة توصيل</Text>
+                  <Text style={[styles.bannerTitle, { color: '#FFCC00' }]}>مياه في منطقتك</Text>
+                  <Text style={styles.bannerSubtitle}>اطلب مياه الشرب الآن بضغطة زر وتصلك فوراً.</Text>
+                  <View style={[styles.bannerButtonDecoration, { alignSelf: 'flex-start' }]}>
                     <Text style={styles.bannerButtonText}>اطلب الآن</Text>
+                    <Ionicons name="arrow-back" size={16} color="#012047" style={{ marginLeft: 6 }} />
                   </View>
                 </View>
-                <View style={styles.bannerImagePlaceholder} />
-              </View>
+                
+                <View style={styles.bannerImagePlaceholder}>
+                  <Image source={require('../../../assets/images/bottled_icon.png')} style={{ width: 110, height: 110, opacity: 0.95, transform: [{ rotate: '-10deg' }, { scale: 1.1 }] }} resizeMode="contain" />
+                </View>
+              </ImageBackground>
             </View>
           )}
 
@@ -366,31 +391,42 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   
-  bannerContainer: { paddingHorizontal: 20, marginBottom: 15 },
-  bannerBackground: {
-    backgroundColor: '#002147',
-    borderRadius: 22,
-    height: 170,
-    maxHeight: 170,
-    flexDirection: 'row-reverse',
+  bannerContainer: { paddingHorizontal: 20, marginBottom: 20 },
+  bannerGradient: {
+    borderRadius: 24,
+    minHeight: 160,
+    flexDirection: 'row',
     padding: 20,
-    overflow: 'hidden',
+    elevation: 10,
+    shadowColor: '#002147',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
   },
-  bannerTextContent: { flex: 1, justifyContent: 'center', alignItems: 'flex-end' },
-  bannerTitle: { color: '#FFF', fontSize: 24, fontFamily: 'Cairo-Bold', textAlign: 'left' },
+  bannerTextContent: { flex: 1, justifyContent: 'center', alignItems: 'flex-start', zIndex: 2 },
+  bannerTitle: { color: '#FFF', fontSize: 22, fontFamily: 'Cairo-Black', textAlign: 'right', lineHeight: 30 },
+  bannerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontFamily: 'Cairo-SemiBold', marginTop: 4, lineHeight: 18, textAlign: 'left', maxWidth: '95%' },
   bannerButtonDecoration: { 
     backgroundColor: '#FFCC00', 
-    paddingHorizontal: 25, 
-    paddingVertical: 10, 
-    borderRadius: 20, 
-    marginTop: 15 
+    paddingHorizontal: 16, 
+    paddingVertical: 8, 
+    borderRadius: 30, 
+    marginTop: 12,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  bannerButtonText: { color: '#002147', fontFamily: 'Cairo-Bold', fontSize: 16 },
-  bannerImagePlaceholder: { width: 100, height: 100 },
+  bannerButtonText: { color: '#012047', fontFamily: 'Cairo-Bold', fontSize: 14 },
+  bannerImagePlaceholder: { width: 90, justifyContent: 'center', alignItems: 'center', zIndex: 2, marginRight: -5 },
+  glassCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(255,255,255,0.3)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
 
   sectionHeader: { 
-    flexDirection: 'row-reverse', 
-    justifyContent: 'flex-start', // right aligned in RTL
+    flexDirection: 'row', 
+    justifyContent: 'flex-start', // Changed from flex-end so it aligns Right in RTL
     alignItems: 'center', 
     paddingHorizontal: 20, 
     marginBottom: 12 
@@ -401,38 +437,38 @@ const styles = StyleSheet.create({
   gridContainer: { 
     flexDirection: 'row-reverse', 
     flexWrap: 'wrap', 
-    justifyContent: 'center', 
+    justifyContent: 'space-between', 
     paddingHorizontal: 20,
-    gap: 20,
+    rowGap: 20,
   },
   categoryCardOuter: {
-    width: (width - 80) / 2,
-    height: 120,
-    borderRadius: 22,
-    elevation: 4,
+    width: (width - 60) / 2,
+    height: 165,
+    borderRadius: 24,
+    elevation: 5,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     backgroundColor: '#FFFFFF',
   },
   categoryCardInner: {
     flex: 1,
-    borderRadius: 22,
+    borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
-    paddingBottom: 16,
+    paddingBottom: 20,
   },
   iconContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    paddingTop: 5,
+    paddingTop: 10,
   },
   floatingImage: {
-    width: '120%',
-    height: '120%',
+    width: '110%',
+    height: '110%',
     resizeMode: 'contain',
     shadowColor: '#000',
     shadowOpacity: 0.15,
@@ -443,7 +479,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   categoryTitle: { 
-    fontSize: 16, 
+    fontSize: 18, 
     fontFamily: 'Cairo-Bold', 
     color: '#003366', 
     textAlign: 'center' 
