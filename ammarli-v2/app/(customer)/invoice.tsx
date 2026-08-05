@@ -1,5 +1,5 @@
 import ScreenContainer from '../../components/ScreenContainer';
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,19 +10,22 @@ import {
   Platform,
   StatusBar
 } from 'react-native';
-import { Check, Star } from 'lucide-react-native';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useCustomerStore } from '../../src/store/useCustomerStore';
+import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
 
 const COLORS = {
-  primaryBlue: '#002147',
-  accentYellow: '#FFCC00',
+  primary: '#012047',
+  secondary: '#F3CD0D',
   white: '#FFFFFF',
-  textSecondary: '#8E8E93',
-  background: '#F8F9FA',
+  background: '#F4F7FA',
+  textSecondary: '#64748B',
+  success: '#10B981',
+  border: '#E2E8F0',
 };
 
 export default function InvoiceScreen() {
@@ -33,6 +36,10 @@ export default function InvoiceScreen() {
 
   const isTanker = activeOrder?.type === 'Tanker';
   const items = activeOrder?.items && activeOrder.items.length > 0 ? activeOrder.items : [];
+
+  useEffect(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
 
   const getWaterTypeLabel = (type?: string) => {
     switch (type?.toUpperCase()) {
@@ -65,6 +72,7 @@ export default function InvoiceScreen() {
   const totalAmount = subtotal + deliveryFee;
 
   const handleFinish = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Keep order info available for rating, but clear it after rating is done
     router.replace('/(customer)/driver-rating');
   };
@@ -72,41 +80,44 @@ export default function InvoiceScreen() {
   return (
     <ScreenContainer style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 30 }]} showsVerticalScrollIndicator={false}>
         
         {/* Header: Success Icon and Message */}
         <View style={styles.header}>
-          <View style={styles.checkCircle}>
-            <Check color={COLORS.white} size={40} strokeWidth={3} />
+          <View style={styles.iconCircle}>
+            <Ionicons name="checkmark-sharp" color={COLORS.white} size={48} />
           </View>
           <Text style={styles.successTitle}>تم إكمال الطلب بنجاح</Text>
-          <Text style={styles.invoiceInfo}>{invoiceNumber} • {currentDate} • {currentTime}</Text>
+          <Text style={styles.invoiceInfo}>{invoiceNumber} • {currentDate}</Text>
         </View>
 
-        {/* Invoice Card */}
+        {/* ── Invoice Card ───────────────────────────────────────────────────── */}
         <View style={styles.receiptCard}>
+          <View style={styles.receiptHeader}>
+             <Text style={styles.receiptTitle}>تفاصيل الفاتورة</Text>
+             <Feather name="file-text" size={20} color={COLORS.textSecondary} />
+          </View>
+
           {/* Table Details */}
           {!isTanker ? (
             <>
               {/* Table Header */}
               <View style={styles.tableHeader}>
-                <Text style={[styles.columnHeader, { flex: 1.2 }, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>المجموع الفرعي</Text>
-                <Text style={[styles.columnHeader, { flex: 1 }]}>سعر الوحدة</Text>
+                <Text style={[styles.columnHeader, { flex: 1.2 }]}>المجموع</Text>
                 <Text style={[styles.columnHeader, { flex: 0.5 }]}>الكمية</Text>
-                <Text style={[styles.columnHeader, { flex: 0.7 }]}>الحجم</Text>
-                <Text style={[styles.columnHeader, { flex: 1.5 }]}>العلامة التجارية</Text>
+                <Text style={[styles.columnHeader, { flex: 1 }]}>الحجم</Text>
+                <Text style={[styles.columnHeader, { flex: 2, textAlign: 'right' }]}>العلامة / الصنف</Text>
               </View>
 
-              {/* Table Rows - Scrollable for large orders */}
+              {/* Table Rows */}
               <View style={{ maxHeight: 220 }}>
                 <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
                   {items.map((item, index) => (
                     <View key={index} style={styles.tableRow}>
-                      <Text style={[styles.rowText, { flex: 1.2 }]}>{(item.qty * (item.unitPrice || 0)).toFixed(2)} د.ج</Text>
-                      <Text style={[styles.rowText, { flex: 1 }]}>{(item.unitPrice || 0).toFixed(2)} د.ج</Text>
-                      <Text style={[styles.rowText, { flex: 0.5 }]}>{item.qty}</Text>
-                      <Text style={[styles.rowText, { flex: 0.7 }]}>{item.size}</Text>
-                      <Text style={[styles.rowText, { flex: 1.5, fontFamily: 'Cairo-Bold', color: COLORS.primaryBlue }]}>{item.brand}</Text>
+                      <Text style={[styles.rowText, styles.boldText, { flex: 1.2 }]}>{(item.qty * (item.unitPrice || 0)).toFixed(0)} د.ج</Text>
+                      <Text style={[styles.rowText, { flex: 0.5 }]}>{item.qty}x</Text>
+                      <Text style={[styles.rowText, { flex: 1 }]}>{item.size}</Text>
+                      <Text style={[styles.rowText, styles.brandText, { flex: 2, textAlign: 'right' }]}>{item.brand}</Text>
                     </View>
                   ))}
                 </ScrollView>
@@ -116,18 +127,23 @@ export default function InvoiceScreen() {
             <>
               {/* Tanker Details Header */}
               <View style={styles.tableHeader}>
-                <Text style={[styles.columnHeader, { flex: 1 }]}>السعر الإجمالي</Text>
-                <Text style={[styles.columnHeader, { flex: 1 }]}>الكمية / الحجم</Text>
-                <Text style={[styles.columnHeader, { flex: 1.5 }]}>نوع المياه</Text>
+                <Text style={[styles.columnHeader, { flex: 1.5 }]}>السعر</Text>
+                <Text style={[styles.columnHeader, { flex: 1 }]}>الحجم</Text>
+                <Text style={[styles.columnHeader, { flex: 2, textAlign: 'right' }]}>نوع المياه</Text>
               </View>
               {/* Tanker Details Row */}
               <View style={styles.tableRow}>
-                <Text style={[styles.rowText, { flex: 1 }]}>{subtotal.toLocaleString()} د.ج</Text>
+                <Text style={[styles.rowText, styles.boldText, { flex: 1.5 }]}>{subtotal.toLocaleString()} د.ج</Text>
                 <Text style={[styles.rowText, { flex: 1 }]}>{activeOrder?.displayVolume || 'غير محدد'}</Text>
-                <Text style={[styles.rowText, { flex: 1.5, fontFamily: 'Cairo-Bold', color: COLORS.primaryBlue }]}>{getWaterTypeLabel(activeOrder?.waterType)}</Text>
+                <Text style={[styles.rowText, styles.brandText, { flex: 2, textAlign: 'right' }]}>{getWaterTypeLabel(activeOrder?.waterType)}</Text>
               </View>
             </>
           )}
+
+          {/* Divider */}
+          <View style={styles.dashedDivider}>
+             {/* Creating dashed effect with repeated view is complex in RN, using solid but subtle border for now */}
+          </View>
 
           {/* Summary Section */}
           <View style={styles.summarySection}>
@@ -135,71 +151,102 @@ export default function InvoiceScreen() {
                 <Text style={styles.summaryValue}>{subtotal.toLocaleString()} د.ج</Text>
                 <Text style={styles.summaryLabel}>المجموع الفرعي:</Text>
              </View>
+             <View style={styles.summaryRow}>
+                <Text style={[styles.summaryValue, { color: COLORS.success }]}>مجاناً</Text>
+                <Text style={styles.summaryLabel}>رسوم التوصيل:</Text>
+             </View>
           </View>
 
-          {/* Navy Total Card */}
-          <View style={styles.totalCard}>
-            <Text style={styles.totalLabel}>إجمالي المبلغ المدفوع</Text>
-            <Text style={styles.totalAmount}>{totalAmount.toLocaleString()} د.ج</Text>
-            <Text style={styles.deliveryNote}>تم التوصيل بواسطة: {driverName}</Text>
+          {/* Total Box */}
+          <View style={styles.totalBox}>
+            <View>
+              <Text style={styles.totalAmount}>{totalAmount.toLocaleString()} د.ج</Text>
+              <Text style={styles.totalSub}>تم الدفع نقداً</Text>
+            </View>
+            <Text style={styles.totalTitle}>الإجمالي</Text>
           </View>
+          
+          <Text style={styles.deliveryNote}>توصيل بواسطة: <Text style={{ fontFamily: 'Cairo-Bold' }}>{driverName}</Text></Text>
         </View>
 
-        {/* Rating Button */}
-        <TouchableOpacity style={styles.ratingButton} activeOpacity={0.8} onPress={handleFinish}>
-          <Star color={COLORS.primaryBlue} size={22} fill={COLORS.primaryBlue} />
-          <Text style={styles.ratingButtonText}>تقييم السائق</Text>
+        {/* ── Actions ──────────────────────────────────────────────────────── */}
+        <TouchableOpacity style={styles.primaryBtn} onPress={handleFinish} activeOpacity={0.8}>
+          <Text style={styles.primaryBtnText}>الاستمرار للتقييم</Text>
+          <Ionicons name="arrow-back" size={20} color={COLORS.primary} style={{ marginLeft: 8 }} />
         </TouchableOpacity>
 
-        <Text style={styles.footerBrand}>AMMARLI PREMIUM WATER • توصيل سريع ونقي</Text>
+        <Text style={styles.footerBrand}>عمّارلي برو • مياه نقية بتوصيل سريع</Text>
       </ScrollView>
     </ScreenContainer>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { padding: 20, alignItems: 'center', paddingBottom: 40 },
-  header: { alignItems: 'center', marginBottom: 25, marginTop: 10 },
-  checkCircle: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.accentYellow,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 15,
-    elevation: 8, shadowColor: COLORS.accentYellow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10,
+  scrollContent: { paddingHorizontal: 16, alignItems: 'center', paddingBottom: 40 },
+  
+  header: { alignItems: 'center', marginBottom: 32 },
+  iconCircle: {
+    width: 90, height: 90, borderRadius: 45, backgroundColor: COLORS.secondary,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 8 }, 
+    shadowOpacity: 0.3, shadowRadius: 16, elevation: 10,
   },
-  successTitle: { fontSize: 28, fontFamily: 'Cairo-Bold', color: COLORS.primaryBlue, marginBottom: 6 },
-  invoiceInfo: { fontSize: 15, color: COLORS.textSecondary, fontFamily: 'Cairo-SemiBold' },
+  successTitle: { fontSize: 26, fontFamily: 'Cairo-Black', color: COLORS.primary, marginBottom: 4 },
+  invoiceInfo: { fontSize: 14, color: COLORS.textSecondary, fontFamily: 'Cairo-SemiBold' },
   
   receiptCard: {
-    backgroundColor: COLORS.white, width: '100%', borderRadius: 24, padding: 15, marginBottom: 25,
-    elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12,
+    backgroundColor: COLORS.white, width: '100%', borderRadius: 24, padding: 20, marginBottom: 24,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
   },
+  receiptHeader: {
+    flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  receiptTitle: { fontSize: 18, fontFamily: 'Cairo-Bold', color: COLORS.primary },
+
   tableHeader: {
-    flexDirection: 'row-reverse', borderBottomWidth: 1, borderBottomColor: '#F2F2F7', paddingBottom: 12, marginBottom: 10,
+    flexDirection: 'row-reverse', borderBottomWidth: 1, borderBottomColor: COLORS.border, 
+    paddingBottom: 12, marginBottom: 12,
   },
-  columnHeader: { fontSize: 11, color: COLORS.textSecondary, fontFamily: 'Cairo-Bold', textAlign: 'center' },
-  tableRow: {
-    flexDirection: 'row-reverse', paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#F2F2F7', alignItems: 'center'
-  },
-  rowText: { fontSize: 13, color: '#444', textAlign: 'center', fontFamily: 'Cairo-SemiBold' },
+  columnHeader: { fontSize: 12, color: COLORS.textSecondary, fontFamily: 'Cairo-Bold', textAlign: 'center' },
   
-  summarySection: { marginTop: 20, paddingHorizontal: 5 },
-  summaryRow: { flexDirection: 'row-reverse', justifyContent: 'flex-start', marginBottom: 8 },
-  summaryLabel: { fontSize: 15, color: COLORS.primaryBlue, fontFamily: 'Cairo-SemiBold', width: 120, textAlign: 'left' },
-  summaryValue: { fontSize: 15, color: COLORS.primaryBlue, fontFamily: 'Cairo-Bold', marginRight: 15 },
-
-  totalCard: {
-    backgroundColor: COLORS.primaryBlue, borderRadius: 20, padding: 25, marginTop: 25, alignItems: 'center',
-    elevation: 5, shadowColor: COLORS.primaryBlue, shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 10,
+  tableRow: {
+    flexDirection: 'row-reverse', paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: '#F1F5F9', alignItems: 'center'
   },
-  totalLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 15, marginBottom: 8, fontFamily: 'Cairo-SemiBold' },
-  totalAmount: { color: COLORS.white, fontSize: 34, fontFamily: 'Cairo-Bold', marginBottom: 12 },
-  deliveryNote: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontFamily: 'Cairo-SemiBold' },
-
-  ratingButton: {
-    backgroundColor: COLORS.accentYellow, width: '100%', height: 60, borderRadius: 30,
-    flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center', marginBottom: 25,
-    elevation: 6, shadowColor: COLORS.accentYellow, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12,
+  rowText: { fontSize: 14, color: COLORS.primary, textAlign: 'center', fontFamily: 'Cairo-SemiBold' },
+  boldText: { fontFamily: 'Cairo-Bold' },
+  brandText: { fontFamily: 'Cairo-Bold', color: COLORS.primary },
+  
+  dashedDivider: {
+    width: '100%', height: 1, backgroundColor: COLORS.border,
+    marginVertical: 20,
   },
-  ratingButtonText: { fontSize: 20, fontFamily: 'Cairo-Bold', color: COLORS.primaryBlue, marginLeft: 12 },
-  footerBrand: { fontSize: 12, color: '#ADB5BD', fontFamily: 'Cairo-Bold', marginTop: 10, letterSpacing: 0.5 }
+
+  summarySection: { paddingHorizontal: 4, marginBottom: 20 },
+  summaryRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', marginBottom: 10 },
+  summaryLabel: { fontSize: 15, color: COLORS.textSecondary, fontFamily: 'Cairo-SemiBold' },
+  summaryValue: { fontSize: 15, color: COLORS.primary, fontFamily: 'Cairo-Bold' },
+
+  totalBox: {
+    backgroundColor: COLORS.primary, borderRadius: 16, padding: 20,
+    flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: 16,
+  },
+  totalTitle: { color: COLORS.white, fontSize: 18, fontFamily: 'Cairo-Bold' },
+  totalAmount: { color: COLORS.secondary, fontSize: 24, fontFamily: 'Cairo-Black' },
+  totalSub: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Cairo-SemiBold', textAlign: 'left' },
+  
+  deliveryNote: { textAlign: 'center', color: COLORS.textSecondary, fontSize: 14, fontFamily: 'Cairo-SemiBold' },
+
+  primaryBtn: {
+    backgroundColor: COLORS.secondary,
+    width: '100%', height: 60, borderRadius: 16,
+    flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+  },
+  primaryBtnText: { fontSize: 18, fontFamily: 'Cairo-Bold', color: COLORS.primary },
+  
+  footerBrand: { fontSize: 13, color: '#94A3B8', fontFamily: 'Cairo-Bold', letterSpacing: 0.5 }
 });

@@ -219,7 +219,7 @@ export class RequestService {
 
     const updated = plainToInstance(RequestResDto, { ...existing, ...updates });
 
-    await this.setRequestInCache(updated, 60);
+    await this.setRequestInCache(updated, 300);
 
     return updated;
   }

@@ -391,10 +391,12 @@ export default function DriverDashboardScreen() {
       image: null
     })) || [];
 
-    const isSpringTanker = registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType?.toLowerCase() === 'spring';
-    const isBottled = registeredDriver?.driverType === 'Bottled';
-    const hasDefaultPrice = registeredDriver?.defaultPrice !== undefined && registeredDriver?.defaultPrice > 0;
-    const hasBottledPrices = registeredDriver?.bottledPrices !== undefined
+    const driverTypeRaw = registeredDriver?.driverType?.toLowerCase() || '';
+    const waterTypeRaw = registeredDriver?.waterType?.toLowerCase() || '';
+    const isSpringTanker = driverTypeRaw === 'tanker' && (waterTypeRaw === 'spring' || waterTypeRaw.includes('ينابيع'));
+    const isBottled = driverTypeRaw === 'bottled';
+    const hasDefaultPrice = registeredDriver?.defaultPrice ? registeredDriver.defaultPrice > 0 : false;
+    const hasBottledPrices = !!registeredDriver?.bottledPrices
       && Object.values(registeredDriver.bottledPrices).every((v) => v > 0);
 
     const params: any = {
@@ -420,30 +422,40 @@ export default function DriverDashboardScreen() {
     }
 
     // ── Fast Accept: حساب السعر تلقائياً ──
-    if (isSpringTanker && hasDefaultPrice) {
+    const driverDefaultPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 150;
+    const defaultBottledPrices = { '0.5L': 15, '1.5L': 30, '5L': 100 };
+    const driverBottledPrices = registeredDriver?.bottledPrices ? registeredDriver.bottledPrices : defaultBottledPrices;
+
+    if (isSpringTanker) {
       // ينابيع: سعر الدلو × (اللترات ÷ 20)
       const requestedLiters = parseFloat(params.capacity) || 1000;
-      const calculatedTotal = (requestedLiters / 20) * registeredDriver!.defaultPrice!;
+      const calculatedTotal = (requestedLiters / 20) * driverDefaultPrice;
       if (calculatedTotal > 0) {
         await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
         params.price = calculatedTotal.toString();
-        router.push({ pathname: '/(driver)/order-details' as any, params });
+        // small timeout allows the store to propagate the new active order
+        setTimeout(() => {
+          router.replace({ pathname: '/(driver)/order-details' as any, params });
+        }, 150);
         return;
       }
     }
 
-    if (isBottled && hasBottledPrices) {
+    if (isBottled) {
       // قوارير: لكل حجم سعره الخاص (0.5L, 1.5L, 5L)
-      const prices = registeredDriver!.bottledPrices!;
+      const prices = driverBottledPrices;
       const calculatedTotal = orderItems.reduce((sum: number, item: any) => {
         const size = item.unit as '0.5L' | '1.5L' | '5L';
-        const unitPrice = prices[size] ?? 0;
+        const unitPrice = (prices as any)[size] ?? 0;
         return sum + (item.qty * unitPrice);
       }, 0);
       if (calculatedTotal > 0) {
         await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
         params.price = calculatedTotal.toString();
-        router.push({ pathname: '/(driver)/order-details' as any, params });
+        // small timeout allows the store to propagate the new active order
+        setTimeout(() => {
+          router.replace({ pathname: '/(driver)/order-details' as any, params });
+        }, 150);
         return;
       }
     }

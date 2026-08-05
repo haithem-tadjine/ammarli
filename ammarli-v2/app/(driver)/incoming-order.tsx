@@ -125,27 +125,81 @@ export default function IncomingOrderScreen() {
       }
     }
     
-    setDriverBusy(true);
+    // ── Fast Accept Logic ──
+    const registeredDriver = useDriverStore.getState().registeredDriver;
+    const driverTypeRaw = registeredDriver?.driverType?.toLowerCase() || '';
+    const waterTypeRaw = registeredDriver?.waterType?.toLowerCase() || '';
+    const isSpringTanker = driverTypeRaw === 'tanker' && (waterTypeRaw === 'spring' || waterTypeRaw.includes('ينابيع'));
+    const isBottled = driverTypeRaw === 'bottled';
+    const hasDefaultPrice = registeredDriver?.defaultPrice ? registeredDriver.defaultPrice > 0 : false;
+    const hasBottledPrices = !!registeredDriver?.bottledPrices
+      && Object.values(registeredDriver.bottledPrices).every((v: any) => v > 0);
+
+    const isRetail = isSpringTanker || isBottled;
+    if (!isRetail) {
+      setDriverBusy(true);
+    }
+
+    const orderItems = activeDriverOrder?.items?.map((item: any, idx: number) => ({
+      id: idx,
+      name: item.description,
+      qty: item.qty || 1,
+      unit: item.detail,
+      price: item.unitPrice || item.price,
+      image: null
+    })) || [
+      { id: 1, name: 'مياه', qty: 1, unit: 'طلبية', price, image: 'https://img.icons8.com/3d-fluency/94/water-bottle.png' }
+    ];
+
+    const navParams: any = {
+      orderId: activeDriverOrder?.orderId || '',
+      customerName,
+      customerPhone: activeDriverOrder?.customer?.phone || '',
+      customerLat: activeDriverOrder?.deliveryAddress?.lat?.toString() || '',
+      customerLng: activeDriverOrder?.deliveryAddress?.lng?.toString() || '',
+      price: activeDriverOrder?.total?.toString() || price,
+      address: params.address ?? activeDriverOrder?.deliveryAddress?.label ?? 'الجزائر العاصمة',
+      orderType,
+      distance,
+      rating,
+      capacity: activeDriverOrder?.items?.[0]?.detail?.replace(/\D/g, '') || '1000',
+      floor: activeDriverOrder?.items?.[0]?.floor || 'غير محدد',
+      items: JSON.stringify(orderItems),
+    };
+
+    if (isSpringTanker) {
+      const driverDefaultPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 150;
+      const requestedLiters = parseFloat(navParams.capacity) || 1000;
+      const calculatedTotal = (requestedLiters / 20) * driverDefaultPrice;
+      if (calculatedTotal > 0) {
+        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, activeDriverOrder?.orderId);
+        navParams.price = calculatedTotal.toString();
+        router.replace({ pathname: '/(driver)/order-details' as any, params: navParams });
+        return;
+      }
+    }
+
+    if (isBottled) {
+      const defaultBottledPrices = { '0.5L': 15, '1.5L': 30, '5L': 100 };
+      const driverBottledPrices = registeredDriver?.bottledPrices ? registeredDriver.bottledPrices : defaultBottledPrices;
+      const prices = driverBottledPrices;
+      const calculatedTotal = orderItems.reduce((sum: number, item: any) => {
+        const size = item.unit as '0.5L' | '1.5L' | '5L';
+        const unitPrice = (prices as any)[size] ?? 0;
+        return sum + (item.qty * unitPrice);
+      }, 0);
+      if (calculatedTotal > 0) {
+        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, activeDriverOrder?.orderId);
+        navParams.price = calculatedTotal.toString();
+        router.replace({ pathname: '/(driver)/order-details' as any, params: navParams });
+        return;
+      }
+    }
+
+    // ── Fallback: Route to order-acceptance ──
     router.replace({
       pathname: '/(driver)/order-acceptance' as any,
-      params: {
-        customerName,
-        price,
-        address:   params.address ?? 'الجزائر العاصمة',
-        orderType,
-        distance,
-        rating,
-        items: JSON.stringify([
-          {
-            id:    1,
-            name:  'مياه',
-            qty:   1,
-            unit:  'طلبية',
-            price,
-            image: 'https://img.icons8.com/3d-fluency/94/water-bottle.png',
-          },
-        ]),
-      },
+      params: navParams,
     });
   };
 

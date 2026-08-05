@@ -76,14 +76,17 @@ export default function SearchingDriverScreen() {
       ])
     ).start();
 
-    // Fetch order state
-    useCustomerStore.getState().fetchActiveOrder();
+    // Fetch order state only if not a local draft being created
+    const currentOrder = useCustomerStore.getState().activeOrder;
+    if (!(typeof currentOrder?.id === 'string' && currentOrder.id.startsWith('local-'))) {
+      useCustomerStore.getState().fetchActiveOrder();
+    }
   }, []);
 
   // Navigation observer
   useEffect(() => {
     if (!activeOrderStatus) return;
-    if (['accepted', 'picked_up', 'delivering'].includes(activeOrderStatus)) {
+    if (['picked_up', 'delivering', 'driving'].includes(activeOrderStatus)) {
       setTimeout(() => router.replace('/(customer)/order-tracking'), 300);
     } else if (activeOrderStatus === 'arrived') {
       setTimeout(() => router.replace('/(customer)/driver-arrived'), 300);

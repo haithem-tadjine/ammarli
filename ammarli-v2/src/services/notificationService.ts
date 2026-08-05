@@ -2,11 +2,20 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import notifee, {
-  AndroidImportance,
-  AndroidVisibility,
-  AndroidCategory,
-} from '@notifee/react-native';
+let notifee: any = null;
+let AndroidImportance: any = null;
+let AndroidVisibility: any = null;
+let AndroidCategory: any = null;
+
+try {
+  const NotifeeModule = require('@notifee/react-native');
+  notifee = NotifeeModule.default;
+  AndroidImportance = NotifeeModule.AndroidImportance;
+  AndroidVisibility = NotifeeModule.AndroidVisibility;
+  AndroidCategory = NotifeeModule.AndroidCategory;
+} catch (e) {
+  console.warn('Notifee native module not found (likely running in Expo Go). Notifee features will be disabled.');
+}
 
 // Set handler to ALWAYS show notification (even when app is open or in background)
 if (Platform.OS !== 'web') {
@@ -216,13 +225,15 @@ export async function triggerPendingOrderReminder() {
 export async function clearAllLocalNotifications() {
   if (Platform.OS === 'web') return;
   await Notifications.dismissAllNotificationsAsync();
-  await notifee.cancelAllNotifications();
+  if (notifee) {
+    await notifee.cancelAllNotifications();
+  }
 }
 
 // ── Notifee: Full-Screen Order Channel Setup ──────────────────────────────────
 // Call this once inside setupPushNotifications() on Android.
 export async function setupNotifeeOrderChannel() {
-  if (Platform.OS !== 'android') return;
+  if (Platform.OS !== 'android' || !notifee) return;
   await notifee.createChannel({
     id: 'incoming-order-fullscreen',
     name: 'طلبية جديدة (شاشة كاملة)',
@@ -257,6 +268,11 @@ export async function triggerFullScreenOrderNotification(params?: {
     rating:       p.rating       ?? '4.8',
     orderType:    p.orderType    ?? 'spring_water',
   };
+
+  if (!notifee) {
+    console.warn('Notifee not available, skipping full-screen notification');
+    return;
+  }
 
   await notifee.displayNotification({
     id: 'incoming-order',

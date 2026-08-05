@@ -9,23 +9,29 @@ import {
   Dimensions,
   Platform,
   Linking,
-  ScrollView
+  ScrollView,
+  Animated
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import MapView, { Marker, Polyline } from '../../components/Map';
 import { useCustomerStore } from '../../src/store/useCustomerStore';
+import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
 
 const COLORS = {
-  primary: '#002147', // Deep Navy Blue
-  secondary: '#FFCC00', // Vibrant Yellow
+  primary: '#012047',
+  secondary: '#F3CD0D',
   white: '#FFFFFF',
-  background: '#F8F9FA',
-  textSecondary: '#8E8E93',
-  lightYellow: '#FFFBEA',
+  background: '#F4F7FA',
+  textSecondary: '#64748B',
+  surface: '#FFFFFF',
+  danger: '#EF4444',
+  dangerLight: '#FEF2F2',
+  success: '#10B981',
+  successLight: '#ECFDF5'
 };
 
 export default function OrderTrackingScreen() {
@@ -35,18 +41,32 @@ export default function OrderTrackingScreen() {
   const setDriverLocation = useCustomerStore(state => state.setDriverLocation);
   const activeOrder = useCustomerStore(state => state.activeOrder);
 
-  // Real driver info — populated when socket fires request_accepted
+  // Animation values
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
+      ])
+    ).start();
+  }, [pulseAnim]);
+
+  // Real driver info
   const driverInfo  = activeOrder?.driverInfo;
-  const driverName  = driverInfo?.name  ?? 'جاري البحث...';
+  const driverName  = driverInfo?.name  ?? 'جاري البحث عن سائق...';
   const phoneNumber = driverInfo?.phone  ?? '';
   const truckPlate  = driverInfo?.plate  ?? '---';
-  const driverRating = driverInfo?.rating ?? '---';
+  const driverRating = driverInfo?.rating ?? '5.0';
 
   const handleCallPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (phoneNumber) Linking.openURL(`tel:${phoneNumber}`);
   };
 
   const handleCancelOrder = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.push('/(customer)/cancel-order');
   };
 
@@ -68,16 +88,13 @@ export default function OrderTrackingScreen() {
 
   React.useEffect(() => {
     if (!activeOrder) {
-      console.log('No active order found, kicking out to home...');
       router.replace('/(customer)/(tabs)' as any);
       return;
     }
 
     const status = activeOrder?.status;
-    console.log('Current tracking status:', status);
 
     if (status === 'arrived') {
-      console.log('Attempting to navigate to driver-arrived...');
       const timeout = setTimeout(() => {
         router.replace('/(customer)/driver-arrived');
       }, 300);
@@ -87,139 +104,163 @@ export default function OrderTrackingScreen() {
     } else if (status === 'cancelled' || status === 'expired') {
       useCustomerStore.getState().clearActiveOrderStore();
       import('react-native').then(({ Alert }) => {
-        Alert.alert('تنبيه', 'The driver had to cancel the order.', [
-          {
-            text: 'حسناً',
-            onPress: () => {
-              router.replace('/(customer)/(tabs)' as any);
-            }
-          }
+        Alert.alert('تنبيه', 'تم إلغاء الطلب من قبل السائق.', [
+          { text: 'حسناً', onPress: () => router.replace('/(customer)/(tabs)' as any) }
         ]);
       });
-    } else if (status === 'searching' || status === 'dispatched' || status === 'created') {
-      // If backend is still trying to dispatch, customer should stay on the searching screen
+    } else if (status === 'searching' || status === 'created') {
       router.replace('/(customer)/searching-driver');
     }
   }, [activeOrder, activeOrder?.status]);
 
   const coordinates = userLocation || { latitude: 35.5557, longitude: 6.1748 };
   const dCoordinates = driverLocation || { latitude: coordinates.latitude - 0.008, longitude: coordinates.longitude - 0.012 };
+  
+  const isSearching = activeOrder?.status === 'searching';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} bounces={false}>
         
-        {/* Header */}
+        {/* ── Header ─────────────────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <View style={{ width: 44 }} />
-          <Text style={styles.headerTitle}>حالة الطلب</Text>
-          <View style={{ width: 44 }} /> 
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.replace('/(customer)/(tabs)')}>
+            <Feather name="x" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>تتبع الطلبية</Text>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => {}}>
+            <Feather name="help-circle" size={24} color={COLORS.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* ETA Badge */}
-        <View style={styles.etaContainer}>
-          <View style={styles.etaCard}>
-            <Text style={styles.etaText}>
-              {activeOrder?.status === 'searching' ? 'البحث مستمر...' : 'السائق في الطريق'}
-            </Text>
-            <View style={styles.etaIconCircle}>
-              <MaterialCommunityIcons 
-                name={activeOrder?.status === 'searching' ? "radar" : "truck-delivery"} 
-                size={24} 
-                color={COLORS.primary} 
+        {/* ── Map Card ───────────────────────────────────────────────────────── */}
+        <View style={styles.mapContainer}>
+          <View style={styles.mapWrapper}>
+            {Platform.OS === 'web' ? (
+              <Image 
+                source={{ uri: 'https://placehold.co/800x600/EAECEE/002147?font=roboto&text=Map+Preview' }}
+                style={StyleSheet.absoluteFillObject}
+                resizeMode="cover"
               />
-            </View>
+            ) : (
+              <MapView
+                style={StyleSheet.absoluteFillObject}
+                initialRegion={{
+                  latitude: (coordinates.latitude + dCoordinates.latitude) / 2,
+                  longitude: (coordinates.longitude + dCoordinates.longitude) / 2,
+                  latitudeDelta: 0.025,
+                  longitudeDelta: 0.025,
+                }}
+                scrollEnabled={false} zoomEnabled={false} pitchEnabled={false}
+              >
+                <Polyline 
+                  coordinates={[dCoordinates, coordinates]}
+                  strokeColor={COLORS.primary}
+                  strokeWidth={4}
+                  lineDashPattern={[10, 10]}
+                />
+                
+                <Marker coordinate={coordinates}>
+                  <View style={styles.userPin}>
+                    <Ionicons name="location" size={20} color={COLORS.white} />
+                  </View>
+                </Marker>
+
+                <Marker coordinate={dCoordinates}>
+                  <Animated.View style={[styles.driverPin, { transform: [{ scale: pulseAnim }] }]}>
+                    <MaterialCommunityIcons name="truck-fast" size={20} color={COLORS.primary} />
+                  </Animated.View>
+                </Marker>
+              </MapView>
+            )}
+            
+            {/* Map Overlay Gradients */}
+            <View style={styles.mapOverlayTop} pointerEvents="none" />
+            <View style={styles.mapOverlayBottom} pointerEvents="none" />
+          </View>
+
+          {/* ETA Floating Badge */}
+          <View style={styles.etaBadge}>
+            <View style={styles.etaDot} />
+            <Text style={styles.etaText}>
+              {isSearching ? 'جاري البحث...' : '12 دقيقة للوصول'}
+            </Text>
           </View>
         </View>
 
-        {/* Map Card */}
-        <View style={styles.mapCard}>
-          {Platform.OS === 'web' ? (
-            <Image 
-              source={{ uri: 'https://placehold.co/800x600/EAECEE/002147?font=roboto&text=Route+Map%0A(Use+Mobile+App+for+Live+Tracking)' }}
-              style={styles.mapImage}
-            />
-          ) : (
-            <MapView
-              style={styles.mapImage}
-              initialRegion={{
-                latitude: (coordinates.latitude + dCoordinates.latitude) / 2,
-                longitude: (coordinates.longitude + dCoordinates.longitude) / 2,
-                latitudeDelta: 0.03,
-                longitudeDelta: 0.03,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-            >
-              <Polyline 
-                coordinates={[dCoordinates, coordinates]}
-                strokeColor="#1E88E5"
-                strokeWidth={5}
-              />
-              
-              {/* User Location */}
-              <Marker coordinate={coordinates} title="موقعك" />
-
-              {/* Driver Location */}
-              <Marker coordinate={dCoordinates} title="موقع السائق" iconType="truck" />
-            </MapView>
-          )}
-        </View>
-
-        {/* Status Indicator */}
-        <View style={styles.statusContainer}>
+        {/* ── Status Text ────────────────────────────────────────────────────── */}
+        <View style={styles.statusSection}>
           <Text style={styles.mainStatusText}>
-            {activeOrder?.status === 'searching' ? 'جاري البحث عن سائق آخر...' : 'في الطريق إليك'}
+            {isSearching ? 'نبحث عن سائق لك' : 'سائقك في الطريق'}
           </Text>
           <Text style={styles.subStatusText}>
-            {activeOrder?.status === 'searching' 
-              ? 'يرجى الانتظار، نقوم بتوجيه طلبك لأقرب سائق متاح' 
-              : activeOrder?.status === 'accepted' 
-                ? 'السائق يقوم بتحديد السعر وسيتم انطلاقه قريباً' 
-                : 'السائق يتجه إلى موقعك الحالي'}
+            {isSearching 
+              ? 'يرجى الانتظار، نقوم بتوجيه طلبك لأقرب شاحنة' 
+              : 'السائق يتجه إلى موقعك الحالي، يرجى الاستعداد'}
           </Text>
         </View>
 
-        {/* Driver Info Card */}
-        {activeOrder?.status !== 'searching' && (
+        {/* ── Driver Card ────────────────────────────────────────────────────── */}
+        {!isSearching && (
           <View style={styles.driverCard}>
-            <TouchableOpacity style={styles.callButton} onPress={handleCallPress}>
-              <Ionicons name="call" size={22} color={COLORS.white} />
-              <Text style={styles.callButtonText}>اتصال</Text>
-            </TouchableOpacity>
-
-            <View style={styles.driverInfo}>
-              <Text style={styles.driverName}>{driverName}</Text>
-              <View style={styles.ratingRow}>
-                <Text style={styles.ratingText}>{driverRating}</Text>
-                <Ionicons name="star" size={14} color={COLORS.secondary} />
-              </View>
-              <Text style={styles.plateText}>رقم اللوحة: {truckPlate}</Text>
-              {activeOrder?.price ? (
-                <View style={styles.priceBadge}>
-                  <Text style={styles.priceText}>السعر النهائي: {activeOrder.price.toLocaleString('ar-DZ')} د.ج</Text>
-                </View>
-              ) : null}
-            </View>
             
-            {driverInfo?.avatarUrl ? (
-              <Image source={{ uri: driverInfo.avatarUrl }} style={styles.driverAvatar} />
-            ) : (
-              <View style={[styles.driverAvatar, { backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="person" size={30} color="#fff" />
+            {/* Top Row: Avatar & Details */}
+            <View style={styles.driverTopRow}>
+              <View style={styles.driverInfoLeft}>
+                <Text style={styles.driverName}>{driverName}</Text>
+                
+                <View style={styles.badgesRow}>
+                  <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={12} color={COLORS.secondary} style={{ marginLeft: 4 }} />
+                    <Text style={styles.ratingText}>{driverRating}</Text>
+                  </View>
+                  <View style={styles.plateBadge}>
+                    <Text style={styles.plateText}>{truckPlate}</Text>
+                  </View>
+                </View>
+
               </View>
-            )}
+
+              <View style={styles.avatarWrapper}>
+                {driverInfo?.avatarUrl ? (
+                  <Image source={{ uri: driverInfo.avatarUrl }} style={styles.driverAvatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarLetter}>{driverName.charAt(0)}</Text>
+                  </View>
+                )}
+                <View style={styles.onlineDot} />
+              </View>
+            </View>
+
+            {/* Bottom Row: Actions */}
+            <View style={styles.driverBottomRow}>
+              {activeOrder?.price ? (
+                <View style={styles.priceContainer}>
+                  <Text style={styles.priceLabel}>الإجمالي</Text>
+                  <Text style={styles.priceValue}>{activeOrder.price.toLocaleString('ar-DZ')} د.ج</Text>
+                </View>
+              ) : <View style={{ flex: 1 }} />}
+
+              <View style={styles.actionButtonsRow}>
+                <TouchableOpacity style={styles.actionIconBtn} onPress={() => {}}>
+                  <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.callBtn} onPress={handleCallPress}>
+                  <Ionicons name="call" size={20} color={COLORS.white} />
+                  <Text style={styles.callBtnText}>اتصال</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
           </View>
         )}
 
-        {/* Cancel Button */}
-        <TouchableOpacity style={styles.cancelButton} onPress={handleCancelOrder}>
-          <Text style={styles.cancelButtonText}>إلغاء الطلب</Text>
+        {/* ── Cancel Button ──────────────────────────────────────────────────── */}
+        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelOrder}>
+          <Text style={styles.cancelBtnText}>إلغاء الطلبية</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -227,10 +268,11 @@ export default function OrderTrackingScreen() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.background,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -243,209 +285,254 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Cairo-Bold',
-    color: COLORS.primary,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  etaContainer: {
-    alignItems: 'center',
-    marginTop: 10,
-    paddingHorizontal: 20,
-  },
-  etaCard: {
-    flexDirection: 'row-reverse',
-    backgroundColor: COLORS.lightYellow,
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 30,
-    borderWidth: 1.5,
-    borderColor: '#FBEB98',
-    alignItems: 'center',
-    width: '100%',
-    justifyContent: 'center',
-  },
-  etaText: {
     fontSize: 18,
     fontFamily: 'Cairo-Bold',
     color: COLORS.primary,
-    marginLeft: 15,
   },
-  etaIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.secondary,
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
   },
   
-  mapCard: {
-    marginHorizontal: 20,
-    marginTop: 25,
-    height: 250,
-    borderRadius: 20,
-    backgroundColor: '#E2E8F0',
-    overflow: 'hidden',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+  mapContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    height: 320,
+    borderRadius: 32,
+    backgroundColor: COLORS.white,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08, shadowRadius: 20, elevation: 5,
+    position: 'relative',
   },
-  mapImage: {
-    width: '100%',
-    height: '100%',
+  mapWrapper: {
+    flex: 1,
+    borderRadius: 32,
+    overflow: 'hidden',
+  },
+  mapOverlayTop: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 60,
+    backgroundColor: 'rgba(255,255,255,0.1)', // Placeholder for actual gradient if needed
+  },
+  mapOverlayBottom: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 60,
+    backgroundColor: 'rgba(255,255,255,0.1)', 
   },
   userPin: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#1E88E5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.white,
-  },
-  userPinDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.white,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3, borderColor: COLORS.white,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8,
   },
   driverPin: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: COLORS.secondary,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3, borderColor: COLORS.white,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+  },
+  
+  etaBadge: {
+    position: 'absolute',
+    bottom: -20,
+    alignSelf: 'center',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: COLORS.white,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+  },
+  etaDot: {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: COLORS.secondary,
+    marginLeft: 10,
+  },
+  etaText: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.white,
   },
 
-  statusContainer: {
+  statusSection: {
     alignItems: 'center',
-    marginTop: 30,
-    marginBottom: 20,
-    paddingHorizontal: 20,
+    marginTop: 45,
+    paddingHorizontal: 24,
   },
   mainStatusText: {
-    fontSize: 26,
-    fontFamily: 'Cairo-Bold',
+    fontSize: 24,
+    fontFamily: 'Cairo-Black',
     color: COLORS.primary,
-    textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   subStatusText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Cairo-SemiBold',
     color: COLORS.textSecondary,
     textAlign: 'center',
+    lineHeight: 22,
   },
 
   driverCard: {
-    flexDirection: 'row-reverse',
+    marginHorizontal: 16,
+    marginTop: 24,
     backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 15,
+    borderRadius: 28,
+    padding: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05, shadowRadius: 16, elevation: 3,
+  },
+  driverTopRow: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    marginHorizontal: 20,
-    borderWidth: 1,
-    borderColor: '#F2F2F7',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  driverAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  driverInfo: {
+  driverInfoLeft: {
     flex: 1,
     alignItems: 'flex-end',
-    marginRight: 15,
+    marginRight: 16,
   },
   driverName: {
     fontSize: 18,
     fontFamily: 'Cairo-Bold',
     color: COLORS.primary,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-  priceBadge: {
-    backgroundColor: '#F0FDF4',
+  badgesRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ratingBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    marginTop: 6,
-    alignSelf: 'flex-end',
-    borderWidth: 1,
-    borderColor: '#16A34A',
-  },
-  priceText: {
-    fontSize: 14,
-    fontFamily: 'Cairo-Bold',
-    color: '#16A34A',
-  },
-  ratingRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    marginVertical: 4,
   },
   ratingText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Cairo-Bold',
-    color: COLORS.textSecondary,
-    marginLeft: 4,
+    color: '#D97706',
+  },
+  plateBadge: {
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   plateText: {
-    fontSize: 13,
-    fontFamily: 'Cairo-SemiBold',
+    fontSize: 12,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.textSecondary,
+    letterSpacing: 1,
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  driverAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  avatarPlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E0E7FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarLetter: {
+    fontSize: 24,
+    fontFamily: 'Cairo-Black',
+    color: '#4F46E5',
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: COLORS.success,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+
+  driverBottomRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  priceContainer: {
+    alignItems: 'flex-end',
+  },
+  priceLabel: {
+    fontSize: 12,
+    fontFamily: 'Cairo-Regular',
     color: COLORS.textSecondary,
   },
-  callButton: {
-    width: 65,
-    height: 65,
-    borderRadius: 32.5,
-    backgroundColor: '#1E88E5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-    elevation: 3,
-    shadowColor: '#1E88E5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  callButtonText: {
-    fontSize: 12,
-    color: COLORS.white,
-    fontFamily: 'Cairo-Bold',
-    marginTop: 4,
-  },
-  cancelButton: {
-    height: 56,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#FCA5A5',
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 20,
-  },
-  cancelButtonText: {
+  priceValue: {
     fontSize: 16,
     fontFamily: 'Cairo-Bold',
-    color: '#EF4444',
+    color: COLORS.success,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  callBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    height: 44,
+    borderRadius: 22,
+    gap: 8,
+  },
+  callBtnText: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.white,
+  },
+
+  cancelBtn: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: COLORS.dangerLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+  },
+  cancelBtnText: {
+    fontSize: 16,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.danger,
   },
 });

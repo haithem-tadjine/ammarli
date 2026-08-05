@@ -344,8 +344,10 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
         isScheduled: false,
       };
       const res = await api.post('/requests', payload);
-      // Update with real ID from backend
-      set({ activeOrder: { ...order, id: res.data.id } });
+      // Update with real ID from backend, but preserve current state in case it updated via socket
+      set((s) => ({ 
+        activeOrder: s.activeOrder ? { ...s.activeOrder, id: res.data.id } : { ...order, id: res.data.id } 
+      }));
     } catch (error: any) {
       console.error('Failed to create order on backend:', error?.response?.data || error);
       throw error;
