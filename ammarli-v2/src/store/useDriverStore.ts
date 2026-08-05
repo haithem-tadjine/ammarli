@@ -150,7 +150,7 @@ interface DriverState {
   rejectDriverOrder: (orderId: string) => Promise<void>;
   refuseDriverOrder: (requestId: string) => void;
   updateDriverOrderStatus: (status: DriverOrderStatus, price?: number, orderId?: string) => Promise<void>;
-  completeDriverOrder: () => void;
+  completeDriverOrder: (quantityLiters?: number, orderId?: string) => Promise<void>;
   cancelDriverOrder: (reason: string) => void;
   addPastTrip: (trip: PastTrip) => void;
 
@@ -432,9 +432,9 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     };
     
     set((state) => {
-      // Idempotency: skip if already in queue or if it's the currently active order
-      if (state.activeDriverOrder?.orderId === mappedOrder.orderId) return {};
-      if (state.incomingOrdersQueue.some(o => o.orderId === mappedOrder.orderId)) return {};
+      // Idempotency: skip if already in queue or if it's in activeDriverOrders
+      if (state.activeDriverOrders.some(o => o.orderId === mappedOrder.orderId)) return state;
+      if (state.incomingOrdersQueue.some(o => o.orderId === mappedOrder.orderId)) return state;
       return { incomingOrdersQueue: [...state.incomingOrdersQueue, mappedOrder] };
     });
   },
@@ -557,7 +557,15 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
       const earned = targetOrder.total;
       const remainingOrders = s.activeDriverOrders.filter(o => o.orderId !== activeId);
-      const commission = Math.round(earned * 0.1);
+      
+      let commission = 0;
+      const isBottled = s.registeredDriver?.driverType === 'Bottled';
+      if (isBottled && targetOrder.items) {
+        const totalFardeaus = targetOrder.items.reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
+        commission = totalFardeaus * 3;
+      } else {
+        commission = Math.round(earned * 0.1);
+      }
 
       const newTrip: PastTrip = {
         id: targetOrder.orderId,

@@ -53,25 +53,33 @@ const ALL_BRANDS = [
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 /** بطاقة اختيار نوع المركبة — تدعم صورة أو أيقونة */
-const VehicleCard = ({ title, iconName, active, onPress }: any) => (
+const VehicleCard = ({ title, iconName, imageSource, active, onPress }: any) => (
   <TouchableOpacity
     style={[styles.selectionCard, active && styles.selectionCardActive]}
     onPress={onPress}
     activeOpacity={0.8}
   >
-    <MaterialCommunityIcons name={iconName} size={44} color={active ? COLORS.primary : COLORS.textGray} style={{ marginBottom: 6 }} />
+    {imageSource ? (
+      <Image source={imageSource} style={{ width: 34, height: 34, marginBottom: 6 }} resizeMode="contain" />
+    ) : (
+      <MaterialCommunityIcons name={iconName} size={34} color={active ? COLORS.primary : COLORS.textGray} style={{ marginBottom: 6 }} />
+    )}
     <Text style={[styles.selectionTitle, active && styles.selectionTitleActive]}>{title}</Text>
   </TouchableOpacity>
 );
 
 /** بطاقة اختيار نوع المياه — صورة + نص */
-const TypeChip = ({ label, iconName, active, onPress }: any) => (
+const TypeChip = ({ label, iconName, imageSource, active, onPress }: any) => (
   <TouchableOpacity
     style={[styles.chip, active && styles.chipActive]}
     onPress={onPress}
     activeOpacity={0.8}
   >
-    <MaterialCommunityIcons name={iconName} size={32} color={active ? COLORS.primary : COLORS.textGray} style={{ marginBottom: 6 }} />
+    {imageSource ? (
+      <Image source={imageSource} style={{ width: 34, height: 34, marginBottom: 6 }} resizeMode="contain" />
+    ) : (
+      <MaterialCommunityIcons name={iconName} size={32} color={active ? COLORS.primary : COLORS.textGray} style={{ marginBottom: 6 }} />
+    )}
     <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
   </TouchableOpacity>
 );
@@ -185,13 +193,13 @@ const DriverRegistrationScreen = () => {
       <View style={styles.row}>
         <VehicleCard
           title="توصيل عبوات"
-          iconName="bottle-wine-outline"
+          imageSource={require('../../assets/images/bottled_icon.png')}
           active={vehicleType === 'bottled'}
           onPress={() => setVehicleType('bottled')}
         />
         <VehicleCard
           title="شاحنة صهريج"
-          iconName="truck-outline"
+          imageSource={require('../../assets/images/traker.png')}
           active={vehicleType === 'tanker'}
           onPress={() => setVehicleType('tanker')}
         />
@@ -241,19 +249,19 @@ const DriverRegistrationScreen = () => {
           <View style={styles.waterTypeRow}>
             <TypeChip
               label="مياه بناء"
-              iconName="dump-truck"
+              imageSource={require('../../assets/images/ashghal-icon.png')}
               active={waterType === 'construction'}
               onPress={() => setWaterType('construction')}
             />
             <TypeChip
               label="مياه آبار"
-              iconName="water-well-outline"
+              imageSource={require('../../assets/images/well-water-icon.png')}
               active={waterType === 'well'}
               onPress={() => setWaterType('well')}
             />
             <TypeChip
               label="الينابيع"
-              iconName="water"
+              imageSource={require('../../assets/images/spring-water-icon.png')}
               active={waterType === 'spring'}
               onPress={() => setWaterType('spring')}
             />
@@ -390,10 +398,10 @@ const styles = StyleSheet.create({
 
   // Vehicle cards
   row:                  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  selectionCard:        { width: CARD_W, height: 120, borderRadius: 20, borderWidth: 2, borderColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF', overflow: 'hidden' },
+  selectionCard:        { width: CARD_W, height: 90, borderRadius: 20, borderWidth: 2, borderColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF', overflow: 'hidden' },
   selectionCardActive:  { borderColor: COLORS.secondary, shadowColor: COLORS.secondary, shadowOpacity: 0.15, elevation: 5 },
   vehicleImage:         { width: 64, height: 64 },
-  selectionTitle:       { fontSize: 14, fontWeight: '700', color: COLORS.textGray, marginTop: 8 },
+  selectionTitle:       { fontSize: 13, fontWeight: '700', color: COLORS.textGray, marginTop: 4 },
   selectionTitleActive: { color: COLORS.primary, fontWeight: '900' },
 
   // Dynamic section

@@ -6,6 +6,8 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useDriverStore } from '../../../src/store/useDriverStore';
 import NewOrderCard, { ORDER_TYPES, OrderType } from '../../../components/NewOrderCard';
 import UpdateInventoryModal from '../../../components/UpdateInventoryModal';
@@ -56,11 +58,11 @@ const TankCapacityCard = () => {
 
   return (
     <View style={styles.bottomSection}>
-      <View style={styles.tankCard}>
+      <BlurView intensity={70} tint="light" style={styles.tankCard}>
         <View style={styles.tankHeaderTarget}>
           <Text style={styles.tankTitleTarget}>سعة الخزان</Text>
           {/* شارة نوع المياه */}
-          <View style={[styles.waterTypeBadge, { backgroundColor: meta.color + '20', borderColor: meta.color }]}>
+          <View style={[styles.waterTypeBadge, { backgroundColor: meta.color + '15', borderColor: meta.color + '40' }]}>
             <MaterialCommunityIcons name={meta.icon as any} size={14} color={meta.color} />
             <Text style={[styles.waterTypeBadgeText, { color: meta.color }]}>{meta.label}</Text>
           </View>
@@ -69,7 +71,7 @@ const TankCapacityCard = () => {
         <View style={styles.progressContainerTarget}>
           <View style={styles.outerCircleTarget}>
             <Svg width={size} height={size} style={{ position: 'absolute' }}>
-              <Circle stroke="#F1F5F9" fill="none" cx={size/2} cy={size/2} r={radius} strokeWidth={strokeWidth} />
+              <Circle stroke="rgba(0,33,71,0.05)" fill="none" cx={size/2} cy={size/2} r={radius} strokeWidth={strokeWidth} />
               <Circle stroke={meta.color} fill="none" cx={size/2} cy={size/2} r={radius} strokeWidth={strokeWidth}
                 strokeDasharray={`${circum} ${circum}`} strokeDashoffset={circum * (1 - progress)}
                 strokeLinecap="round" transform={`rotate(-90 ${size/2} ${size/2})`} />
@@ -81,10 +83,10 @@ const TankCapacityCard = () => {
           </View>
         </View>
 
-        <TouchableOpacity style={[styles.fillButtonTarget, { borderColor: meta.color }]}>
+        <TouchableOpacity style={[styles.fillButtonTarget, { borderColor: meta.color + '40', backgroundColor: meta.color + '05' }]}>
            <Text style={[styles.fillButtonTextTarget, { color: meta.color }]}>تعبئة الخزان</Text>
         </TouchableOpacity>
-      </View>
+      </BlurView>
     </View>
   );
 };
@@ -125,7 +127,7 @@ const InventoryListCard = () => {
   }
 
   return (
-    <View style={styles.inventoryCard}>
+    <BlurView intensity={70} tint="light" style={styles.inventoryCard}>
       <View style={styles.inventoryHeader}>
          <View style={styles.badge}><Text style={styles.badgeText}>قوارير</Text></View>
          <Text style={styles.inventoryTitle}>المخزون الحالي</Text>
@@ -152,9 +154,9 @@ const InventoryListCard = () => {
       
       {/* شبكة الحالة الملونة */}
       <View style={styles.stockGrid}>
-        <StockBox label="0.5 لتر" val="25" status="ممتلئ" color={COLORS.success} bg="#F0FDF4" />
-        <StockBox label="1.5 لتر" val="15" status="منخفض" color={COLORS.warning} bg="#FFFBEB" />
-        <StockBox label="5 لتر" val="10" status="فارغ" color={COLORS.danger} bg="#FEF2F2" />
+        <StockBox label="0.5 لتر" val="25" status="ممتلئ" color={COLORS.success} bg="rgba(74,222,128,0.1)" />
+        <StockBox label="1.5 لتر" val="15" status="منخفض" color={COLORS.warning} bg="rgba(245,158,11,0.1)" />
+        <StockBox label="5 لتر" val="10" status="فارغ" color={COLORS.danger} bg="rgba(239,68,68,0.1)" />
       </View>
 
       {/* زر تعبئة المخزون — يفتح المودال */}
@@ -172,7 +174,7 @@ const InventoryListCard = () => {
         visible={showInventoryModal}
         onClose={() => setShowInventoryModal(false)}
       />
-    </View>
+    </BlurView>
   );
 };
 
@@ -480,25 +482,24 @@ export default function DriverDashboardScreen() {
 
 
 
+  const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
+
   return (
-    <ScreenContainer backgroundColor="#FFF" statusBarStyle="dark-content" statusBarColor="#FFF">
-      <StatusBar barStyle="dark-content" />
+    <View style={styles.container}>
+      <StatusBar barStyle={isOnline ? 'dark-content' : 'dark-content'} backgroundColor="transparent" translucent />
+      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
 
       {/* ── مودال السماح بالموقع ── */}
       <Modal visible={showLocationModal} transparent animationType="fade">
         <View style={styles.locationOverlay}>
           <View style={styles.locationCard}>
-            {/* أيقونة */}
             <View style={styles.locationIconWrap}>
               <Ionicons name="navigate" size={36} color={COLORS.primary} />
             </View>
-
             <Text style={styles.locationTitle}>تفعيل الموقع</Text>
             <Text style={styles.locationBody}>
               {'نحتاج لمعرفة موقعك الحالي لإخطارك بالطلبات القريبة منك\nولتتبع رحلاتك بدقة.'}
             </Text>
-
-            {/* زر السماح */}
             <TouchableOpacity
               style={styles.locationAllowBtn}
               onPress={requestLocationPermission}
@@ -514,12 +515,7 @@ export default function DriverDashboardScreen() {
                 </>
               )}
             </TouchableOpacity>
-
-            {/* زر التجاهل */}
-            <TouchableOpacity
-              style={styles.locationDenyBtn}
-              onPress={() => setShowLocationModal(false)}
-            >
+            <TouchableOpacity style={styles.locationDenyBtn} onPress={() => setShowLocationModal(false)}>
               <Text style={styles.locationDenyText}>ليس الآن</Text>
             </TouchableOpacity>
           </View>
@@ -529,12 +525,9 @@ export default function DriverDashboardScreen() {
       {/* ── البطاقة المنبثقة للطلب الجديد ── */}
       {showOrder && (
         <Modal transparent animationType="none" statusBarTranslucent>
-          {/* خلفية شفافة */}
           <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={dismissOrder} />
           </Animated.View>
-
-          {/* البطاقة تنبثق من الأسفل */}
           <Animated.View
             style={[
               styles.orderPopup,
@@ -549,7 +542,7 @@ export default function DriverDashboardScreen() {
               address={currentOffer?.deliveryAddress?.label || ''}
               distance={currentOffer?.deliveryAddress?.distance || '---'}
               quantity={currentOffer?.items?.map(i => i.detail).join(' + ') || ''}
-              rating={5.0} // Hardcoded rating for now as it's not in active order
+              rating={5.0}
               totalSeconds={30}
               onAccept={handleAccept}
               onDecline={handleDecline}
@@ -558,32 +551,45 @@ export default function DriverDashboardScreen() {
         </Modal>
       )}
       
-      {/* 1. Top Header */}
-      <View style={styles.headerTarget}>
+      {/* 1. Top Floating Header */}
+      <View style={[styles.headerTarget, { paddingTop: insets.top + 15 }]}>
+        <View style={styles.userInfoWrap}>
+          <View style={styles.avatarPlaceholder}>
+             <Ionicons name="person" size={24} color={COLORS.primary} />
+          </View>
+          <View>
+             <Text style={styles.greetingTextSmall}>مرحباً،</Text>
+             <Text style={styles.greetingTextTarget}>{driver_name}</Text>
+          </View>
+        </View>
         <TouchableOpacity style={styles.iconButtonTarget} onPress={() => router.push('/(driver)/notifications')}>
-          <Ionicons name="notifications-outline" size={26} color={COLORS.primary} />
-          {useDriverStore(s => s.notifications.some(n => !n.isRead)) && (
-            <View style={styles.dotTarget} />
-          )}
+          <View style={styles.notifWrap}>
+            <Ionicons name="notifications-outline" size={24} color={COLORS.primary} />
+            {useDriverStore(s => s.notifications.some(n => !n.isRead)) && (
+              <View style={styles.dotTarget} />
+            )}
+          </View>
         </TouchableOpacity>
-        <Text style={styles.greetingTextTarget}>مرحبا {driver_name}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}>
         
-        {/* 2. Quick Stats Cards */}
+        {/* 2. Quick Stats Cards (Glassmorphism) */}
         <View style={styles.statsContainerTarget}>
-          <View style={[styles.statCardTarget, { backgroundColor: COLORS.secondary }]}>
-            <Text style={[styles.statLabelTarget, { color: COLORS.primary }]}>الطلبات المكتملة</Text>
-            <Text style={[styles.statValueTarget, { color: COLORS.primary }]}>{completedTrips} رحلات</Text>
-          </View>
-          <View style={[styles.statCardTarget, { backgroundColor: COLORS.primary }]}>
-            <Text style={[styles.statLabelTarget, { color: '#FFF' }]}>أرباح اليوم</Text>
-            <Text style={[styles.statValueTarget, { color: '#FFF' }]}>{(totalEarnings || 0).toLocaleString('ar-DZ')} د.ج</Text>
-          </View>
+          <BlurView intensity={60} tint="light" style={[styles.statCardTarget, { borderColor: 'rgba(255,255,255,0.8)' }]}>
+            <View style={styles.statIconWrap}><Ionicons name="car-outline" size={20} color={COLORS.primary} /></View>
+            <Text style={styles.statValueTarget}>{completedTrips}</Text>
+            <Text style={styles.statLabelTarget}>رحلة مكتملة</Text>
+          </BlurView>
+          
+          <BlurView intensity={60} tint="light" style={[styles.statCardTarget, { borderColor: 'rgba(255,255,255,0.8)' }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: COLORS.secondary }]}><Ionicons name="wallet-outline" size={20} color={COLORS.primary} /></View>
+            <Text style={[styles.statValueTarget, { color: COLORS.primary }]}>{(totalEarnings || 0).toLocaleString('ar-DZ')}</Text>
+            <Text style={styles.statLabelTarget}>أرباح اليوم (د.ج)</Text>
+          </BlurView>
         </View>
 
-        {/* 3. Central Action Area (Radar) */}
+        {/* 3. Central Action Area (Uber-style GO Button) */}
         <View style={styles.centralAreaTarget}>
           {isOnline && (
             <Animated.View 
@@ -598,66 +604,83 @@ export default function DriverDashboardScreen() {
           )}
 
           {isSuspended && (
-            <View style={{ backgroundColor: '#FEF2F2', padding: 12, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#FEE2E2', alignItems: 'center' }}>
-               <MaterialCommunityIcons name="alert-circle" size={24} color={COLORS.danger} style={{ marginBottom: 5 }} />
-               <Text style={{ fontFamily: 'Cairo-Bold', color: COLORS.danger, textAlign: 'center' }}>
-                 تم إيقاف حسابك مؤقتاً لتجاوز ديون العمولة ({(appCommissionDebt || 0).toLocaleString('ar-DZ')} د.ج).
+            <BlurView intensity={80} tint="light" style={styles.suspendedCard}>
+               <MaterialCommunityIcons name="alert-circle" size={28} color={COLORS.danger} style={{ marginBottom: 5 }} />
+               <Text style={styles.suspendedTitle}>
+                 تم إيقاف حسابك مؤقتاً
                </Text>
-               <Text style={{ fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 4 }}>
-                 يرجى تسديد المستحقات للعميل لإعادة تفعيل حسابك واستقبال الطلبات.
+               <Text style={styles.suspendedBody}>
+                 لتجاوز ديون العمولة ({(appCommissionDebt || 0).toLocaleString('ar-DZ')} د.ج).{'\n'}يرجى تسديد المستحقات لإعادة التفعيل.
                </Text>
-            </View>
+            </BlurView>
           )}
 
           <TouchableOpacity 
-            activeOpacity={0.8} 
+            activeOpacity={0.85} 
             onPress={isSuspended ? undefined : toggleStatus}
             style={[
               styles.mainActionButtonTarget,
               isOnline ? styles.buttonOnlineTarget : styles.buttonOfflineTarget,
-              isSuspended && { backgroundColor: '#CBD5E1', opacity: 0.8 }
+              isSuspended && { backgroundColor: '#CBD5E1', borderColor: '#94A3B8' }
             ]}
           >
-            <Text style={styles.buttonTextTarget}>
-              {isOnline ? 'إيقاف العمل' : 'ابدأ العمل'}
-            </Text>
+            <View style={styles.innerButtonRing}>
+              <Text style={[styles.buttonTextTarget, !isOnline && { color: COLORS.white }]}>
+                {isOnline ? 'إيقاف' : 'ابدأ'}
+              </Text>
+              <Text style={[styles.buttonSubText, !isOnline && { color: 'rgba(255,255,255,0.7)' }]}>
+                {isOnline ? 'العمل' : 'العمل الآن'}
+              </Text>
+            </View>
           </TouchableOpacity>
           
-          {isOnline && !isSuspended && <Text style={styles.statusSubtextTarget}>جاري استقبال الطلبات...</Text>}
+          <View style={styles.statusBadge}>
+            <View style={[styles.statusIndicator, { backgroundColor: isOnline && !isSuspended ? COLORS.success : COLORS.danger }]} />
+            <Text style={styles.statusSubtextTarget}>
+              {isOnline && !isSuspended ? 'متصل: جاري البحث عن طلبات...' : 'غير متصل'}
+            </Text>
+          </View>
         </View>
 
         {/* لوحة المعلومات مفلترة حسب نوع المياه / فئة السائق */}
-        {isBottled ? <InventoryListCard /> : <TankCapacityCard />}
+        <View style={{ paddingHorizontal: 20, marginBottom: 15 }}>
+          {isBottled ? <InventoryListCard /> : <TankCapacityCard />}
+        </View>
         
-
         {/* قسم الطلبات الحالية المشترك */}
         <View style={styles.orderSection}>
            <Text style={styles.sectionTitle}>الطلبات الحالية ({activeDriverOrders.filter(o => o.status !== 'pending').length})</Text>
            {activeDriverOrders.filter(o => o.status !== 'pending').length > 0 ? (
-             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 15 }}>
+             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 15 }}>
                {activeDriverOrders.filter(o => o.status !== 'pending').map(order => (
                  <TouchableOpacity 
                    key={order.orderId}
                    activeOpacity={0.9}
-                   style={[styles.activeOrderCard, { width: width * 0.8, marginHorizontal: 0 }]}
+                   style={[styles.activeOrderCard, { width: width * 0.82 }]}
                    onPress={() => router.push({ pathname: '/(driver)/order-details' as any, params: { orderId: order.orderId } })}
                  >
                     <View style={styles.activeOrderHeader}>
-                       <Ionicons name="car-sport" size={46} color={COLORS.primary} />
-                       <View style={{ flex: 1, marginLeft: 10 }}>
-                         <Text style={styles.activeOrderName}>{order.customer.name}</Text>
-                         <Text style={styles.activeOrderAddress}>{order.deliveryAddress.label}</Text>
+                       <View style={styles.activeOrderIconWrap}>
+                         <Ionicons name="car-sport" size={24} color={COLORS.primary} />
                        </View>
+                       <View style={{ flex: 1 }}>
+                         <Text style={styles.activeOrderName}>{order.customer.name}</Text>
+                         <Text style={styles.activeOrderAddress} numberOfLines={1}>{order.deliveryAddress.label}</Text>
+                       </View>
+                       <Ionicons name="chevron-back" size={20} color={COLORS.textSecondary} />
                     </View>
                  </TouchableOpacity>
                ))}
              </ScrollView>
            ) : (
-             <View style={styles.emptyOrder}><Text style={styles.emptyText}>لا توجد طلبات حالياً قيد التوصيل</Text></View>
+             <BlurView intensity={40} tint="light" style={styles.emptyOrder}>
+               <Ionicons name="document-text-outline" size={32} color="#94A3B8" style={{ marginBottom: 8 }} />
+               <Text style={styles.emptyText}>لا توجد طلبات قيد التوصيل</Text>
+             </BlurView>
            )}
         </View>
       </ScrollView>
-    </ScreenContainer>
+    </View>
   );
 }
 
@@ -679,7 +702,7 @@ const styles = StyleSheet.create({
   statValueDark: { fontSize: 22, fontWeight: '900', color: COLORS.primary, textAlign: 'left', marginTop: 5 },
   
   // أنماط خاصة بالصهريج
-  tankCard: { marginHorizontal: 20, marginBottom: 20, backgroundColor: COLORS.white, borderRadius: 32, padding: 25, alignItems: 'center', elevation: 2 },
+  tankCard: { marginHorizontal: 0, marginBottom: 0, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 32, padding: 25, alignItems: 'center', elevation: 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)', overflow: 'hidden' },
   tankHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 25 },
   tankTitle: { fontSize: 18, fontWeight: '900', color: COLORS.primary },
   waterBadge: { backgroundColor: '#E0F2FE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
@@ -694,7 +717,7 @@ const styles = StyleSheet.create({
   refillText: { fontSize: 16, fontWeight: '800', color: '#3B82F6' },
   
   // أنماط خاصة بالجرد والقوارير
-  inventoryCard: { marginHorizontal: 20, marginBottom: 20, backgroundColor: COLORS.white, borderRadius: 32, padding: 24, elevation: 2 },
+  inventoryCard: { marginHorizontal: 0, marginBottom: 0, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 32, padding: 24, elevation: 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)', overflow: 'hidden' },
   inventoryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   inventoryTitle: { fontSize: 20, fontWeight: '900', color: COLORS.primary, textAlign: 'left' },
   badge: { backgroundColor: '#E0F2FE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
@@ -813,117 +836,208 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
   },
 
-  // Target Styles
+  // Target Styles - Premium Modern Design
   headerTarget: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 25,
-    paddingTop: 20,
-    marginBottom: 30,
+    paddingTop: 10,
+    marginBottom: 25,
+  },
+  userInfoWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,33,71,0.1)',
+  },
+  greetingTextSmall: {
+    fontSize: 13,
+    color: '#64748B',
+    fontFamily: 'Cairo-SemiBold',
+    marginBottom: -4,
   },
   greetingTextTarget: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '900',
     color: COLORS.primary,
-    fontFamily: 'Cairo-Bold',
+    fontFamily: 'Cairo-Black',
   },
   iconButtonTarget: {
-    padding: 5,
+    padding: 2,
+  },
+  notifWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,33,71,0.1)',
   },
   dotTarget: {
     position: 'absolute',
-    top: 5,
-    right: 5,
+    top: 12,
+    right: 12,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.danger,
     borderWidth: 1.5,
-    borderColor: COLORS.background,
+    borderColor: '#FFF',
   },
   statsContainerTarget: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginBottom: 40,
+    marginBottom: 35,
+    gap: 12,
   },
   statCardTarget: {
-    width: '48%',
-    padding: 20,
+    flex: 1,
+    padding: 16,
     borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
+    elevation: 2,
+  },
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,33,71,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   statLabelTarget: {
     fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    opacity: 0.8,
-    fontFamily: 'Cairo-Bold',
+    color: '#64748B',
+    fontFamily: 'Cairo-SemiBold',
+    marginTop: 2,
   },
   statValueTarget: {
-    fontSize: 22,
-    fontWeight: '900',
+    fontSize: 24,
+    color: COLORS.primary,
     fontFamily: 'Cairo-Black',
   },
   centralAreaTarget: {
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 40,
-    marginTop: 20,
+    marginTop: 10,
+    minHeight: 220,
   },
   radarCircleTarget: {
     position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: COLORS.secondary,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: COLORS.success,
     zIndex: -1,
   },
+  suspendedCard: {
+    padding: 16,
+    borderRadius: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: 'rgba(254,242,242,0.8)',
+    alignItems: 'center',
+    overflow: 'hidden',
+    marginHorizontal: 20,
+  },
+  suspendedTitle: {
+    fontFamily: 'Cairo-Black',
+    color: COLORS.danger,
+    textAlign: 'center',
+    fontSize: 15,
+  },
+  suspendedBody: {
+    fontFamily: 'Cairo-SemiBold',
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+  },
   mainActionButtonTarget: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 8,
-    borderColor: '#FFF',
-    elevation: 15,
+    elevation: 20,
     shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 25,
+    borderWidth: 6,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  innerButtonRing: {
+    width: 146,
+    height: 146,
+    borderRadius: 73,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   buttonOfflineTarget: {
     backgroundColor: COLORS.primary,
   },
   buttonOnlineTarget: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.secondary,
+    backgroundColor: COLORS.success,
   },
   buttonTextTarget: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontSize: 32,
+    color: COLORS.white,
+    fontFamily: 'Cairo-Black',
+    marginBottom: -8,
+  },
+  buttonSubText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
     fontFamily: 'Cairo-Bold',
   },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 25,
+  },
+  statusIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
   statusSubtextTarget: {
-    marginTop: 20,
     color: COLORS.primary,
-    fontWeight: 'bold',
-    fontSize: 14,
-    opacity: 0.6,
+    fontSize: 13,
     fontFamily: 'Cairo-Bold',
   },
   bottomSection: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
     paddingBottom: 25,
   },
   tankHeaderTarget: {
@@ -937,7 +1051,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.primary,
-    fontFamily: 'Cairo-Bold',
+    fontFamily: 'Cairo-Black',
   },
   progressContainerTarget: {
     marginBottom: 20,
@@ -953,80 +1067,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   capacityTextTarget: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '900',
     color: COLORS.primary,
     fontFamily: 'Cairo-Black',
+    marginBottom: -4,
   },
   totalTextTarget: {
     fontSize: 12,
-    color: '#8E8E93',
-    fontWeight: 'bold',
-    fontFamily: 'Cairo-SemiBold',
+    color: '#94A3B8',
+    fontFamily: 'Cairo-Bold',
   },
   fillButtonTarget: {
     width: '100%',
     height: 50,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1.5,
     borderColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F8FAFC',
   },
   fillButtonTextTarget: {
     color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 15,
     fontFamily: 'Cairo-Bold',
   },
   
   // Active Order Card Styles
   activeOrderCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1.5,
-    borderColor: COLORS.secondary,
-    elevation: 4,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    marginTop: 5,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 204, 0, 0.4)',
+    elevation: 0,
   },
   activeOrderHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 15,
+  },
+  activeOrderIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#FFFBEB',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   activeOrderName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
     color: COLORS.primary,
     fontFamily: 'Cairo-Black',
     textAlign: 'left',
+    marginBottom: 2,
   },
   activeOrderAddress: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
+    fontSize: 12,
+    color: '#64748B',
     fontFamily: 'Cairo-SemiBold',
-    marginTop: 2,
     textAlign: 'left',
-  },
-  activeOrderFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 15,
-  },
-  activeOrderPrice: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: COLORS.primary,
-    fontFamily: 'Cairo-Black',
   },
   continueBtn: {
     flexDirection: 'row',
@@ -1039,7 +1140,6 @@ const styles = StyleSheet.create({
   },
   continueBtnText: {
     color: '#FFF',
-    fontWeight: 'bold',
     fontFamily: 'Cairo-Bold',
     fontSize: 14,
   },

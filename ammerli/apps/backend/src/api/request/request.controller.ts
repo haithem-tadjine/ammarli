@@ -87,6 +87,8 @@ export class RequestController {
   ): Promise<OffsetPaginatedDto<RequestResDto>> {
     if (user.role === 'CLIENT') {
       reqDto.userId = user.id as string;
+    } else if (user.role === 'DRIVER') {
+      reqDto.driverId = user.id as string;
     }
     return this.requestService.findAll(reqDto);
   }

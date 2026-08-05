@@ -333,7 +333,9 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
         pickupLat: order.location?.latitude || 0,
         pickupLng: order.location?.longitude || 0,
         deliveryAddress: order.locationName,
-        quantity: isTanker ? 1 : parseInt(order.quantity || '1', 10),
+        quantity: isTanker 
+          ? 1 
+          : (order.items?.reduce((sum: number, item: any) => sum + (item.qty || 1), 0) || parseInt(order.quantity || '1', 10)),
         type: isTanker ? 'TANKER' : 'BOTTLED',
         tankerDetails: isTanker ? { 
           waterType: order.waterType || order.type, 

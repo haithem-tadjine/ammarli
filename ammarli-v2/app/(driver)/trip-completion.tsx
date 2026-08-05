@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,21 +8,25 @@ import {
   StatusBar,
   Dimensions,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Truck, CheckCircle, ChevronLeft, MapPin } from 'lucide-react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDriverStore } from '../../src/store/useDriverStore';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
 
-// نظام الألوان الخاص بـ Ammarli
 const COLORS = {
-  NAVY: '#012047',
-  YELLOW: '#FFCC00',
-  BACKGROUND: '#F1F4F9',
-  WHITE: '#FFFFFF',
-  TEXT_MUTED: '#64748B',
-  DIVIDER: '#E2E8F0',
+  primary:       '#002147',
+  secondary:     '#F3CD0D',
+  white:         '#FFFFFF',
+  textSecondary: '#64748B',
+  success:       '#22C55E',
 };
 
 export default function TripCompletionScreen() {
@@ -36,14 +40,37 @@ export default function TripCompletionScreen() {
 
   const { orderId, serviceType, price, customerName } = params;
   const completeDriverOrder = useDriverStore(state => state.completeDriverOrder);
+  const isOnline = useDriverStore((s: any) => s.isOnline);
   
   const [isLoading, setIsLoading] = useState(false);
 
+  // Animations
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const slideUpAnim = React.useRef(new Animated.Value(50)).current;
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Pulse animation for the checkmark
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    ).start();
+
+    // Slide up and fade in for the card
+    Animated.parallel([
+      Animated.timing(slideUpAnim, { toValue: 0, duration: 600, easing: Easing.out(Easing.exp), useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true })
+    ]).start();
+  }, []);
+
   const handleComplete = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsLoading(true);
     try {
       await completeDriverOrder(0, orderId);
-      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace({
         pathname: '/(driver)/customer-rating',
         params: { orderId: orderId, customerName: customerName ?? 'العميل', price: price ?? '0' }
@@ -55,60 +82,70 @@ export default function TripCompletionScreen() {
   };
 
   const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
   };
 
+  const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: 50 }]}>
         <Text style={styles.headerTitle}>ملخص الرحلة</Text>
       </View>
 
       <View style={styles.content}>
         
-        {/* Arrival Visual Icon */}
-        <View style={styles.visualContainer}>
-          <View style={styles.iconCircle}>
-            <Truck size={60} color={COLORS.NAVY} strokeWidth={1.5} />
-            <View style={styles.checkBadge}>
-              <CheckCircle size={24} color={COLORS.YELLOW} fill={COLORS.NAVY} />
+        {/* Arrival Visual Icon (Glassmorphism) */}
+        <Animated.View style={[styles.visualContainer, { opacity: fadeAnim }]}>
+          <BlurView intensity={60} tint="light" style={styles.iconCircleBlur}>
+            <View style={styles.iconCircle}>
+              <MaterialCommunityIcons name="truck-check-outline" size={60} color={COLORS.primary} />
+              <Animated.View style={[styles.checkBadge, { transform: [{ scale: pulseAnim }] }]}>
+                <CheckCircle size={28} color={COLORS.success} fill={COLORS.white} />
+              </Animated.View>
             </View>
-          </View>
+          </BlurView>
           <Text style={styles.arrivalStatus}>وصلت لوجهتك</Text>
-        </View>
+        </Animated.View>
 
-        {/* Summary Card */}
-        <View style={styles.summaryCard}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>تم الوصول إلى موقع الزبون</Text>
-            <MapPin size={20} color={COLORS.NAVY} />
-          </View>
-          
-          <View style={styles.divider} />
+        {/* Summary Card (Glassmorphism) */}
+        <Animated.View style={{ width: '100%', transform: [{ translateY: slideUpAnim }], opacity: fadeAnim }}>
+          <BlurView intensity={70} tint="light" style={styles.summaryCard}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardTitle}>تم الوصول إلى موقع الزبون</Text>
+              <View style={styles.pinIconBox}>
+                <MapPin size={18} color={COLORS.white} />
+              </View>
+            </View>
+            
+            <View style={styles.divider} />
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoValue}>{serviceType ?? 'مياه آبار'}</Text>
-            <Text style={styles.infoLabel}>نوع الخدمة:</Text>
-          </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoValue}>{serviceType ?? 'مياه آبار'}</Text>
+              <Text style={styles.infoLabel}>نوع الخدمة:</Text>
+            </View>
 
-          <View style={[styles.infoRow, { marginTop: 15 }]}>
-            <Text style={styles.totalValue}>{price ? `${Number(price).toLocaleString('ar-DZ')} د.ج` : '0 د.ج'}</Text>
-            <Text style={styles.infoLabel}>المبلغ الإجمالي:</Text>
-          </View>
-        </View>
+            <View style={[styles.infoRow, { marginTop: 15 }]}>
+              <Text style={styles.totalValue}>{price ? `${Number(price).toLocaleString('ar-DZ')} د.ج` : '0 د.ج'}</Text>
+              <Text style={styles.infoLabel}>المبلغ الإجمالي:</Text>
+            </View>
+          </BlurView>
+        </Animated.View>
 
         {/* Muted Confirmation Text */}
-        <Text style={styles.confirmationText}>
+        <Animated.Text style={[styles.confirmationText, { opacity: fadeAnim }]}>
           تأكد من تسليم الطلبية واستلام المبلغ قبل إنهاء الرحلة.
-        </Text>
+        </Animated.Text>
 
       </View>
 
-      {/* Buttons Footer */}
-      <View style={styles.footer}>
+      {/* Buttons Footer (Glassmorphism) */}
+      <BlurView intensity={90} tint="light" style={styles.footer}>
         <TouchableOpacity 
           style={[styles.primaryButton, isLoading && { opacity: 0.8 }]} 
           activeOpacity={0.8}
@@ -116,9 +153,12 @@ export default function TripCompletionScreen() {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color={COLORS.NAVY} />
+            <ActivityIndicator color={COLORS.primary} />
           ) : (
-            <Text style={styles.primaryButtonText}>تم التوصيل بنجاح</Text>
+            <>
+              <MaterialCommunityIcons name="check-decagram" size={24} color={COLORS.primary} />
+              <Text style={styles.primaryButtonText}>تم التوصيل بنجاح</Text>
+            </>
           )}
         </TouchableOpacity>
 
@@ -128,30 +168,29 @@ export default function TripCompletionScreen() {
           onPress={handleBack}
           disabled={isLoading}
         >
-          <ChevronLeft size={20} color={COLORS.NAVY} style={{ marginRight: 5 }} />
           <Text style={styles.secondaryButtonText}>رجوع للتفاصيل</Text>
         </TouchableOpacity>
-      </View>
+      </BlurView>
       
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    height: 60,
+    height: 90,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.NAVY,
+    fontSize: 22,
+    fontFamily: 'Cairo-Black',
+    color: COLORS.primary,
   },
   content: {
     flex: 1,
@@ -163,61 +202,71 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
+  iconCircleBlur: {
+    borderRadius: 75,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.9)',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+  },
   iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: COLORS.WHITE,
+    width: 140,
+    height: 140,
+    backgroundColor: 'rgba(255,255,255,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
     position: 'relative',
   },
   checkBadge: {
     position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 15,
+    bottom: 15,
+    right: 15,
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 2,
+    elevation: 5,
   },
   arrivalStatus: {
-    marginTop: 15,
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.NAVY,
-    opacity: 0.8,
+    marginTop: 20,
+    fontSize: 20,
+    fontFamily: 'Cairo-Black',
+    color: COLORS.primary,
   },
+  
   summaryCard: {
-    backgroundColor: COLORS.WHITE,
     width: '100%',
     borderRadius: 24,
-    padding: 20,
-    elevation: 8,
-    shadowColor: COLORS.NAVY,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 15,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+    overflow: 'hidden',
   },
   cardHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.NAVY,
-    marginRight: 10,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.primary,
+  },
+  pinIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.DIVIDER,
-    marginBottom: 15,
+    backgroundColor: 'rgba(0,33,71,0.08)',
+    marginVertical: 15,
   },
   infoRow: {
     flexDirection: 'row',
@@ -225,62 +274,75 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   infoLabel: {
-    fontSize: 14,
-    color: COLORS.TEXT_MUTED,
-    fontWeight: '600',
+    fontSize: 15,
+    fontFamily: 'Cairo-SemiBold',
+    color: COLORS.textSecondary,
   },
   infoValue: {
-    fontSize: 16,
-    color: COLORS.NAVY,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.primary,
   },
   totalValue: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: COLORS.YELLOW,
-    textShadowColor: 'rgba(255, 204, 0, 0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    fontSize: 22,
+    fontFamily: 'Cairo-Black',
+    color: COLORS.success,
   },
+  
   confirmationText: {
-    marginTop: 20,
-    fontSize: 13,
-    color: COLORS.TEXT_MUTED,
     textAlign: 'center',
-    lineHeight: 20,
+    marginTop: 30,
+    fontSize: 13,
+    fontFamily: 'Cairo-SemiBold',
+    color: COLORS.textSecondary,
+    lineHeight: 22,
     paddingHorizontal: 20,
   },
+  
   footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 25,
-    paddingBottom: 30,
-    gap: 15,
+    paddingTop: 20,
+    paddingBottom: 35,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.7)',
   },
   primaryButton: {
-    backgroundColor: COLORS.YELLOW,
+    width: '100%',
     height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: COLORS.YELLOW,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  primaryButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.NAVY,
-  },
-  secondaryButton: {
-    height: 50,
+    backgroundColor: COLORS.secondary,
+    borderRadius: 20,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 10,
+    elevation: 6,
+    shadowColor: COLORS.secondary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    marginBottom: 15,
+  },
+  primaryButtonText: {
+    color: COLORS.primary,
+    fontSize: 18,
+    fontFamily: 'Cairo-Black',
+  },
+  secondaryButton: {
+    width: '100%',
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,33,71,0.2)',
   },
   secondaryButtonText: {
+    color: COLORS.textSecondary,
     fontSize: 15,
-    color: COLORS.NAVY,
-    fontWeight: '600',
+    fontFamily: 'Cairo-Bold',
   },
 });

@@ -65,9 +65,10 @@ export default function InvoiceScreen() {
     minute: '2-digit'
   });
 
+  const calculatedItemsTotal = items.reduce((acc, item) => acc + (item.qty * (item.unitPrice || 0)), 0);
   const subtotal = isTanker 
     ? (activeOrder?.price || 0) 
-    : items.reduce((acc, item) => acc + (item.qty * (item.unitPrice || 0)), 0);
+    : (calculatedItemsTotal > 0 ? calculatedItemsTotal : (activeOrder?.price || 0));
 
   const totalAmount = subtotal + deliveryFee;
 
@@ -112,14 +113,19 @@ export default function InvoiceScreen() {
               {/* Table Rows */}
               <View style={{ maxHeight: 220 }}>
                 <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
-                  {items.map((item, index) => (
-                    <View key={index} style={styles.tableRow}>
-                      <Text style={[styles.rowText, styles.boldText, { flex: 1.2 }]}>{(item.qty * (item.unitPrice || 0)).toFixed(0)} د.ج</Text>
-                      <Text style={[styles.rowText, { flex: 0.5 }]}>{item.qty}x</Text>
-                      <Text style={[styles.rowText, { flex: 1 }]}>{item.size}</Text>
-                      <Text style={[styles.rowText, styles.brandText, { flex: 2, textAlign: 'right' }]}>{item.brand}</Text>
-                    </View>
-                  ))}
+                  {items.map((item, index) => {
+                    const itemTotal = item.qty * (item.unitPrice || 0);
+                    return (
+                      <View key={index} style={styles.tableRow}>
+                        <Text style={[styles.rowText, styles.boldText, { flex: 1.2 }]}>
+                          {itemTotal > 0 ? `${itemTotal.toFixed(0)} د.ج` : '-'}
+                        </Text>
+                        <Text style={[styles.rowText, { flex: 0.5 }]}>{item.qty}x</Text>
+                        <Text style={[styles.rowText, { flex: 1 }]}>{item.size}</Text>
+                        <Text style={[styles.rowText, styles.brandText, { flex: 2, textAlign: 'right' }]}>{item.brand || 'قوارير'}</Text>
+                      </View>
+                    );
+                  })}
                 </ScrollView>
               </View>
             </>

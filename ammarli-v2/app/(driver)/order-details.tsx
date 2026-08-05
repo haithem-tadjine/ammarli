@@ -20,30 +20,32 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useDriverStore } from '../../src/store/useDriverStore';
 import { useDriverAlert } from '../../src/hooks/useDriverAlert';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { useIsFocused } from '@react-navigation/native';
 
 const COLORS = {
   primary:       '#002147',
   secondary:     '#F3CD0D',
   white:         '#FFFFFF',
-  background:    '#E2E8F0',
+  background:    '#F8FAFC',
   textSecondary: '#64748B',
-  border:        '#F1F5F9',
+  border:        '#E2E8F0',
   danger:        '#EF4444',
   success:       '#22C55E',
 };
 
 // ─── أيقونة وألوان لكل نوع طلبية ─────────────────────────────────────────────
 const ORDER_META: Record<string, { icon: string; color: string; bg: string; label: string }> = {
-  bottles:            { icon: 'bottle-wine-outline', color: '#16A34A', bg: '#F0FDF4', label: 'مياه معبأة'           },
-  well_water:         { icon: 'water-well-outline',  color: '#2563EB', bg: '#EFF6FF', label: 'مياه آبار'            },
-  construction_water: { icon: 'dump-truck',          color: '#D97706', bg: '#FFF7ED', label: 'مياه أشغال'           },
-  spring_water:       { icon: 'water',               color: '#0284C7', bg: '#F0F9FF', label: 'مياه ينابيع طبيعية'  },
+  bottles:            { icon: 'bottle-wine-outline', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.1)', label: 'مياه معبأة'           },
+  well_water:         { icon: 'water-well-outline',  color: '#2563EB', bg: 'rgba(37, 99, 235, 0.1)', label: 'مياه آبار'            },
+  construction_water: { icon: 'dump-truck',          color: '#D97706', bg: 'rgba(217, 119, 6, 0.1)', label: 'مياه أشغال'           },
+  spring_water:       { icon: 'water',               color: '#0284C7', bg: 'rgba(2, 132, 199, 0.1)', label: 'مياه ينابيع طبيعية'  },
 };
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
 
-  // استقبال جميع بيانات الطلبية من الصفحة السابقة
   const params = useLocalSearchParams<{
     orderId?:     string;
     customerName: string;
@@ -62,21 +64,21 @@ export default function OrderDetailsScreen() {
 
   const registeredDriver = useDriverStore(state => state.registeredDriver);
   const updateDriverOrderStatus = useDriverStore(state => state.updateDriverOrderStatus);
+  
+  const isOnline = useDriverStore((s: any) => s.isOnline);
+
   const activeDriverOrders = useDriverStore(state => state.activeDriverOrders);
 
-  // ── التبويب المحدد: يبدأ بالطلبية المفعّلة من params أو الأولى في القائمة ──
   const [selectedOrderId, setSelectedOrderId] = useState<string>(
     params.orderId || activeDriverOrders[0]?.orderId || ''
   );
 
-  // تحديث التبويب المحدد فوراً إذا تم الضغط على طلبية مختلفة من الشاشة الرئيسية
   useEffect(() => {
     if (params.orderId) {
       setSelectedOrderId(params.orderId);
     }
   }, [params.orderId]);
 
-  // عندما تأتي طلبية جديدة أو تتغير القائمة، نتأكد أن المحدد ما زال موجوداً
   useEffect(() => {
     if (selectedOrderId && !activeDriverOrders.find(o => o.orderId === selectedOrderId)) {
       setSelectedOrderId(activeDriverOrders[0]?.orderId || '');
@@ -91,7 +93,6 @@ export default function OrderDetailsScreen() {
   const refuseDriverOrder = useDriverStore(s => s.refuseDriverOrder);
   const shiftIncomingQueue = useDriverStore(s => s.shiftIncomingQueue);
 
-  // For the banner animation
   const bannerAnim = useRef(new Animated.Value(-150)).current;
   const currentOffer = incomingOffers[0];
   useDriverAlert(!!currentOffer);
@@ -99,7 +100,7 @@ export default function OrderDetailsScreen() {
   useEffect(() => {
     if (currentOffer) {
       Animated.spring(bannerAnim, {
-        toValue: 20,
+        toValue: 50,
         useNativeDriver: true,
         friction: 8,
       }).start();
@@ -119,7 +120,6 @@ export default function OrderDetailsScreen() {
       await acceptDriverOrder(currentOffer);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // ── نفس منطق Fast Accept الموجود في index.tsx ──
       const isSpringTanker = registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType === 'spring';
       const isBottled = registeredDriver?.driverType === 'Bottled';
       const hasDefaultPrice = (registeredDriver?.defaultPrice ?? 0) > 0;
@@ -145,7 +145,6 @@ export default function OrderDetailsScreen() {
         capacity: String(capacity),
       };
 
-      // إذا عند السائق سعر افتراضي → احسب تلقائياً واذهب مباشرة لتفاصيل الطلبية
       if ((isSpringTanker || isBottled) && hasDefaultPrice) {
         let calculatedTotal = 0;
         if (isSpringTanker) {
@@ -163,7 +162,6 @@ export default function OrderDetailsScreen() {
         }
       }
 
-      // إذا لم يكن عنده سعر افتراضي → اذهب لشاشة إدخال السعر
       router.push({ pathname: '/(driver)/order-acceptance' as any, params: baseParams });
     } catch (e) {
       Alert.alert('خطأ', 'تعذر قبول الطلبية');
@@ -176,11 +174,13 @@ export default function OrderDetailsScreen() {
     shiftIncomingQueue();
   };
 
+  const isFocused = useIsFocused();
+
   React.useEffect(() => {
-    if (!activeDriverOrder && activeDriverOrders.length === 0) {
+    if (isFocused && !activeDriverOrder && activeDriverOrders.length === 0) {
       router.replace('/(driver)/(tabs)' as any);
     }
-  }, [activeDriverOrder, activeDriverOrders.length]);
+  }, [activeDriverOrder, activeDriverOrders.length, isFocused]);
 
   if (!activeDriverOrder) {
     return (
@@ -210,11 +210,9 @@ export default function OrderDetailsScreen() {
   const dateLabel = now.toLocaleDateString('ar-DZ', { day: 'numeric', month: 'long', year: 'numeric' });
   const timeLabel = now.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' });
 
-  // ── إحداثيات السائق من الستور ──────────────────────────────────────────────
   const driverLat = registeredDriver?.location?.lat ?? 36.7372;
   const driverLng = registeredDriver?.location?.lng ?? 3.0865;
 
-  // ── حساب إحداثيات الزبون بناءً على موقع السائق + المسافة ──────────────────
   const computeCustomerCoords = (): { lat: number; lng: number } => {
     if (activeDriverOrder?.deliveryAddress?.lat && activeDriverOrder?.deliveryAddress?.lng) {
       return { lat: Number(activeDriverOrder.deliveryAddress.lat), lng: Number(activeDriverOrder.deliveryAddress.lng) };
@@ -246,13 +244,16 @@ export default function OrderDetailsScreen() {
 
   const { lat: customerLat, lng: customerLng } = computeCustomerCoords();
 
-  // ── اتصال بالزبون ──────────────────────────────────────────────────────────
   const handleCall = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Linking.openURL(`tel:${customerPhone}`);
   };
 
-  // ── فتح قوقل ماب ──────────────────────────────────────────────────────────
+  const handleWhatsApp = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Linking.openURL(`whatsapp://send?phone=${customerPhone}`);
+  };
+
   const handleNavigate = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const origin      = `${driverLat},${driverLng}`;
@@ -278,7 +279,6 @@ export default function OrderDetailsScreen() {
       .catch(() => Linking.openURL(googleMapsUrl));
   };
 
-  // ── وصلت للموقع → الانتقال لشاشة ملخص الرحلة ────────────────────────────
   const handleComplete = async () => {
     setCompleting(true);
     try {
@@ -301,7 +301,6 @@ export default function OrderDetailsScreen() {
     }
   };
 
-  // ── إلغاء الطلب ────────────────────────────────────────────────────────────
   const handleCancel = () => {
     router.push({
       pathname: '/(driver)/cancel-order' as any,
@@ -309,52 +308,52 @@ export default function OrderDetailsScreen() {
     });
   };
 
+  const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
+
+      {/* 1) رأس الصفحة مع زر الرجوع والعنوان */}
+      <View style={[styles.header, { paddingTop: 40 }]}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(driver)/(tabs)' as any)}>
+          <BlurView intensity={50} tint="light" style={styles.iconWrap}>
+            <MaterialCommunityIcons name="chevron-right" size={28} color={COLORS.primary} />
+          </BlurView>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>تفاصيل الطلبية</Text>
+        <View style={{ width: 44 }} />
+      </View>
 
       {/* ── Floating Banner للطلب الجديد ── */}
       {currentOffer && (
-        <Animated.View style={[styles.floatingBanner, { transform: [{ translateY: bannerAnim }] }]}>
-          <View style={styles.bannerHeader}>
-            <View style={styles.bannerIconBox}>
-              <Ionicons name="water" size={24} color="#D97706" />
+        <Animated.View style={[styles.newOrderBanner, { transform: [{ translateY: bannerAnim }] }]}>
+          <BlurView intensity={80} tint="light" style={styles.bannerBlur}>
+            <View style={styles.bannerContent}>
+              <View style={styles.bannerIconCircle}>
+                <MaterialCommunityIcons name="bell-ring" size={20} color={COLORS.white} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.bannerTitle}>طلبية جديدة بانتظارك!</Text>
+                <Text style={styles.bannerSubtitle}>{currentOffer.deliveryAddress?.label || 'موقع جديد'}</Text>
+              </View>
+              <View style={styles.bannerActions}>
+                <TouchableOpacity style={styles.bannerBtnAccept} onPress={handleAcceptNewOrder}>
+                  <Text style={styles.bannerBtnText}>قبول</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.bannerBtnDecline} onPress={handleDeclineNewOrder}>
+                  <Text style={styles.bannerBtnText}>رفض</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bannerTitle}>طلب جديد قريب منك!</Text>
-              <Text style={styles.bannerSub}>
-                {currentOffer.items?.map(i => i.detail).join(' + ') || 'طلبية'} • {currentOffer.deliveryAddress?.distance || '---'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.bannerButtons}>
-            <TouchableOpacity style={styles.bannerDeclineBtn} onPress={handleDeclineNewOrder}>
-              <Text style={styles.bannerDeclineText}>رفض</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.bannerAcceptBtn} onPress={handleAcceptNewOrder}>
-              <Text style={styles.bannerAcceptText}>قبول الطلب</Text>
-            </TouchableOpacity>
-          </View>
+          </BlurView>
         </Animated.View>
       )}
 
-      <View style={styles.overlay}>
-
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View style={{ width: 44 }} />
-          <Text style={styles.headerTitle}>تفاصيل الطلب</Text>
-          {activeDriverOrders.length > 1 ? (
-            <View style={styles.orderCountBadge}>
-              <Text style={styles.orderCountText}>{activeDriverOrders.length}</Text>
-            </View>
-          ) : (
-            <View style={{ width: 44 }} />
-          )}
-        </View>
-
-        {/* ── شريط التبويبات — يظهر فقط عند وجود أكثر من طلبية ── */}
-        {activeDriverOrders.length > 1 && (
+      {/* ── شريط التبويبات — يظهر فقط عند وجود أكثر من طلبية ── */}
+      {activeDriverOrders.length > 1 && (
+        <View style={{ marginBottom: 10 }}>
           <FlatList
             horizontal
             data={activeDriverOrders}
@@ -365,72 +364,105 @@ export default function OrderDetailsScreen() {
               const isSelected = item.orderId === activeDriverOrder?.orderId;
               return (
                 <TouchableOpacity
-                  style={[styles.tab, isSelected && styles.tabActive]}
+                  style={[styles.tabButton, isSelected && styles.tabButtonActive]}
                   onPress={() => {
                     setSelectedOrderId(item.orderId);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
-                  activeOpacity={0.8}
                 >
-                  <View style={[styles.tabDot, isSelected && styles.tabDotActive]} />
-                  <View style={{ alignItems: 'flex-start' }}>
-                    <Text style={[styles.tabName, isSelected && styles.tabNameActive]} numberOfLines={1}>
-                      {item.customer?.name || `طلب ${index + 1}`}
-                    </Text>
-                    <Text style={[styles.tabSub, isSelected && styles.tabSubActive]}>
-                      {item.items?.[0]?.qty ? `${item.items[0].qty} ${orderType === 'bottles' ? 'قارورة' : 'لتر'}` : (params.capacity ? `${params.capacity} ${orderType === 'bottles' ? 'قارورة' : 'لتر'}` : '1000 لتر')}
-                    </Text>
-                  </View>
+                  <Text style={[styles.tabButtonText, isSelected && styles.tabButtonTextActive]}>
+                    طلبية {index + 1}
+                  </Text>
                 </TouchableOpacity>
               );
             }}
           />
-        )}
+        </View>
+      )}
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollArea}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-          {/* ── بطاقة الحالة (داكنة) مع معلومات العميل ── */}
-          <View style={styles.statusCard}>
-            <View style={styles.statusRow}>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>قيد التنفيذ</Text>
-              </View>
-              <Text style={styles.orderLabel}>رقم الطلب #{orderNumber}</Text>
+        {/* 3) تفاصيل الزبون والطلب (مدمجة في بطاقة زجاجية واحدة) */}
+        <BlurView intensity={70} tint="light" style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>رقم الطلبية #{orderNumber}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
+              <MaterialCommunityIcons name={meta.icon as any} size={14} color={meta.color} />
+              <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
             </View>
-            
-            <View style={styles.customerDarkRow}>
-              <View style={{ flex: 1, alignItems: 'flex-start' }}>
-                <Text style={styles.customerNameDark}>{customerName}</Text>
-                <Text style={styles.customerPhoneDark}>{customerPhone}</Text>
+          </View>
+
+          {/* معلومات الزبون */}
+          <View style={styles.customerRow}>
+            <Image 
+              source={{ uri: params.avatarUrl || 'https://i.pravatar.cc/150?img=11' }} 
+              style={styles.customerAvatar} 
+            />
+            <View style={styles.customerInfoText}>
+              <Text style={styles.customerName}>{customerName}</Text>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={14} color="#F59E0B" />
+                <Text style={styles.ratingText}>5.0 (42 رحلة)</Text>
               </View>
-              <TouchableOpacity style={styles.callIconBtn} onPress={handleCall} activeOpacity={0.8}>
-                <Ionicons name="call" size={22} color={COLORS.primary} />
+            </View>
+            {/* أزرار الاتصال (زجاجية) */}
+            <View style={styles.contactActions}>
+              <TouchableOpacity style={styles.contactBtn} onPress={handleCall}>
+                <Ionicons name="call" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.contactBtn} onPress={handleWhatsApp}>
+                <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
               </TouchableOpacity>
             </View>
+          </View>
 
-            <View style={styles.dateRow}>
-              <Ionicons name="calendar-outline" size={16} color="rgba(255,255,255,0.6)" />
-              <Text style={styles.dateText}>{dateLabel} • {timeLabel}</Text>
+          <View style={styles.divider} />
+
+          {/* تفاصيل الموقع والوقت */}
+          <View style={styles.detailsGrid}>
+            <View style={styles.detailItem}>
+              <View style={styles.detailIconBox}>
+                <Ionicons name="location" size={18} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>موقع التوصيل</Text>
+                <Text style={styles.detailValue} numberOfLines={2}>{address}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailItem}>
+              <View style={styles.detailIconBox}>
+                <Ionicons name="navigate" size={18} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>المسافة التقريبية</Text>
+                <Text style={styles.detailValue}>{distance}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailItem}>
+              <View style={styles.detailIconBox}>
+                <Ionicons name="time" size={18} color={COLORS.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>وقت الطلب</Text>
+                <Text style={styles.detailValue}>{timeLabel} - {dateLabel}</Text>
+              </View>
             </View>
           </View>
 
-          {/* ── عنوان التوصيل المدمج ── */}
-          <Text style={styles.sectionHeader}>موقع التوصيل</Text>
-          <View style={styles.addressCompactCard}>
-            <View style={styles.addressIconBox}>
-              <Ionicons name="location" size={22} color={COLORS.primary} />
-            </View>
-            <View style={{ flex: 1, alignItems: 'flex-start', paddingHorizontal: 12 }}>
-              <Text style={styles.addressTitle}>عنوان التوصيل</Text>
-              <Text style={styles.addressSub} numberOfLines={1}>{address}</Text>
-            </View>
-            <TouchableOpacity style={styles.navSmallBtn} onPress={handleNavigate} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="navigation-variant" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+          {/* زر فتح الخريطة */}
+          <TouchableOpacity style={styles.mapBtn} onPress={handleNavigate}>
+            <MaterialCommunityIcons name="map-marker-path" size={20} color={COLORS.white} />
+            <Text style={styles.mapBtnText}>فتح في خرائط جوجل</Text>
+          </TouchableOpacity>
+        </BlurView>
 
-          {/* ── الحجم والسعر ── */}
-          <Text style={styles.sectionHeader}>تفاصيل الطلب</Text>
+        {/* ── الحجم والسعر ── */}
+        <BlurView intensity={70} tint="light" style={styles.card}>
+          <View style={styles.cardHeader}>
+             <Text style={styles.cardTitle}>التكلفة والحجم</Text>
+          </View>
           <View style={styles.priceSizeCard}>
             <View style={styles.priceSizeHalf}>
               <View style={styles.psIconBox}>
@@ -438,7 +470,9 @@ export default function OrderDetailsScreen() {
               </View>
               <Text style={styles.psLabel}>الكمية / الحجم</Text>
               <Text style={styles.psValue}>
-                {activeDriverOrder?.items?.[0]?.qty || params.capacity || '1000'} {orderType === 'bottles' ? 'قارورة' : 'لتر'}
+                {orderType === 'bottles' 
+                  ? activeDriverOrder?.items?.reduce((sum, item) => sum + (Number(item.qty) || 1), 0) || params.capacity || '1'
+                  : activeDriverOrder?.items?.[0]?.qty || params.capacity || '1000'} {orderType === 'bottles' ? 'قارورة' : 'لتر'}
               </Text>
             </View>
             
@@ -452,187 +486,150 @@ export default function OrderDetailsScreen() {
               <Text style={[styles.psValue, { color: '#16A34A' }]}>{(total || 0).toLocaleString('ar-DZ')} د.ج</Text>
             </View>
           </View>
+        </BlurView>
 
-          {/* الطلبات الأخرى تُعرض عبر التبويبات أعلى الشاشة */}
+        {/* رسالة الإتمام */}
+        {completing && (
+          <View style={styles.successBanner}>
+            <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
+            <Text style={styles.successText}>تم إعلام العميل بوصولك...</Text>
+          </View>
+        )}
+      </ScrollView>
 
-          {/* رسالة الإتمام */}
-          {completing && (
-            <View style={styles.successBanner}>
-              <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
-              <Text style={styles.successText}>تم إعلام العميل بوصولك...</Text>
-            </View>
+      {/* الأزرار العائمة في الأسفل */}
+      <BlurView intensity={90} tint="light" style={styles.bottomActions}>
+        <TouchableOpacity style={styles.completeBtn} onPress={handleComplete} disabled={completing}>
+          {completing ? (
+            <ActivityIndicator color={COLORS.primary} />
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle-outline" size={24} color={COLORS.primary} />
+              <Text style={styles.completeBtnText}>وصول واستكمال الرحلة</Text>
+            </>
           )}
+        </TouchableOpacity>
 
-          <View style={{ height: 30 }} />
-        </ScrollView>
+        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
+          <Text style={styles.cancelBtnText}>إلغاء الرحلة</Text>
+        </TouchableOpacity>
+      </BlurView>
 
-        {/* ── أزرار الأسفل ── */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.completeButton, completing && { opacity: 0.7 }]}
-            onPress={handleComplete}
-            activeOpacity={0.8}
-            disabled={completing}
-          >
-            <Ionicons name="checkmark-circle-outline" size={22} color={COLORS.primary} style={{ marginRight: 10 }} />
-            <Text style={styles.completeText}>وصلت للموقع</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleCancel}>
-            <Text style={styles.cancelLink}>إلغاء الطلب</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: COLORS.background },
-  overlay:       { flex: 1 },
+  container: { flex: 1, backgroundColor: COLORS.background },
 
   // Header
-  header:          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15, height: 60 },
-  headerTitle:     { fontSize: 20, fontFamily: 'Cairo-Black', color: COLORS.primary },
-  backButton:      { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.white, justifyContent: 'center', alignItems: 'center', elevation: 3 },
-  orderCountBadge: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.secondary, justifyContent: 'center', alignItems: 'center' },
-  orderCountText:  { fontSize: 16, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingBottom: 15,
+  },
+  headerTitle: { fontSize: 22, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  backButton: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  iconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.7)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)' },
 
-  // Order Tabs strip
-  tabsContainer: { paddingHorizontal: 15, paddingVertical: 10, gap: 10 },
-  tab: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: COLORS.white, borderRadius: 18,
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderWidth: 1.5, borderColor: 'transparent',
-    elevation: 3, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8,
-    minWidth: 140,
+  // Tabs
+  tabsContainer: { paddingHorizontal: 20, gap: 10 },
+  tabButton: {
+    paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.6)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
   },
-  tabActive: {
-    backgroundColor: COLORS.primary, borderColor: COLORS.secondary,
+  tabButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
-  tabDot: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: '#CBD5E1',
-  },
-  tabDotActive: {
-    backgroundColor: COLORS.secondary,
-  },
-  tabName: {
-    fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.primary,
-  },
-  tabNameActive: {
-    color: COLORS.white,
-  },
-  tabSub: {
-    fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, marginTop: 2,
-  },
-  tabSubActive: {
-    color: 'rgba(255,255,255,0.8)',
-  },
+  tabButtonText: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary },
+  tabButtonTextActive: { color: COLORS.white },
 
-  scrollArea: { paddingHorizontal: 20 },
+  // Content
+  scrollContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 140 },
 
-  // Status card (dark)
-  statusCard: {
-    backgroundColor: COLORS.primary, borderRadius: 22, padding: 20,
-    marginTop: 15, elevation: 8,
-    shadowColor: COLORS.primary, shadowOpacity: 0.2, shadowRadius: 10,
+  // Card
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 24, padding: 20,
+    marginBottom: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)',
+    overflow: 'hidden',
   },
-  statusRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusBadge: { backgroundColor: 'rgba(243,205,13,0.2)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8 },
-  statusText:  { color: COLORS.secondary, fontSize: 12, fontFamily: 'Cairo-Bold' },
-  orderLabel:  { color: 'rgba(255,255,255,0.7)', fontFamily: 'Cairo-Bold', fontSize: 13 },
-  customerDarkRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 },
-  customerNameDark: { fontSize: 22, fontFamily: 'Cairo-Black', color: COLORS.white, textAlign: 'left' },
-  customerPhoneDark: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-  callIconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.secondary, justifyContent: 'center', alignItems: 'center' },
-  dateRow:     { flexDirection: 'row', alignItems: 'center', marginTop: 15, gap: 8 },
-  dateText:    { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontFamily: 'Cairo-SemiBold' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  cardTitle: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
+  statusText: { fontSize: 12, fontFamily: 'Cairo-Bold' },
 
-  sectionHeader: { fontSize: 14, fontFamily: 'Cairo-Black', color: COLORS.primary, textAlign: 'left', marginTop: 20, marginBottom: 12 },
+  customerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  customerAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: COLORS.white },
+  customerInfoText: { flex: 1, marginHorizontal: 12 },
+  customerName: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary, textAlign: 'left' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  ratingText: { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
+  
+  contactActions: { flexDirection: 'row', gap: 10 },
+  contactBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.8)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
 
-  // Compact Address Card
-  addressCompactCard: { 
-    flexDirection: 'row', alignItems: 'center', 
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 12, 
-    elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6 
-  },
-  addressIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  addressTitle: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.primary },
-  addressSub:  { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, marginTop: 2 },
-  navSmallBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#2563EB', justifyContent: 'center', alignItems: 'center', elevation: 3 },
+  divider: { height: 1, backgroundColor: 'rgba(0,33,71,0.08)', marginBottom: 20 },
 
-  // Price & Size Card
-  priceSizeCard: { 
-    flexDirection: 'row', alignItems: 'center', 
-    backgroundColor: COLORS.white, borderRadius: 18, padding: 15, 
-    elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6 
-  },
+  detailsGrid: { gap: 16, marginBottom: 20 },
+  detailItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  detailIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(0,33,71,0.05)', justifyContent: 'center', alignItems: 'center' },
+  detailLabel: { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, textAlign: 'left' },
+  detailValue: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary, textAlign: 'left' },
+
+  mapBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 16 },
+  mapBtnText: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.white },
+
+  priceSizeCard: { flexDirection: 'row', alignItems: 'center' },
   priceSizeHalf: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  psDivider: { width: 1, height: '80%', backgroundColor: COLORS.border, marginHorizontal: 10 },
-  psIconBox: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  psLabel: { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
+  psDivider: { width: 1, height: '80%', backgroundColor: 'rgba(0,33,71,0.08)', marginHorizontal: 10 },
+  psIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(37,99,235,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  psLabel: { fontSize: 13, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
   psValue: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary, marginTop: 2 },
 
-  // Success
+  // Bottom Actions
+  bottomActions: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 20, paddingVertical: 20,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    gap: 12,
+  },
+  completeBtn: {
+    height: 60, backgroundColor: COLORS.secondary, borderRadius: 20,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10,
+    elevation: 5, shadowColor: COLORS.secondary, shadowOpacity: 0.3, shadowRadius: 10,
+  },
+  completeBtnText: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  cancelBtn: { height: 50, justifyContent: 'center', alignItems: 'center' },
+  cancelBtnText: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.danger, textDecorationLine: 'underline' },
+
+  // Success Banner
   successBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#F0FDF4', borderRadius: 16, padding: 16, marginTop: 16,
-    borderWidth: 1, borderColor: '#BBF7D0',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: 15, borderRadius: 16, marginTop: 20,
+    borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.3)',
   },
-  successText: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.success },
+  successText: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.success },
 
-  // Footer
-  footer:          { paddingHorizontal: 20, paddingBottom: 20, gap: 12 },
-  completeButton:  { height: 60, backgroundColor: COLORS.secondary, borderRadius: 18, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', elevation: 5 },
-  completeText:    { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary },
-  cancelLink:      { textAlign: 'center', color: COLORS.danger, fontFamily: 'Cairo-Bold', textDecorationLine: 'underline', marginTop: 5 },
-
-  // Upcoming Orders
-  upcomingCard: {
-    backgroundColor: COLORS.white, borderRadius: 16, padding: 15, marginBottom: 10,
-    elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5,
+  // Incoming Order Banner
+  newOrderBanner: {
+    position: 'absolute', top: 0, left: 20, right: 20, zIndex: 100,
   },
-  upcomingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  upcomingAvatar: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#E2E8F0',
-    justifyContent: 'center', alignItems: 'center',
+  bannerBlur: {
+    backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 24, padding: 16,
+    borderWidth: 1, borderColor: COLORS.secondary,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 15, elevation: 8,
+    overflow: 'hidden',
   },
-  upcomingInitial: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.textSecondary },
-  upcomingName: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.primary },
-  upcomingSub: { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, marginTop: 2 },
-  upcomingTime: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
-  },
-  upcomingTimeText: { fontSize: 11, fontFamily: 'Cairo-Bold', color: COLORS.textSecondary },
-
-  // Floating Banner
-  floatingBanner: {
-    position: 'absolute', top: 0, left: 15, right: 15,
-    backgroundColor: COLORS.white, borderRadius: 20, padding: 15,
-    zIndex: 999, elevation: 15,
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
-    borderWidth: 1, borderColor: '#F3CD0D',
-  },
-  bannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 15 },
-  bannerIconBox: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  bannerTitle: { fontSize: 16, fontFamily: 'Cairo-Black', color: COLORS.primary },
-  bannerSub: { fontSize: 13, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
-  bannerButtons: { flexDirection: 'row', gap: 10 },
-  bannerDeclineBtn: {
-    flex: 1, height: 44, borderRadius: 12, borderWidth: 1, borderColor: COLORS.textSecondary,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  bannerDeclineText: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.textSecondary },
-  bannerAcceptBtn: {
-    flex: 1, height: 44, borderRadius: 12, backgroundColor: COLORS.secondary,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  bannerAcceptText: { fontSize: 14, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  bannerContent: { flexDirection: 'row', alignItems: 'center' },
+  bannerIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.secondary, justifyContent: 'center', alignItems: 'center' },
+  bannerTitle: { fontSize: 16, fontFamily: 'Cairo-Black', color: COLORS.primary, textAlign: 'left' },
+  bannerSubtitle: { fontSize: 13, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, textAlign: 'left' },
+  bannerActions: { flexDirection: 'row', gap: 8 },
+  bannerBtnAccept: { backgroundColor: COLORS.secondary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
+  bannerBtnDecline: { backgroundColor: 'transparent', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: COLORS.textSecondary },
+  bannerBtnText: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary },
 });
-

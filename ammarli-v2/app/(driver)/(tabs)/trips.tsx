@@ -11,6 +11,8 @@ import {
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useDriverStore } from '../../../src/store/useDriverStore';
 import { useEffect } from 'react';
 
@@ -87,9 +89,9 @@ const statusConfig: Record<string, { bg: string; color: string }> = {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 const OrderCard = ({ category, title, date, customer, price, status, cancelReason }: any) => {
-  const badge = statusConfig[status] ?? { bg: '#F1F5F9', color: COLORS.textSecondary };
+  const badge = statusConfig[status] ?? { bg: 'rgba(241, 245, 249, 0.5)', color: COLORS.textSecondary };
   return (
-    <View style={styles.card}>
+    <BlurView intensity={70} tint="light" style={styles.card}>
       <View style={styles.cardMain}>
         <View style={styles.iconContainer}>
           <MaterialCommunityIcons
@@ -109,34 +111,37 @@ const OrderCard = ({ category, title, date, customer, price, status, cancelReaso
       </View>
 
       {status === 'ملغي' && cancelReason ? (
-        <View style={{ marginTop: 10, padding: 10, backgroundColor: '#FEF2F2', borderRadius: 10 }}>
+        <View style={{ marginTop: 12, padding: 12, backgroundColor: 'rgba(254, 242, 242, 0.8)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(254, 202, 202, 0.5)' }}>
           <Text style={{ fontFamily: 'Cairo-Bold', fontSize: 13, color: COLORS.danger, textAlign: 'left' }}>السبب: {cancelReason}</Text>
         </View>
       ) : null}
 
       <View style={styles.cardFooter}>
+        <Text style={styles.orderPrice}>{parseFloat(price).toLocaleString('ar-DZ')} د.ج</Text>
         <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
           <Text style={[styles.statusTextBadge, { color: badge.color }]}>{status}</Text>
         </View>
       </View>
-    </View>
+    </BlurView>
   );
 };
 
 const SpecializationBanner = ({ category }: { category: TripCategory }) => (
-  <View style={styles.banner}>
-    <MaterialCommunityIcons name={categoryIcon[category] as any} size={18} color={COLORS.primary} />
+  <BlurView intensity={40} tint="light" style={styles.banner}>
+    <MaterialCommunityIcons name={categoryIcon[category] as any} size={16} color={COLORS.primary} />
     <Text style={styles.bannerText}>{categoryLabel[category]}</Text>
-  </View>
+  </BlurView>
 );
 
 const EmptyState = ({ tab }: { tab: Tab }) => (
   <View style={styles.emptyContainer}>
-    <MaterialCommunityIcons
-      name={tab === 'previous' ? 'truck-check-outline' : 'calendar-clock-outline'}
-      size={64}
-      color="#CBD5E1"
-    />
+    <BlurView intensity={40} tint="light" style={styles.emptyIconWrap}>
+      <MaterialCommunityIcons
+        name={tab === 'previous' ? 'truck-check-outline' : 'calendar-clock-outline'}
+        size={54}
+        color="#94A3B8"
+      />
+    </BlurView>
     <Text style={styles.emptyTitle}>
       {tab === 'previous' ? 'لا توجد رحلات سابقة' : 'لا توجد رحلات مجدولة'}
     </Text>
@@ -177,7 +182,7 @@ export default function DriverTripsScreen() {
     title: pt.orderSummary,
     date: pt.date + ' ' + pt.time,
     customer: pt.customerName,
-    price: (pt.amount || 0).toFixed(2),
+    price: (Number(pt.amount) || 0).toFixed(2),
     status: pt.status === 'Completed' ? 'مكتمل' : 'ملغي',
     cancelReason: pt.cancelReason
   }));
@@ -194,44 +199,55 @@ export default function DriverTripsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const isOnline = useDriverStore(s => s.isOnline);
+  const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
+
   return (
-    <ScreenContainer backgroundColor="#FFF" statusBarStyle="dark-content" statusBarColor="#FFF">
-      <StatusBar barStyle="dark-content" />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.headerTitle}>سجل الرحلات</Text>
         {category && <SpecializationBanner category={category} />}
       </View>
 
-      {/* Tabs */}
+      {/* Tabs (Segmented Control Style) */}
       <View style={styles.tabsContainer}>
-        {(['previous', 'scheduled'] as Tab[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => handleTabChange(tab)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab === 'previous' ? 'السابقة' : 'المجدولة'}
-            </Text>
-            {activeTab === tab && <View style={styles.activeTabIndicator} />}
-          </TouchableOpacity>
-        ))}
+        <BlurView intensity={50} tint="light" style={styles.segmentedControl}>
+          {(['previous', 'scheduled'] as Tab[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              onPress={() => handleTabChange(tab)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+                {tab === 'previous' ? 'السابقة' : 'المجدولة'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </BlurView>
       </View>
 
       {/* Summary Row */}
       <View style={styles.summaryRow}>
-        <View style={styles.summaryChip}>
-          <Text style={styles.summaryValue}>{finalFiltered.length}</Text>
-          <Text style={styles.summaryLabel}>رحلة</Text>
-        </View>
-        {activeTab === 'previous' && totalEarned > 0 && (
-          <View style={styles.summaryChip}>
-            <Text style={styles.summaryValue}>{totalEarned.toFixed(2)}</Text>
-            <Text style={styles.summaryLabel}>د.ج مكتسبة</Text>
+        <BlurView intensity={60} tint="light" style={styles.summaryChip}>
+          <View style={styles.summaryIcon}><Ionicons name="car-outline" size={16} color={COLORS.primary} /></View>
+          <View>
+            <Text style={styles.summaryValue}>{finalFiltered.length}</Text>
+            <Text style={styles.summaryLabel}>إجمالي الرحلات</Text>
           </View>
+        </BlurView>
+        {activeTab === 'previous' && totalEarned > 0 && (
+          <BlurView intensity={60} tint="light" style={styles.summaryChip}>
+            <View style={[styles.summaryIcon, { backgroundColor: COLORS.secondary }]}><Ionicons name="wallet-outline" size={16} color={COLORS.primary} /></View>
+            <View>
+               <Text style={[styles.summaryValue, { color: COLORS.primary }]}>{totalEarned.toLocaleString('ar-DZ')}</Text>
+               <Text style={styles.summaryLabel}>أرباح (د.ج)</Text>
+            </View>
+          </BlurView>
         )}
       </View>
 
@@ -245,7 +261,7 @@ export default function DriverTripsScreen() {
           : finalFiltered.map((order: any) => <OrderCard key={order.id} {...order} />)
         }
       </ScrollView>
-    </ScreenContainer>
+    </View>
   );
 }
 
@@ -255,117 +271,143 @@ const styles = StyleSheet.create({
   container:   { flex: 1, backgroundColor: COLORS.background },
 
   // Header
-  header:      { paddingHorizontal: 20, paddingTop: 15, paddingBottom: 8, alignItems: 'flex-start', gap: 6 },
-  headerTitle: { fontSize: 28, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  header:      { paddingHorizontal: 20, paddingBottom: 10, alignItems: 'flex-start', gap: 8 },
+  headerTitle: { fontSize: 32, fontFamily: 'Cairo-Black', color: COLORS.primary },
 
   // Banner
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+    overflow: 'hidden',
   },
-  bannerText: { fontSize: 12, fontFamily: 'Cairo-Bold', color: COLORS.primary },
+  bannerText: { fontSize: 13, fontFamily: 'Cairo-Bold', color: COLORS.primary },
 
-  // Tabs
+  // Tabs (Segmented Control)
   tabsContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingVertical: 15,
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 20,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+    overflow: 'hidden',
   },
   tab: {
+    flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginLeft: 5,
     alignItems: 'center',
-    position: 'relative',
+    borderRadius: 16,
   },
-  activeTab:          {},
-  activeTabIndicator: {
-    position: 'absolute',
-    bottom: -1,
-    right: 0,
-    left: 0,
-    height: 3,
-    backgroundColor: COLORS.primary,
-    borderRadius: 2,
+  activeTab: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
   },
-  tabText:       { fontSize: 16, fontFamily: 'Cairo-Bold',  color: COLORS.textSecondary },
+  tabText:       { fontSize: 15, fontFamily: 'Cairo-Bold',  color: '#64748B' },
   activeTabText: { color: COLORS.primary, fontFamily: 'Cairo-Black' },
 
   // Summary
   summaryRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 10,
+    paddingBottom: 12,
+    gap: 12,
   },
   summaryChip: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    gap: 6,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+    overflow: 'hidden',
   },
-  summaryValue: { fontSize: 15, fontFamily: 'Cairo-Black', color: COLORS.primary  },
-  summaryLabel: { fontSize: 12, fontFamily: 'Cairo-Bold',  color: COLORS.textSecondary },
+  summaryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,33,71,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  summaryValue: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary, marginBottom: -4 },
+  summaryLabel: { fontSize: 12, fontFamily: 'Cairo-SemiBold',  color: '#64748B' },
 
   // List
-  listContent: { paddingHorizontal: 20, paddingTop: 5 },
+  listContent: { paddingHorizontal: 20, paddingTop: 10 },
 
   // Card
   card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    borderRadius: 24,
     padding: 18,
-    marginBottom: 14,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
+    overflow: 'hidden',
   },
   cardMain:      { flexDirection: 'row', alignItems: 'center' },
   iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
-    backgroundColor: '#EEF2F9',
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 15,
+    borderWidth: 1,
+    borderColor: '#EEF2F9',
   },
   infoContainer: { flex: 1, alignItems: 'flex-start' },
-  orderTitle:    { fontSize: 16, fontFamily: 'Cairo-Bold',    color: COLORS.primary      },
-  orderDate:     { fontSize: 12, fontFamily: 'Cairo-Regular', color: COLORS.textSecondary, marginTop: 2 },
-  customerRow:   { flexDirection: 'row', alignItems: 'center', marginTop: 7, gap: 4 },
-  customerName:  { fontSize: 13, fontFamily: 'Cairo-Bold',    color: COLORS.textSecondary },
+  orderTitle:    { fontSize: 16, fontFamily: 'Cairo-Black',   color: COLORS.primary      },
+  orderDate:     { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: '#64748B', marginTop: 2 },
+  customerRow:   { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 4, backgroundColor: 'rgba(0,33,71,0.04)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  customerName:  { fontSize: 12, fontFamily: 'Cairo-Bold',    color: COLORS.primary },
 
   // Card Footer
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 14,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: 'rgba(0,33,71,0.06)',
   },
-  orderPrice:      { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary },
-  statusBadge:     { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 10 },
+  orderPrice:      { fontSize: 20, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  statusBadge:     { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12 },
   statusTextBadge: { fontSize: 12, fontFamily: 'Cairo-Bold' },
 
   // Empty State
-  emptyContainer: { alignItems: 'center', paddingTop: 80, gap: 12 },
-  emptyTitle:     { fontSize: 18, fontFamily: 'Cairo-Bold',    color: '#94A3B8', textAlign: 'center' },
-  emptySubtitle:  { fontSize: 13, fontFamily: 'Cairo-Regular', color: '#CBD5E1', textAlign: 'center' },
+  emptyContainer: { alignItems: 'center', paddingTop: 60, gap: 12 },
+  emptyIconWrap: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  emptyTitle:     { fontSize: 20, fontFamily: 'Cairo-Black', color: '#64748B', textAlign: 'center' },
+  emptySubtitle:  { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: '#94A3B8', textAlign: 'center' },
 });
