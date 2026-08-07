@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { UserResDto } from '@/api/user/dto/user.res.dto';
 import { DriverResDto } from '@/api/driver/dto/driver.res.dto';
 import { Uuid } from '@/common/types/common.type';
@@ -79,7 +80,16 @@ export class RequestResDto extends CreateRequestDto {
   declare scheduledDate?: string;
 
   @Expose()
+  @ApiPropertyOptional({ description: 'Scheduled Time' })
   declare scheduledTime?: string;
+
+  @Expose()
+  @ApiPropertyOptional({ description: 'Wilaya of the request' })
+  wilaya?: string;
+
+  @Expose()
+  @ApiPropertyOptional({ description: 'Commune of the request' })
+  commune?: string;
 
   @Expose()
   declare subtotal?: number;

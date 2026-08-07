@@ -6211,6 +6211,11 @@ gensync@^1.0.0-beta.2:
   resolved "https://registry.npmjs.org/gensync/-/gensync-1.0.0-beta.2.tgz"
   integrity sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==
 
+geoalgeria@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.npmjs.org/geoalgeria/-/geoalgeria-1.2.0.tgz"
+  integrity sha512-rDBpY7NRHHhqxm5yO85bGj217fSfZJcnylkSkgTQ6U4955+iUgXioRy5J5RyHMtt9avh9z1uY1vAhgpjRccCGw==
+
 get-caller-file@^2.0.5:
   version "2.0.5"
   resolved "https://registry.npmjs.org/get-caller-file/-/get-caller-file-2.0.5.tgz"

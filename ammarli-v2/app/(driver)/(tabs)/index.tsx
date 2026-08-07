@@ -607,21 +607,20 @@ export default function DriverDashboardScreen() {
             <BlurView intensity={80} tint="light" style={styles.suspendedCard}>
                <MaterialCommunityIcons name="alert-circle" size={28} color={COLORS.danger} style={{ marginBottom: 5 }} />
                <Text style={styles.suspendedTitle}>
-                 تم إيقاف حسابك مؤقتاً
+                 حسابك مقيد بسبب الديون
                </Text>
                <Text style={styles.suspendedBody}>
-                 لتجاوز ديون العمولة ({(appCommissionDebt || 0).toLocaleString('ar-DZ')} د.ج).{'\n'}يرجى تسديد المستحقات لإعادة التفعيل.
+                 لتجاوز ديون العمولة ({(appCommissionDebt || 0).toLocaleString('ar-DZ')} د.ج).{'\n'}يمكنك فقط تلقي الطلبات في الولايات أو البلديات المعفاة من سقف الديون.
                </Text>
             </BlurView>
           )}
 
           <TouchableOpacity 
             activeOpacity={0.85} 
-            onPress={isSuspended ? undefined : toggleStatus}
+            onPress={toggleStatus}
             style={[
               styles.mainActionButtonTarget,
               isOnline ? styles.buttonOnlineTarget : styles.buttonOfflineTarget,
-              isSuspended && { backgroundColor: '#CBD5E1', borderColor: '#94A3B8' }
             ]}
           >
             <View style={styles.innerButtonRing}>
@@ -635,9 +634,9 @@ export default function DriverDashboardScreen() {
           </TouchableOpacity>
           
           <View style={styles.statusBadge}>
-            <View style={[styles.statusIndicator, { backgroundColor: isOnline && !isSuspended ? COLORS.success : COLORS.danger }]} />
-            <Text style={styles.statusSubtextTarget}>
-              {isOnline && !isSuspended ? 'متصل: جاري البحث عن طلبات...' : 'غير متصل'}
+            <View style={[styles.statusIndicator, { backgroundColor: isOnline ? COLORS.success : COLORS.danger }]} />
+            <Text style={styles.statusText}>
+              {isOnline ? 'متصل: جاري البحث عن طلبات...' : 'غير متصل'}
             </Text>
           </View>
         </View>

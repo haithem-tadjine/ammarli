@@ -93,4 +93,45 @@ export class NotificationService implements OnModuleInit {
       this.logger.error(`Error sending push to ${userId}`, error);
     }
   }
+
+  async sendDataNotification(
+    userId: string,
+    data: Record<string, string>,
+  ) {
+    const tokens = await this.deviceTokenRepo.find({ where: { userId } });
+    if (!tokens.length) return;
+
+    const fcmTokens = tokens.map((t) => t.token);
+
+    try {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: fcmTokens,
+        data,
+        android: {
+          priority: 'high',
+        },
+        apns: {
+          payload: {
+            aps: {
+              contentAvailable: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(
+        `Sent high-priority data push to ${userId}: ${response.successCount} success, ${response.failureCount} failed`,
+      );
+
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            this.deviceTokenRepo.delete({ token: fcmTokens[idx] });
+          }
+        });
+      }
+    } catch (error) {
+      this.logger.error(`Error sending data push to ${userId}`, error);
+    }
+  }
 }

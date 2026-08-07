@@ -36,4 +36,17 @@ export class WilayaEntity extends AbstractEntity {
    */
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
+
+  /**
+   * Whether drivers in this Wilaya are subject to the system-wide debt ceiling limit.
+   */
+  @Column({ name: 'is_debt_ceiling_enabled', default: true })
+  isDebtCeilingEnabled: boolean;
+
+  /**
+   * List of specific communes in this Wilaya that are exempted from the debt ceiling.
+   * Only applicable if the Wilaya itself is NOT fully exempted (i.e., isDebtCeilingEnabled = true).
+   */
+  @Column('jsonb', { name: 'exempted_communes', nullable: true, default: '[]' })
+  exemptedCommunes: string[];
 }

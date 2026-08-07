@@ -128,9 +128,8 @@ export async function registerPushTokenWithBackend(): Promise<void> {
       return;
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId,
-    });
+    // Get the native FCM/APNs token for Firebase Admin SDK
+    const tokenData = await Notifications.getDevicePushTokenAsync();
     const pushToken = tokenData.data;
 
     if (!pushToken) return;

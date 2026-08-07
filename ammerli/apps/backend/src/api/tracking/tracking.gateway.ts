@@ -21,6 +21,12 @@ import { TrackingService } from './tracking.service';
 import { RequestService } from '../request/request.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { forwardRef, Inject } from '@nestjs/common';
+import { Uuid } from '@/common/types/common.type';
+import { NotificationService } from '../notification/notification.service';
+import { GeocodingService } from '@/libs/geocoding/geocoding.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { WilayaEntity } from '../wilaya/entities/wilaya.entity';
 
 /**
  * WebSocket Gateway for driver location updates and alerts.
@@ -43,6 +49,10 @@ export class TrackingGateway
     private readonly dispatchService: DispatchService,
     @Inject(forwardRef(() => RequestService))
     private readonly requestService: RequestService,
+    private readonly notificationService: NotificationService,
+    private readonly geocodingService: GeocodingService,
+    @InjectRepository(WilayaEntity)
+    private readonly wilayaRepo: Repository<WilayaEntity>,
   ) {
     if (this.logger) {
       this.logger.setContext(TrackingGateway.name);
@@ -241,6 +251,13 @@ export class TrackingGateway
         if (dId) {
           this.logger.log(`📡 Emitting dispatch_offer to socket room: driver_${dId}`);
           this.server.to(`driver_${dId}`).emit('dispatch_offer', msg);
+
+          // Send high-priority data notification for Full-Screen Intent (Lock Screen Bypass)
+          this.notificationService.sendDataNotification(dId, {
+            type: 'dispatch_offer',
+            orderId: String(msg.id || ''),
+            payload: JSON.stringify(msg),
+          });
         }
       });
     }
@@ -323,6 +340,38 @@ export class TrackingGateway
             lng,
             bearing: parsedData?.bearing || 0,
           });
+        }
+      }
+
+      // 3. Dynamic Wilaya Debt Ceiling check (Bypass UI Block)
+      const geoResult = await this.geocodingService.reverseGeocode(lat, lng);
+      if (geoResult?.wilaya) {
+        const geoalgeria = require('geoalgeria');
+        const reqWilayaLower = geoResult.wilaya.trim().toLowerCase();
+        const matchedGeoWilaya = geoalgeria.wilayas.find((w: any) => 
+          w.name_fr.toLowerCase() === reqWilayaLower ||
+          w.name_ar === reqWilayaLower ||
+          reqWilayaLower.includes(w.name_fr.toLowerCase()) ||
+          reqWilayaLower.includes(w.name_ar) ||
+          String(w.code) === reqWilayaLower ||
+          String(w.code).padStart(2, '0') === reqWilayaLower
+        );
+        const searchCode = matchedGeoWilaya ? String(matchedGeoWilaya.code).padStart(2, '0') : geoResult.wilaya;
+
+        const wilayaRecord = await this.wilayaRepo.createQueryBuilder('w')
+          .where(':reqWilaya ILIKE \'%\' || w.name || \'%\'', { reqWilaya: geoResult.wilaya })
+          .orWhere('w.code = :searchCode', { searchCode })
+          .getOne();
+          
+        if (wilayaRecord && wilayaRecord.isDebtCeilingEnabled === false) {
+          // Tell the driver app to ignore the suspension temporarily
+          client.emit('sync_suspension', { isSuspended: false });
+        } else {
+          // Revert to true suspension status if they are actually suspended in DB
+          const driver = await this.driverService.findByUserId(driverId as Uuid);
+          if (driver && driver.isSuspended) {
+            client.emit('sync_suspension', { isSuspended: true });
+          }
         }
       }
 

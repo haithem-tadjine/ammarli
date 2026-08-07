@@ -8,13 +8,19 @@ import { TrackingGateway } from './tracking.gateway';
 import { TrackingService } from './tracking.service';
 
 import { RabbitMqLibModule } from '@/libs/rabbitMq/rabbitMq.module';
-import { DriverModule } from '../driver/driver.module';
 import { RequestDispatchedConsumer } from './consumers/request-dispatched.consumer';
 import { DispatchModule } from '../dispatch/dispatch.module';
 import { RequestModule } from '../request/request.module';
+import { NotificationModule } from '../notification/notification.module';
+import { DriverModule } from '../driver/driver.module';
+
+import { GeocodingModule } from '@/libs/geocoding/geocoding.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { WilayaEntity } from '../wilaya/entities/wilaya.entity';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([WilayaEntity]),
     RedisLibModule,
     forwardRef(() => DriverModule),
     forwardRef(() => DispatchModule),
@@ -22,6 +28,8 @@ import { RequestModule } from '../request/request.module';
     ConfigModule,
     JwtModule.register({}),
     RabbitMqLibModule,
+    NotificationModule,
+    GeocodingModule,
   ],
   providers: [
     DriverMetadataCacheRepository,

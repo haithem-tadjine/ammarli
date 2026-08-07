@@ -755,6 +755,13 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         useDriverStore.getState().handleSocketDispatch(data);
       });
 
+      socketService.on('sync_suspension', (data) => {
+        console.log('socket event: sync_suspension', data);
+        if (typeof data?.isSuspended === 'boolean') {
+          useDriverStore.setState({ isSuspended: data.isSuspended });
+        }
+      });
+
       socketService.on('request_cancelled', (data) => {
         console.log('socket event: request_cancelled', data);
         

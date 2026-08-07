@@ -499,6 +499,9 @@ export default function OrderDetailsScreen() {
 
       {/* الأزرار العائمة في الأسفل */}
       <BlurView intensity={90} tint="light" style={styles.bottomActions}>
+        <Text style={{ textAlign: 'center', color: COLORS.textSecondary, fontSize: 12, fontFamily: 'Cairo-Regular', marginBottom: 8 }}>
+          سيتم تأكيد وصولك وإعلام الزبون تلقائياً عند الاقتراب مسافة 70 متراً
+        </Text>
         <TouchableOpacity style={styles.completeBtn} onPress={handleComplete} disabled={completing}>
           {completing ? (
             <ActivityIndicator color={COLORS.primary} />

@@ -185,7 +185,7 @@ export default function DriverRatingScreen() {
           <View style={styles.card}>
             <View style={styles.appRatingHeader}>
               <View style={styles.appIconWrap}>
-                <Image source={require('../../assets/images/bottled_icon.png')} style={styles.appIcon} resizeMode="contain" />
+                <Image source={require('../../assets/images/logo.png')} style={styles.appIcon} resizeMode="contain" />
               </View>
               <View style={styles.driverTextWrap}>
                 <Text style={styles.driverName}>تطبيق عمّارلي</Text>

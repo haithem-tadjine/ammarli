@@ -123,6 +123,12 @@ const DriverProfileScreen = () => {
             subLabel="الأسئلة الشائعة والتواصل" 
             onPress={() => router.push('/(driver)/settings/help-support' as any)}
           />
+          <MenuItem 
+            icon="shield-check-outline" 
+            label="سياسة الخصوصية" 
+            subLabel="كيفية حماية بياناتك واستخدامها" 
+            onPress={() => router.push('/(driver)/privacy' as any)}
+          />
         </View>
 
         {/* Logout Action */}

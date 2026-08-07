@@ -267,8 +267,8 @@ const AmmerliHomeScreen = () => {
                 <LinearGradient colors={['rgba(1, 32, 71, 0.95)', 'rgba(1, 32, 71, 0.75)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
                 
                 <View style={styles.bannerTextContent}>
-                  <Text style={styles.bannerTitle}>أسرع خدمة توصيل</Text>
-                  <Text style={[styles.bannerTitle, { color: '#FFCC00' }]}>مياه في منطقتك</Text>
+                  <Text style={styles.bannerTitle}>المياه التي تثق بها</Text>
+                  <Text style={[styles.bannerTitle, { color: '#FFCC00' }]}>تصلك حتى باب بيتك</Text>
                   <Text style={styles.bannerSubtitle}>اطلب مياه الشرب الآن بضغطة زر وتصلك فوراً.</Text>
                   <View style={[styles.bannerButtonDecoration, { alignSelf: 'flex-start' }]}>
                     <Text style={styles.bannerButtonText}>اطلب الآن</Text>
@@ -277,7 +277,7 @@ const AmmerliHomeScreen = () => {
                 </View>
                 
                 <View style={styles.bannerImagePlaceholder}>
-                  <Image source={require('../../../assets/images/bottled_icon.png')} style={{ width: 110, height: 110, opacity: 0.95, transform: [{ rotate: '-10deg' }, { scale: 1.1 }] }} resizeMode="contain" />
+                  <Image source={require('../../../assets/images/logo.png')} style={{ width: 110, height: 110, opacity: 0.95, transform: [{ rotate: '-10deg' }, { scale: 1.1 }] }} resizeMode="contain" />
                 </View>
               </ImageBackground>
             </View>

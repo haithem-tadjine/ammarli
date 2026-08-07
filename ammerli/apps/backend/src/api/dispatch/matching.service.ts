@@ -1,6 +1,9 @@
 import { Uuid } from '@/common/types/common.type';
 import { Injectable } from '@nestjs/common';
 import { AppLogger } from 'src/logger/logger.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { WilayaEntity } from '../wilaya/entities/wilaya.entity';
 import {
   DriverMetadata,
   DriverMetadataService,
@@ -46,6 +49,8 @@ export class MatchingService {
   constructor(
     private readonly driverMetadataService: DriverMetadataService,
     private readonly logger: AppLogger,
+    @InjectRepository(WilayaEntity)
+    private readonly wilayaRepo: Repository<WilayaEntity>,
   ) {
     this.logger.setContext(MatchingService.name);
   }
@@ -73,6 +78,61 @@ export class MatchingService {
     const metadataList =
       await this.driverMetadataService.getMetadataForDrivers(driverIds);
 
+    let enforceDebtLimit = true;
+    if (request.wilaya) {
+      // Robustly identify the Wilaya using geoalgeria
+      const geoalgeria = require('geoalgeria');
+      const reqWilayaLower = request.wilaya.trim().toLowerCase();
+      const matchedGeoWilaya = geoalgeria.wilayas.find((w: any) => 
+        w.name_fr.toLowerCase() === reqWilayaLower ||
+        w.name_ar === reqWilayaLower ||
+        reqWilayaLower.includes(w.name_fr.toLowerCase()) ||
+        reqWilayaLower.includes(w.name_ar) ||
+        String(w.code) === reqWilayaLower ||
+        String(w.code).padStart(2, '0') === reqWilayaLower
+      );
+
+      const searchCode = matchedGeoWilaya ? String(matchedGeoWilaya.code).padStart(2, '0') : request.wilaya;
+
+      // In Algeria, Wilaya strings might be like "16 - الجزائر" or just "الجزائر".
+      // We will try a flexible ILIKE match or just check if it contains the wilaya name.
+      const wilayaRecord = await this.wilayaRepo.createQueryBuilder('w')
+        .where(':reqWilaya ILIKE \'%\' || w.name || \'%\'', { reqWilaya: request.wilaya })
+        .orWhere('w.code = :searchCode', { searchCode })
+        .getOne();
+      
+      if (wilayaRecord) {
+        // First check Commune exemption
+        const reqCommune = (request.commune || '').trim().toLowerCase();
+        let isCommuneExempt = false;
+        
+        if (reqCommune && wilayaRecord.exemptedCommunes && Array.isArray(wilayaRecord.exemptedCommunes)) {
+          // Robust commune matching using geoalgeria just in case
+          let searchCommune = reqCommune;
+          if (matchedGeoWilaya) {
+            const wilayaCommunes = geoalgeria.getCommunesByWilaya(matchedGeoWilaya.code);
+            const matchedComm = wilayaCommunes.find((c: any) => c.name_fr.toLowerCase() === reqCommune || c.name_ar === reqCommune || reqCommune.includes(c.name_fr.toLowerCase()) || reqCommune.includes(c.name_ar));
+            if (matchedComm) searchCommune = matchedComm.name_ar; // Assuming DB stores Arabic tags
+          }
+          
+          isCommuneExempt = wilayaRecord.exemptedCommunes.some(c => {
+             const cleanC = c.trim().toLowerCase();
+             return cleanC === searchCommune || cleanC === reqCommune || reqCommune.includes(cleanC) || searchCommune.includes(cleanC);
+          });
+        }
+
+        if (isCommuneExempt) {
+          enforceDebtLimit = false;
+          this.logger.log(`Commune ${reqCommune} in Wilaya ${wilayaRecord.code} is exempt from debt limit.`);
+        } else if (!wilayaRecord.isDebtCeilingEnabled) {
+          enforceDebtLimit = false;
+          this.logger.log(`Wilaya ${wilayaRecord.code} is exempt from debt limit. Including suspended drivers.`);
+        }
+      } else {
+        this.logger.warn(`Could not resolve wilaya policy for request wilaya: ${request.wilaya} (searchCode: ${searchCode}). Assuming default policy (debt enforced).`);
+      }
+    }
+
     const scoredCandidates: ScoredCandidate[] = [];
 
     let maxDist = 0;
@@ -92,8 +152,8 @@ export class MatchingService {
 
       if (meta.status !== 'AVAILABLE') continue;
 
-      // Filter out suspended drivers (Debt exceeded max limit)
-      if (meta.isSuspended === true) continue;
+      // Filter out suspended drivers (Debt exceeded max limit) ONLY if Wilaya enforces it
+      if (enforceDebtLimit && meta.isSuspended === true) continue;
 
       // Filter out drivers who have explicitly refused this request
       if (request.refusedDrivers?.includes(id as Uuid)) continue;

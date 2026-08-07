@@ -50,6 +50,34 @@ export function useDriverLocation(): DriverLocationState {
       });
     };
 
+    const checkAutoArrival = (lat: number, lng: number) => {
+      const store = useDriverStore.getState();
+      const activeOrder = store.activeDriverOrder;
+      
+      if (activeOrder && activeOrder.status === 'driving' && !activeOrder.autoArrivedFired) {
+        const customerLat = activeOrder.deliveryAddress?.lat;
+        const customerLng = activeOrder.deliveryAddress?.lng;
+        
+        if (customerLat && customerLng) {
+          const R = 6371; // Radius of the earth in km
+          const dLat = (customerLat - lat) * (Math.PI / 180);  
+          const dLon = (customerLng - lng) * (Math.PI / 180); 
+          const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat * (Math.PI / 180)) * Math.cos(customerLat * (Math.PI / 180)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2); 
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+          const distance = R * c; // Distance in km
+          
+          if (distance <= 0.07) { // 70 meters
+            console.log(`[Auto-Arrival] Driver is ${(distance * 1000).toFixed(0)}m away. Triggering arrival.`);
+            store.markAutoArrivedFired(activeOrder.orderId);
+            store.updateDriverOrderStatus('arrived', activeOrder.total, activeOrder.orderId);
+          }
+        }
+      }
+    };
+
     const startMockTracking = () => {
       setCoords(MOCK_LOCATION);
       updateDriverLocation(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
@@ -58,10 +86,12 @@ export function useDriverLocation(): DriverLocationState {
       
       // Emit immediately
       emitToSocket(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
+      checkAutoArrival(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
       
       // And emit every 5 seconds to keep geo index fresh
       mockInterval = setInterval(() => {
         emitToSocket(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
+        checkAutoArrival(MOCK_LOCATION.latitude, MOCK_LOCATION.longitude);
       }, 5000);
     };
 
@@ -110,6 +140,7 @@ export function useDriverLocation(): DriverLocationState {
             setCoords({ latitude: lat, longitude: lng });
             updateDriverLocation(lat, lng);
             emitToSocket(lat, lng);
+            checkAutoArrival(lat, lng);
           },
         );
         setIsLoading(false);

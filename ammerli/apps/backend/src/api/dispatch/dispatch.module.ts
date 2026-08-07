@@ -3,6 +3,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DriverModule } from '../driver/driver.module';
 import { DriverEntity } from '../driver/entities/driver.entity';
+import { WilayaEntity } from '../wilaya/entities/wilaya.entity';
 import { OrderModule } from '../order/order.module';
 import { RequestModule } from '../request/request.module';
 import { DispatchController } from './dispatch.controller';
@@ -17,7 +18,7 @@ import { ContinuousMatchingProcessor } from './processors/continuous-matching.pr
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DriverEntity]),
+    TypeOrmModule.forFeature([DriverEntity, WilayaEntity]),
     RabbitMqLibModule,
     forwardRef(() => AuthModule),
     forwardRef(() => RequestModule),

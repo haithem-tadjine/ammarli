@@ -63,10 +63,15 @@ export default function TankDeliveryDetailsScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
 
   const cfg = TYPE_CONFIG[type as string] ?? TYPE_CONFIG['Spring'];
+  const isSpring = type === 'Spring';
+  const isWell = type === 'Well';
+  const isAshghal = type === 'Ashghal';
+  const MAX_QTY = isSpring ? 3000 : (isWell ? 6000 : (isAshghal ? 80000 : 20000));
+  const MIN_QTY = isSpring ? 40 : (isWell ? 1500 : (isAshghal ? 6000 : 0));
 
-  const [tankLocation, setTankLocation] = useState('أرضي');
+  const [tankLocation, setTankLocation] = useState(isAshghal ? 'فلاحة' : 'أرضي');
   const [floor,        setFloor]        = useState(1);
-  const [quantity,     setQuantity]     = useState(0);
+  const [quantity,     setQuantity]     = useState(MIN_QTY);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   React.useEffect(() => {
@@ -91,7 +96,7 @@ export default function TankDeliveryDetailsScreen() {
   const draftOrder   = useCustomerStore(s => s.draftOrder);
 
   const handleOrderNow = async () => {
-    if (quantity <= 0) { triggerShake(); Alert.alert('تنبيه', 'يرجى إدخال الكمية المطلوبة باللتر أولاً'); return; }
+    if (quantity < MIN_QTY) { triggerShake(); Alert.alert('تنبيه', `يرجى إدخال الكمية المطلوبة باللتر أولاً (الحد الأدنى ${MIN_QTY} لتر)`); return; }
     const selectedLocation = draftOrder.location;
     if (!selectedLocation) { triggerShake(); Alert.alert('تنبيه', 'يرجى تحديد موقع التوصيل أولاً'); return; }
 
@@ -205,8 +210,32 @@ export default function TankDeliveryDetailsScreen() {
             </View>
           </Animated.View>
 
-          {/* ── Tank Location (not Spring) ────────────────────────────────── */}
-          {type !== 'Spring' && (
+          {/* ── Usage Area (Ashghal only) ────────────────────────────────── */}
+          {type === 'Ashghal' && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>مجال الاستخدام</Text>
+              <View style={styles.locationGrid}>
+                {[
+                  { label: 'فلاحة', icon: 'leaf-outline',    key: 'فلاحة' },
+                  { label: 'أشغال', icon: 'hammer-outline',  key: 'أشغال' },
+                  { label: 'مسابح', icon: 'water-outline',   key: 'مسابح' },
+                ].map(opt => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[styles.locOpt, tankLocation === opt.key && { borderColor: cfg.color, backgroundColor: cfg.bg }]}
+                    onPress={() => setTankLocation(opt.key)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name={opt.icon as any} size={28} color={tankLocation === opt.key ? cfg.color : '#94A3B8'} />
+                    <Text style={[styles.locOptLabel, tankLocation === opt.key && { color: cfg.color }]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Tank Location (Well only) ────────────────────────────────── */}
+          {type === 'Well' && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>موقع الخزان</Text>
               <View style={styles.locationGrid}>
@@ -263,28 +292,43 @@ export default function TankDeliveryDetailsScreen() {
                   <Text style={styles.drinkBadgeText}>صالحة للشرب</Text>
                 </View>
               )}
+              {!cfg.drinkable && type === 'Well' && (
+                <View style={[styles.drinkBadge, { backgroundColor: '#FEE2E2', marginLeft: 8 }]}>
+                  <Ionicons name="warning-outline" size={14} color="#EF4444" />
+                  <Text style={[styles.drinkBadgeText, { color: '#EF4444' }]}>غير صالحة للشرب (استعمال منزلي فقط)</Text>
+                </View>
+              )}
+              {!cfg.drinkable && type === 'Ashghal' && (
+                <View style={[styles.drinkBadge, { backgroundColor: '#FEF3C7', marginLeft: 8 }]}>
+                  <Ionicons name="information-circle-outline" size={14} color="#EA580C" />
+                  <Text style={[styles.drinkBadgeText, { color: '#EA580C' }]}>للورشات الكبرى، الفلاحة والرياضة</Text>
+                </View>
+              )}
             </View>
 
             {/* Big quantity display */}
             <View style={styles.qtyDisplayRow}>
               <TouchableOpacity
-                style={[styles.qtyCircleBtn, quantity <= 0 && { backgroundColor: '#E2E8F0' }]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuantity(p => Math.max(0, p - 500)); }}
-                disabled={quantity <= 0}
+                style={[styles.qtyCircleBtn, quantity <= MIN_QTY && { backgroundColor: '#E2E8F0' }]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuantity(p => Math.max(MIN_QTY, p - 500)); }}
+                disabled={quantity <= MIN_QTY}
               >
-                <Ionicons name="remove" size={24} color={quantity <= 0 ? '#94A3B8' : WHITE} />
+                <Ionicons name="remove" size={24} color={quantity <= MIN_QTY ? '#94A3B8' : WHITE} />
               </TouchableOpacity>
 
               <View style={styles.qtyValueWrap}>
                 <TextInput
                   style={styles.qtyValueInput}
                   value={quantity === 0 ? '' : quantity.toString()}
-                  placeholder="0"
+                  placeholder={MIN_QTY.toString()}
                   placeholderTextColor="#CBD5E1"
                   onChangeText={val => {
                     let n = parseInt(val) || 0;
-                    if (n > 20000) n = 20000;
+                    if (n > MAX_QTY) n = MAX_QTY;
                     setQuantity(n);
+                  }}
+                  onBlur={() => {
+                    if (quantity < MIN_QTY) setQuantity(MIN_QTY);
                   }}
                   keyboardType="numeric"
                   textAlign="center"
@@ -294,17 +338,17 @@ export default function TankDeliveryDetailsScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.qtyCircleBtn, { backgroundColor: NAVY }, quantity >= 20000 && { backgroundColor: '#E2E8F0' }]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuantity(p => Math.min(20000, p + 500)); }}
-                disabled={quantity >= 20000}
+                style={[styles.qtyCircleBtn, { backgroundColor: NAVY }, quantity >= MAX_QTY && { backgroundColor: '#E2E8F0' }]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuantity(p => Math.min(MAX_QTY, Math.max(MIN_QTY, p + 500))); }}
+                disabled={quantity >= MAX_QTY}
               >
-                <Ionicons name="add" size={24} color={quantity >= 20000 ? '#94A3B8' : WHITE} />
+                <Ionicons name="add" size={24} color={quantity >= MAX_QTY ? '#94A3B8' : WHITE} />
               </TouchableOpacity>
             </View>
 
             {/* Quick select chips */}
             <View style={styles.quickRow}>
-              {QUICK_QTYS.map(q => (
+              {QUICK_QTYS.filter(q => q <= MAX_QTY && q >= MIN_QTY).map(q => (
                 <TouchableOpacity
                   key={q}
                   style={[styles.quickChip, quantity === q && { backgroundColor: NAVY, borderColor: NAVY }]}
@@ -317,7 +361,7 @@ export default function TankDeliveryDetailsScreen() {
               ))}
             </View>
 
-            <Text style={styles.qtyHint}>+500 لتر لكل ضغطة · الحد الأقصى 20,000 لتر</Text>
+            <Text style={styles.qtyHint}>+500 لتر لكل ضغطة · الحد الأقصى {MAX_QTY.toLocaleString('en-US')} لتر</Text>
           </View>
 
         </ScrollView>
