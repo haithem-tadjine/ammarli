@@ -109,6 +109,7 @@ interface CustomerState {
   notifications: Notification[];
   userLocation: { latitude: number; longitude: number; address?: string } | null;
   driverLocation: { latitude: number; longitude: number } | null;
+  nearbyDrivers: Array<{ id: string; lat: number; lng: number }> | null;
 
   // ── Order actions ───────────────────────────────────────────────────────────
   setUserLocation: (location: { latitude: number; longitude: number; address?: string } | null) => void;
@@ -138,6 +139,7 @@ interface CustomerState {
   fetchPastOrders: () => Promise<void>;
   fetchScheduledOrders: () => Promise<void>;
   fetchPromos: () => Promise<void>;
+  fetchNearbyDrivers: (lat: number, lng: number, radius?: number) => Promise<void>;
   handleSocketOrderUpdate: (payload: any) => void;
   clearActiveOrderStore: () => void;
   clearStore: () => void;
@@ -164,6 +166,7 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
   promosError: null,
   userLocation: null,
   driverLocation: null,
+  nearbyDrivers: null,
   notifications: [],
   // NOTE: Real notifications are pushed via socket / backend FCM push
 
@@ -183,8 +186,31 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     promosError: null,
     userLocation: null,
     driverLocation: null,
+    nearbyDrivers: null,
     notifications: [],
   }),
+
+  // ── Fetch actions ─────────────────────────────────────────────────────────
+
+  fetchNearbyDrivers: async (lat, lng, radius = 15) => {
+    try {
+      const response = await api.get('/driver/nearby', {
+        params: { lat, lng, radius }
+      });
+      // Assuming response.data is an array of drivers [{ id, lat, lng }, ...] or similar
+      const drivers = Array.isArray(response.data) ? response.data : (response.data?.drivers || []);
+      
+      const parsedDrivers = drivers.map((d: any) => ({
+        id: d.id || d.driverId,
+        lat: Number(d.lat || d.latitude || 0),
+        lng: Number(d.lng || d.longitude || 0),
+      })).filter((d: any) => d.lat !== 0 && d.lng !== 0);
+
+      set({ nearbyDrivers: parsedDrivers });
+    } catch (e) {
+      console.warn('Failed to fetch nearby drivers:', e);
+    }
+  },
 
   fetchActiveOrder: async () => {
     try {

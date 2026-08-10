@@ -1,0 +1,64 @@
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+Test run id: taezr_aagewf3ek6n6a8q7wfwrbjyyrzq7y_cq33
+Phase started: Warm up (index: 0, duration: 10s) 00:39:45(+0100)
+
+--------------------------------------
+Metrics for period to: 00:39:50(+0100) (width: 3.914s)
+--------------------------------------
+
+vusers.created: ................................................................ 40
+vusers.created_by_name.Driver WebSocket Connection: ............................ 40
+vusers.failed: ................................................................. 40
+
+
+Phase completed: Warm up (index: 0, duration: 10s) 00:39:55(+0100)
+
+Phase started: Reconnection Storm (High Load) (index: 1, duration: 30s) 00:39:55(+0100)
+
+--------------------------------------
+Metrics for period to: 00:40:00(+0100) (width: 9.997s)
+--------------------------------------
+
+vusers.created: ................................................................ 187
+vusers.created_by_name.Driver WebSocket Connection: ............................ 187
+vusers.failed: ................................................................. 185
+
+
+--------------------------------------
+Metrics for period to: 00:40:10(+0100) (width: 9.987s)
+--------------------------------------
+
+vusers.created: ................................................................ 300
+vusers.created_by_name.Driver WebSocket Connection: ............................ 300
+vusers.failed: ................................................................. 299
+
+
+--------------------------------------
+Metrics for period to: 00:40:20(+0100) (width: 9.993s)
+--------------------------------------
+
+vusers.created: ................................................................ 300
+vusers.created_by_name.Driver WebSocket Connection: ............................ 300
+vusers.failed: ................................................................. 301
+
+
+Phase completed: Reconnection Storm (High Load) (index: 1, duration: 30s) 00:40:25(+0100)
+
+--------------------------------------
+Metrics for period to: 00:40:30(+0100) (width: 5.875s)
+--------------------------------------
+
+vusers.created: ................................................................ 173
+vusers.created_by_name.Driver WebSocket Connection: ............................ 173
+vusers.failed: ................................................................. 175
+
+
+All VUs finished. Total time: 41 seconds
+
+--------------------------------
+Summary report @ 00:40:27(+0100)
+--------------------------------
+
+vusers.created: ................................................................ 1000
+vusers.created_by_name.Driver WebSocket Connection: ............................ 1000
+vusers.failed: ................................................................. 1000

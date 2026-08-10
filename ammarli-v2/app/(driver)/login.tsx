@@ -15,7 +15,8 @@ import {
   Animated,
   Keyboard,
   ActivityIndicator,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  Image
 } from 'react-native';
 import { Phone, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useRouter, Link, useFocusEffect } from 'expo-router';
@@ -111,7 +112,7 @@ export default function DriverLoginScreen() {
       <View style={styles.header}>
         <SafeAreaView>
           <View style={styles.logoWrapper}>
-            <View style={styles.logoBadge}><Text style={styles.logoA}>A</Text></View>
+            <Image source={require('../../assets/images/logo.png')} style={styles.logoImage} />
             <Text style={styles.brandName}>Ammarli</Text>
           </View>
         </SafeAreaView>
@@ -187,9 +188,11 @@ export default function DriverLoginScreen() {
 
               {/* Footer Links */}
               <View style={styles.footerLinks}>
-                <TouchableOpacity onPress={() => {}}>
-                  <Text style={styles.linkText}>نسيت كلمة المرور؟</Text>
-                </TouchableOpacity>
+                <Link href="/(driver)/forgot-password" asChild>
+                  <TouchableOpacity>
+                    <Text style={styles.linkText}>نسيت كلمة المرور؟</Text>
+                  </TouchableOpacity>
+                </Link>
                 <Link href="/(driver)/register" asChild>
                   <TouchableOpacity>
                     <Text style={styles.linkText}>إنشاء حساب جديد</Text>
@@ -207,8 +210,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: THEME_NAVY },
   header: { height: height * 0.35, justifyContent: 'center', alignItems: 'center' },
   logoWrapper: { alignItems: 'center' },
-  logoBadge: { width: 60, height: 60, borderWidth: 2, borderColor: THEME_YELLOW, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  logoA: { fontSize: 40, fontWeight: '900', color: THEME_YELLOW, fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif' },
+  logoImage: { width: 60, height: 60, resizeMode: 'contain', marginBottom: 10 },
   brandName: { fontSize: 32, fontWeight: 'bold', color: THEME_YELLOW, letterSpacing: 1 },
   content: { flex: 1 },
   scrollContent: { paddingHorizontal: 25, paddingBottom: 40 },

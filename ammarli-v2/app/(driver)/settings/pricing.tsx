@@ -23,8 +23,8 @@ const COLORS = {
 
 // ── مكوّن حقل السعر ──────────────────────────────────────────────────────────
 function PriceField({
-  label, hint, value, onChange,
-}: { label: string; hint: string; value: string; onChange: (v: string) => void }) {
+  label, hint, value, onChange, icon,
+}: { label: string; hint: string; value: string; onChange: (v: string) => void; icon?: string }) {
   return (
     <View style={styles.fieldContainer}>
       <View style={styles.fieldHeader}>
@@ -42,6 +42,7 @@ function PriceField({
           placeholderTextColor="#94A3B8"
           textAlign="right"
         />
+        {icon && <MaterialCommunityIcons name={icon as any} size={20} color={COLORS.textSecondary} style={{ marginRight: 4 }} />}
       </View>
     </View>
   );
@@ -53,6 +54,9 @@ export default function PricingSettingsScreen() {
   const registeredDriver = useDriverStore((s: any) => s.registeredDriver);
 
   const isBottled = registeredDriver?.driverType === 'Bottled';
+  const waterType = (registeredDriver?.waterType || '').toLowerCase();
+  const isSpring  = !isBottled && (waterType === 'spring' || waterType === 'ينابيع');
+  const isWellOrConstruction = !isBottled && !isSpring;
 
   // ── حالة سائق الينابيع (حقل واحد) ─────────────────────────────────────────
   const [defaultPrice, setDefaultPrice] = useState(
@@ -68,6 +72,14 @@ export default function PricingSettingsScreen() {
   );
   const [price5, setPrice5] = useState(
     registeredDriver?.bottledPrices?.['5L']?.toString() || ''
+  );
+
+  // ── حالة سائق الآبار / الأشغال (حقلان) ─────────────────────────────────────
+  const [pricePerUnit, setPricePerUnit] = useState(
+    registeredDriver?.pricePerUnit?.toString() || ''
+  );
+  const [floorPrice, setFloorPrice] = useState(
+    registeredDriver?.floorPrice?.toString() || ''
   );
 
   const [isSaving, setIsSaving] = useState(false);
@@ -95,7 +107,8 @@ export default function PricingSettingsScreen() {
             ? { ...s.registeredDriver, bottledPrices }
             : null,
         }));
-      } else {
+
+      } else if (isSpring) {
         // ── ينابيع: حقل واحد ──
         const priceNum = parseFloat(defaultPrice);
         if (isNaN(priceNum) || priceNum <= 0) {
@@ -108,6 +121,31 @@ export default function PricingSettingsScreen() {
         useDriverStore.setState((s: any) => ({
           registeredDriver: s.registeredDriver
             ? { ...s.registeredDriver, defaultPrice: priceNum }
+            : null,
+        }));
+
+      } else {
+        // ── آبار / أشغال: سعر الوحدة + سعر الطابق ──
+        const unitPrice  = parseFloat(pricePerUnit);
+        const floorPriceNum = parseFloat(floorPrice);
+
+        if (isNaN(unitPrice) || unitPrice <= 0) {
+          Alert.alert('خطأ', 'يرجى إدخال سعر الوحدة (1500 لتر)');
+          return;
+        }
+        if (isNaN(floorPriceNum) || floorPriceNum < 0) {
+          Alert.alert('خطأ', 'يرجى إدخال سعر الطابق (أو 0 إذا لم يكن مطبقاً)');
+          return;
+        }
+
+        await api.patch('/drivers/me', {
+          pricePerUnit:  unitPrice,
+          floorPrice:    floorPriceNum,
+        });
+
+        useDriverStore.setState((s: any) => ({
+          registeredDriver: s.registeredDriver
+            ? { ...s.registeredDriver, pricePerUnit: unitPrice, floorPrice: floorPriceNum }
             : null,
         }));
       }
@@ -125,6 +163,14 @@ export default function PricingSettingsScreen() {
 
   const isOnline = useDriverStore((s: any) => s.isOnline);
   const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
+
+  // ── مثال حسابي للآبار/الأشغال ────────────────────────────────────────────
+  const exampleVolume  = 3000;
+  const exampleFloor   = 2;
+  const exampleTotal   = isWellOrConstruction
+    ? Math.ceil(exampleVolume / 1500) * (parseFloat(pricePerUnit) || 0)
+      + exampleFloor * (parseFloat(floorPrice) || 0)
+    : 0;
 
   return (
     <View style={styles.container}>
@@ -153,14 +199,16 @@ export default function PricingSettingsScreen() {
           <Text style={styles.description}>
             {isBottled
               ? 'عند وصول طلبية، سيحسب التطبيق السعر تلقائياً بناءً على حجم القارورة والكمية المطلوبة — دون الحاجة لإدخال السعر في كل مرة.'
-              : 'سيتم استخدام سعر الدلو لحساب التكلفة الإجمالية تلقائياً (إجمالي اللترات ÷ 20 × سعر الدلو) وتخطي شاشة تسعير الطلبية.'}
+              : isSpring
+              ? 'سيتم استخدام سعر الدلو لحساب التكلفة الإجمالية تلقائياً (إجمالي اللترات ÷ 20 × سعر الدلو) وتخطي شاشة تسعير الطلبية.'
+              : 'يُحدَّد السعر تلقائياً عند وصول الطلبية: كل 1500 لتر بسعر ثابت، مع رسوم إضافية لكل طابق — لا حاجة لإدخال السعر يدوياً.'}
           </Text>
         </View>
 
         {isBottled ? (
           /* ── حقول القوارير الثلاثة ── */
           <BlurView intensity={70} tint="light" style={styles.card}>
-            <Text style={styles.cardTitle}>أسعار الفارداو والقوارير</Text>
+            <Text style={styles.cardTitle}>أسعار الفاردو والقوارير</Text>
 
             <PriceField
               label="فاردو نصف لتر (0.5L)"
@@ -193,7 +241,8 @@ export default function PricingSettingsScreen() {
               </Text>
             </BlurView>
           </BlurView>
-        ) : (
+
+        ) : isSpring ? (
           /* ── حقل الينابيع ── */
           <BlurView intensity={70} tint="light" style={styles.card}>
             <Text style={styles.cardTitle}>سعر الدلو (20 لتر)</Text>
@@ -207,6 +256,43 @@ export default function PricingSettingsScreen() {
               <MaterialCommunityIcons name="information-outline" size={16} color={COLORS.textSecondary} />
               <Text style={styles.exampleText}>
                 مثال: طلب 1000 لتر = 50 دلو × {defaultPrice || '---'} = {defaultPrice ? ((1000 / 20) * (parseFloat(defaultPrice) || 0)).toLocaleString('ar-DZ') : '---'} د.ج
+              </Text>
+            </BlurView>
+          </BlurView>
+
+        ) : (
+          /* ── حقلا الآبار / الأشغال ── */
+          <BlurView intensity={70} tint="light" style={styles.card}>
+            <Text style={styles.cardTitle}>
+              {waterType === 'construction' ? 'تسعير مياه الأشغال' : 'تسعير مياه الآبار'}
+            </Text>
+
+            {/* سعر الوحدة */}
+            <PriceField
+              label="سعر الوحدة (1500 لتر)"
+              hint="السعر الأساسي لكل 1500 لتر"
+              value={pricePerUnit}
+              onChange={setPricePerUnit}
+              icon="water-pump"
+            />
+            <View style={styles.divider} />
+
+            {/* سعر الطابق */}
+            <PriceField
+              label="رسوم الطابق (لكل طابق)"
+              hint="يُضاف لكل طابق فوق الأرضي"
+              value={floorPrice}
+              onChange={setFloorPrice}
+              icon="stairs"
+            />
+
+            {/* مثال توضيحي */}
+            <BlurView intensity={40} tint="light" style={styles.exampleBox}>
+              <MaterialCommunityIcons name="information-outline" size={16} color={COLORS.textSecondary} />
+              <Text style={styles.exampleText}>
+                {'مثال: طلب 3000 لتر في الطابق 2\n'}
+                {'= (3000÷1500) × ' + (pricePerUnit || '---') + ' + 2 × ' + (floorPrice || '---') + '\n'}
+                {'= ' + (exampleTotal > 0 ? exampleTotal.toLocaleString('ar-DZ') + ' د.ج' : '---')}
               </Text>
             </BlurView>
           </BlurView>
@@ -306,3 +392,4 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary },
 });
+

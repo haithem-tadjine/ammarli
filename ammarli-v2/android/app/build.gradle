@@ -180,3 +180,9 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+
+// ── Firebase FCM ────────────────────────────────────────────────────────────
+// يجب تطبيق هذا الـ plugin بعد كتلة dependencies
+// يقرأ ملف google-services.json ويربط التطبيق بمشروع Firebase
+apply plugin: 'com.google.gms.google-services'

@@ -71,7 +71,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   register: async (payload) => {
     await api.post('/auth/phone/register', payload);
-    // Do not automatically set token or profile. The user must log in explicitly.
+    // الدخول التلقائي وحفظ البيانات في الهاتف بعد نجاح التسجيل
+    await get().login(payload.phone, payload.password, payload.role);
   },
 
   updateUserProfile: async (profileUpdates) => {

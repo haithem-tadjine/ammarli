@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+# Firebase Service Account Key — DO NOT COMMIT
+firebase-key.json
+
 # Logs
 logs
 *.log

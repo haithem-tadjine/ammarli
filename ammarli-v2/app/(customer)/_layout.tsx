@@ -25,17 +25,19 @@ export default function CustomerLayout() {
       const prevState = appState.current;
       appState.current = nextState;
 
-      // ── الزبون أغلق التطبيق وله طلبية نشطة ─────────────────────────────────
+      // ── الزبون أغلق التطبيق وله طلبية نشطة وسائق قبلها ──────────────────
+      // نُطلق إشعاراً محلياً فقط إذا كانت الطلبية بحالة ACCEPTED أو أعلى
+      // (يعني سائق قبل فعلاً) — لا نُطلق إشعاراً إذا كانت لا تزال SEARCHING
       if (prevState === 'active' && nextState === 'background') {
         const { activeOrder } = useCustomerStore.getState();
-        if (activeOrder && !notifFired.current) {
+        const acceptedStatuses = ['ACCEPTED', 'LOCKED', 'DELIVERING', 'ARRIVED'];
+        if (activeOrder && !notifFired.current && acceptedStatuses.includes(activeOrder.status)) {
           notifFired.current = true;
-          // Use the typed function which targets the correct channel + custom sound
           await triggerDriverFoundNotification();
         }
       }
 
-      // ── الزبون عاد للتطبيق ────────────────────────────────────────────────────────────
+      // ── الزبون عاد للتطبيق ────────────────────────────────────────────────
       if (prevState === 'background' && nextState === 'active') {
         notifFired.current = false;
         await clearAllLocalNotifications();

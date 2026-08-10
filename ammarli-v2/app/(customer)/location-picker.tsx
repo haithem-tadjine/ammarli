@@ -218,6 +218,10 @@ export default function InteractiveLocationPicker() {
 
       {/* 2. Central Interactive Pin */}
       <View style={styles.markerFixed} pointerEvents="none">
+        <Animated.View style={[styles.tooltip, { transform: [{ translateY: pinTranslateY }] }]}>
+          <Text style={styles.tooltipText}>هل هذا موقع التوصيل؟</Text>
+          <View style={styles.tooltipTriangle} />
+        </Animated.View>
         <Animated.View style={[styles.pinContainer, { transform: [{ translateY: pinTranslateY }] }]}>
           <View style={styles.customPinOuter}>
              <View style={styles.customPinInner} />
@@ -314,11 +318,11 @@ export default function InteractiveLocationPicker() {
         
         <View style={styles.locationInfoRow}>
           <View style={styles.textContainer}>
-            <Text style={styles.locationTitle}>{address}</Text>
-            <Text style={styles.locationSubtitle}>اسحب الخريطة لتعديل موقع الدبوس</Text>
+            <Text style={styles.locationTitle} numberOfLines={1}>{address}</Text>
+            <Text style={styles.locationSubtitle}>حرك الخريطة لضبط المكان بدقة</Text>
           </View>
           <View style={styles.iconBackground}>
-            <Feather name="map-pin" color={COLORS.gray} size={24} />
+            <Ionicons name="location-outline" color={COLORS.primaryBlue} size={26} />
           </View>
         </View>
 
@@ -393,6 +397,38 @@ const styles = StyleSheet.create({
     marginTop: 2, // gap between stem and shadow
     transform: [{ scaleX: 2 }],
   },
+  tooltip: {
+    backgroundColor: COLORS.primaryBlue,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 5,
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  tooltipText: {
+    color: COLORS.white,
+    fontFamily: 'Cairo-SemiBold',
+    fontSize: 12,
+  },
+  tooltipTriangle: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: COLORS.primaryBlue,
+    position: 'absolute',
+    bottom: -5,
+  },
   topOverlay: {
     position: 'absolute',
     // top is set dynamically via inline style using insets.top
@@ -451,19 +487,19 @@ const styles = StyleSheet.create({
   backButton: { padding: 5 },
   gpsButton: {
     position: 'absolute',
-    bottom: 240,
-    left: 20, // Moved to left to align with Arabic RTL logic
+    bottom: 220,
+    right: 20, // Moved to right side for better thumb reach
     backgroundColor: COLORS.white,
     width: 50,
     height: 50,
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
     zIndex: 20,
   },
   bottomSheet: {

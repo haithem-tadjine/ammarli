@@ -15,4 +15,15 @@ export class UpdateDriverReqDto extends UpdateUserReqDto {
 
   // أسعار القوارير لسائقي المياه المعبأة (fast accept)
   bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
+
+  @NumberFieldOptional({
+    description: 'Price per 1500L unit for well/construction tanker drivers (fast accept)',
+  })
+  pricePerUnit?: number;
+
+  @NumberFieldOptional({
+    description: 'Extra charge per floor for well/construction drivers',
+  })
+  floorPrice?: number;
 }
+

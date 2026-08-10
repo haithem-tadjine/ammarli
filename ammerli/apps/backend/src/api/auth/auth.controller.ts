@@ -9,6 +9,8 @@ import { RefreshReqDto } from './dto/refresh.req.dto';
 import { RefreshResDto } from './dto/refresh.res.dto';
 import { RegisterReqDto } from './dto/register.req.dto';
 import { RegisterResDto } from './dto/register.res.dto';
+import { ResetDriverPasswordDto } from './dto/reset-driver-password.req.dto';
+import { VerifyDriverPlateDto } from './dto/verify-driver-plate.req.dto';
 import { JwtPayloadType } from './types/jwt-payload.type';
 
 /**
@@ -139,6 +141,26 @@ export class AuthController {
   @Post('reset-password')
   async resetPassword() {
     return 'reset-password';
+  }
+
+  /**
+   * Verifies driver phone and truck plate number.
+   */
+  @ApiPublic()
+  @Post('driver/verify-plate')
+  async verifyDriverPlate(@Body() dto: VerifyDriverPlateDto) {
+    await this.authService.verifyDriverPlate(dto);
+    return { success: true };
+  }
+
+  /**
+   * Resets driver password using phone and truck plate number.
+   */
+  @ApiPublic()
+  @Post('driver/reset-password-plate')
+  async resetDriverPasswordWithPlate(@Body() dto: ResetDriverPasswordDto) {
+    await this.authService.resetDriverPasswordWithPlate(dto);
+    return { success: true };
   }
 
   /**

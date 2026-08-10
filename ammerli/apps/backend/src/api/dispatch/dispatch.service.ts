@@ -87,24 +87,33 @@ export class DispatchService {
     request.dispatchAttempts = (request.dispatchAttempts || 0) + 1;
     await this.requestService.updateRequest(request.id, request);
 
-    const candidates = await this.findNearbyDrivers(request);
+    // Progressive Ring Expansion strategy
+    const RINGS = [3, 7, 15];
+    let scoredCandidates: any[] = [];
+    let candidatesFound = 0;
 
-    if (!candidates.length) {
-      this.logger.warnStructured(LogConstants.REQUEST.NO_DRIVERS, {
-        requestId: request.id,
-      });
-      return [];
+    for (const radius of RINGS) {
+      this.logger.debug(`Searching for drivers within ${radius}km for request ${request.id}`);
+      const candidates = await this.findNearbyDrivers(request, radius);
+      
+      if (!candidates.length) continue;
+      candidatesFound += candidates.length;
+
+      scoredCandidates = await this.matchingService.findBestDrivers(
+        request,
+        candidates,
+      );
+
+      if (scoredCandidates.length > 0) {
+        this.logger.debug(`Found ${scoredCandidates.length} eligible drivers within ${radius}km`);
+        break; // Found eligible drivers! Break the loop.
+      }
     }
-
-    const scoredCandidates = await this.matchingService.findBestDrivers(
-      request,
-      candidates,
-    );
 
     if (!scoredCandidates.length) {
       this.logger.warnStructured(LogConstants.REQUEST.NO_DRIVERS, {
         requestId: request.id,
-        totalFound: candidates.length,
+        totalFound: candidatesFound,
         reason: ErrorMessageConstants.REQUEST.NOT_AVAILABLE,
       });
       return [];
@@ -201,13 +210,14 @@ export class DispatchService {
    */
   private async findNearbyDrivers(
     request: RequestResDto,
+    radius: number = 15,
   ): Promise<[string, string][]> {
     try {
       return await this.redisLibsService.geoRadius(
         RedisConstants.KEYS.DRIVERS_GEO_INDEX,
         request.pickupLng,
         request.pickupLat,
-        15,
+        radius,
         RedisConstants.CMD.UNIT_KM,
       );
     } catch (error) {
@@ -508,11 +518,11 @@ export class DispatchService {
         if (!request) continue;
 
         if (request.status === RequestStatusEnum.SEARCHING) {
-          // Check expiration TTL (1 minute = 60000 ms) for testing
+          // Check expiration TTL (5 minutes = 300000 ms)
           const createdAt = new Date(request.createdAt).getTime();
           const elapsed = Date.now() - createdAt;
 
-          if (elapsed >= 60000) {
+          if (elapsed >= 300000) {
             this.logger.warnStructured(LogConstants.REQUEST.NO_DRIVERS, {
               requestId: request.id,
               reason: 'TTL_EXPIRED',

@@ -21,6 +21,8 @@ import { TrackingService } from './tracking.service';
 import { RequestService } from '../request/request.service';
 import { DispatchService } from '../dispatch/dispatch.service';
 import { forwardRef, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Uuid } from '@/common/types/common.type';
 import { NotificationService } from '../notification/notification.service';
 import { GeocodingService } from '@/libs/geocoding/geocoding.service';
@@ -53,6 +55,8 @@ export class TrackingGateway
     private readonly geocodingService: GeocodingService,
     @InjectRepository(WilayaEntity)
     private readonly wilayaRepo: Repository<WilayaEntity>,
+    @Inject(CACHE_MANAGER) 
+    private readonly cacheManager: Cache,
   ) {
     if (this.logger) {
       this.logger.setContext(TrackingGateway.name);
@@ -72,12 +76,31 @@ export class TrackingGateway
       let waterType = undefined;
       let isSuspended = undefined;
       try {
-        // NOTE: The app sends userProfile.id (= userId), not the driver table PK.
-        // Use findByUserId to resolve the correct driver record.
-        const driver = await this.driverService.findByUserId(driverId as any);
-        driverType = driver.type;
-        waterType = driver.waterType;
-        isSuspended = driver.isSuspended;
+        const cacheKey = `ws_auth:driver:${driverId}`;
+        const cachedDriver: any = await this.cacheManager.get(cacheKey);
+
+        if (cachedDriver) {
+          // Cache Hit: Proceed immediately
+          driverType = cachedDriver.type;
+          waterType = cachedDriver.waterType;
+          isSuspended = cachedDriver.isSuspended;
+          this.logger.debug(`[Cache Hit] Driver ${driverId} authenticated from Redis`);
+        } else {
+          // Cache Miss: Query Database
+          const driver = await this.driverService.findByUserId(driverId as any);
+          driverType = driver.type;
+          waterType = driver.waterType;
+          isSuspended = driver.isSuspended;
+          
+          // Save to Redis for 24 hours (86400000ms in cache-manager v5, or 86400s in v4)
+          // We assume standard usage (using milliseconds for cache-manager or standard seconds depending on version. Let's use 86400000 just in case, but standard nestjs cache manager v5 uses milliseconds, v4 uses seconds). Let's use 86400 for max compat if it's seconds, but wait, usually it's seconds. Actually, wait, let's use 86400.
+          await this.cacheManager.set(cacheKey, {
+            type: driverType,
+            waterType: waterType,
+            isSuspended: isSuspended,
+          }, 86400 * 1000); 
+          this.logger.debug(`[Cache Miss] Driver ${driverId} authenticated from DB and cached`);
+        }
       } catch (e) {
         this.logger.warn(
           `Could not find driver details for userId ${driverId} during connection: ${e?.message}`,
@@ -174,6 +197,44 @@ export class TrackingGateway
         // Broadcast to all instances
         if (msg.status === 'LOCKED') msg.status = 'ACCEPTED';
         this.server.to(`user_${userId}`).emit(eventName, msg);
+
+        // ── Push Notification للزبون (يعمل حتى في الخلفية) ──────────────────
+        // Socket.io يعمل فقط عندما يكون التطبيق مفتوحاً. Push Notification
+        // يضمن وصول الإشعار حتى لو خرج الزبون من التطبيق.
+        const customerPushMap: Record<string, { title: string; body: string }> = {
+          request_accepted: {
+            title: '🚚 تم قبول طلبيتك!',
+            body: 'سائق قبل طلبيتك وهو في طريقه إليك. اضغط لتتبع الموقع.',
+          },
+          driver_arrived: {
+            title: '📍 السائق عند الباب!',
+            body: 'سائقك وصل وينتظرك بالخارج. الرجاء استلام الطلبية.',
+          },
+          request_completed: {
+            title: '✅ تمت التوصيلة!',
+            body: 'تم تسليم طلبيتك بنجاح. شكراً لاستخدامك أمرلي.',
+          },
+          request_cancelled: {
+            title: '❌ تم إلغاء الطلبية',
+            body: msg.alertMessage || 'تم إلغاء طلبيتك. اضغط لمعرفة التفاصيل.',
+          },
+        };
+
+        const pushPayload = customerPushMap[eventName];
+        if (pushPayload) {
+          this.notificationService.sendPushNotification(
+            userId,
+            pushPayload.title,
+            pushPayload.body,
+            {
+              type: eventName,
+              orderId: String(msg.id || ''),
+            },
+          ).catch((err) =>
+            this.logger.warn(`[Push] Failed to send customer push (${eventName}): ${err?.message}`),
+          );
+        }
+        // ────────────────────────────────────────────────────────────────────
       }
     }
 

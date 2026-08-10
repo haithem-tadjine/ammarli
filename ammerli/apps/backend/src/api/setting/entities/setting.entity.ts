@@ -8,11 +8,20 @@ export class SystemSettingEntity {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 3 })
   bottledCommission: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0.3 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 3 })
+  bottledCustomerMarkup: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0.3 }) // legacy or default
   tankerSpringCommission: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 5 })
+  tankerSpringCustomerMarkup: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 50 })
   tankerWellCommission: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 50 })
+  tankerWellCustomerMarkup: number;
 
   @Column({ type: 'int', default: 1500 })
   tankerWellVolumeUnit: number;

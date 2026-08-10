@@ -15,6 +15,7 @@ import {
 import { User, Phone, Lock, Eye, EyeOff, RefreshCw } from 'lucide-react-native';
 import { api } from '../../src/services/api';
 import { useRouter, Link } from 'expo-router';
+import { useAuthStore } from '../../src/store/useAuthStore';
 
 const { height } = Dimensions.get('window');
 const THEME_NAVY   = '#012047';
@@ -98,14 +99,14 @@ export default function CustomerRegisterScreen() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await api.post('/auth/phone/register', {
+      await useAuthStore.getState().register({
         phone:     phone.trim(),
         firstName: fullName.trim().split(' ')[0],
         lastName:  fullName.trim().split(' ').slice(1).join(' ') || ' ',
         password:  password,
         role:      'CLIENT',
       });
-      setSuccessModal(true);
+      // تم الدخول التلقائي في `useAuthStore`، والـ router سيحوّله للصفحة الرئيسية مباشرة
     } catch (e: any) {
       const errCode = e?.response?.data?.response?.errorCode;
       const msg = Array.isArray(e?.response?.data?.message)

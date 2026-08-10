@@ -10,8 +10,11 @@ export default function Settings() {
 
   const [settings, setSettings] = useState({
     bottledCommission: '3',
+    bottledCustomerMarkup: '3',
     tankerSpringCommission: '0.3',
+    tankerSpringCustomerMarkup: '5',
     tankerWellCommission: '50',
+    tankerWellCustomerMarkup: '50',
     tankerWellVolumeUnit: '1500',
     maxDebtAllowed: '2000',
     enableAutoSuspend: true,
@@ -40,8 +43,11 @@ export default function Settings() {
       if (response.data) {
         setSettings({
           bottledCommission: response.data.bottledCommission?.toString() || '3',
+          bottledCustomerMarkup: response.data.bottledCustomerMarkup?.toString() || '3',
           tankerSpringCommission: response.data.tankerSpringCommission?.toString() || '0.3',
+          tankerSpringCustomerMarkup: response.data.tankerSpringCustomerMarkup?.toString() || '5',
           tankerWellCommission: response.data.tankerWellCommission?.toString() || '50',
+          tankerWellCustomerMarkup: response.data.tankerWellCustomerMarkup?.toString() || '50',
           tankerWellVolumeUnit: response.data.tankerWellVolumeUnit?.toString() || '1500',
           maxDebtAllowed: response.data.maxDebtAllowed?.toString() || '2000',
           enableAutoSuspend: response.data.enableAutoSuspend ?? true,
@@ -62,8 +68,11 @@ export default function Settings() {
     try {
       await api.put('/settings', {
         bottledCommission: Number(settings.bottledCommission),
+        bottledCustomerMarkup: Number(settings.bottledCustomerMarkup),
         tankerSpringCommission: Number(settings.tankerSpringCommission),
+        tankerSpringCustomerMarkup: Number(settings.tankerSpringCustomerMarkup),
         tankerWellCommission: Number(settings.tankerWellCommission),
+        tankerWellCustomerMarkup: Number(settings.tankerWellCustomerMarkup),
         tankerWellVolumeUnit: Number(settings.tankerWellVolumeUnit),
         maxDebtAllowed: Number(settings.maxDebtAllowed),
         enableAutoSuspend: settings.enableAutoSuspend,
@@ -154,35 +163,50 @@ export default function Settings() {
                 <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '10px', borderRadius: '10px' }}><Droplets size={20} color="#3b82f6" /></div>
                 <span style={{ fontSize: '15px', fontWeight: '600', color: '#f8fafc' }}>قارورات المياه</span>
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>العمولة المقتطعة عن كل قارورة مباعة</p>
-              <div style={{ position: 'relative', marginTop: 'auto' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>إجمالي العمولة المقتطعة من السائق</p>
+              <div style={{ position: 'relative', marginTop: '8px' }}>
                 <input type="number" className="input-glass" value={settings.bottledCommission} onChange={e => setSettings({...settings, bottledCommission: e.target.value})} min="0" step="0.01" style={{ fontSize: '18px', fontWeight: 'bold', paddingRight: '40px' }} />
+                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontWeight: 'bold' }}>د.ج</span>
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>الزيادة المضافة لسعر الزبون</p>
+              <div style={{ position: 'relative', marginTop: '8px' }}>
+                <input type="number" className="input-glass" value={settings.bottledCustomerMarkup} onChange={e => setSettings({...settings, bottledCustomerMarkup: e.target.value})} min="0" step="0.01" style={{ fontSize: '18px', fontWeight: 'bold', paddingRight: '40px' }} />
                 <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontWeight: 'bold' }}>د.ج</span>
               </div>
             </div>
 
             {/* Spring Water */}
-            <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '4px solid #06b6d4' }}>
+            <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '4px solid #06b6d4' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <div style={{ background: 'rgba(6, 182, 212, 0.1)', padding: '10px', borderRadius: '10px' }}><Droplets size={20} color="#06b6d4" /></div>
                 <span style={{ fontSize: '15px', fontWeight: '600', color: '#f8fafc' }}>صهاريج ينابيع</span>
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>العمولة المقتطعة عن كل لتر واحد</p>
-              <div style={{ position: 'relative', marginTop: 'auto' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>إجمالي العمولة المقتطعة من السائق (للدلو)</p>
+              <div style={{ position: 'relative', marginTop: '8px' }}>
                 <input type="number" className="input-glass" value={settings.tankerSpringCommission} onChange={e => setSettings({...settings, tankerSpringCommission: e.target.value})} min="0" step="0.01" style={{ fontSize: '18px', fontWeight: 'bold', paddingRight: '40px' }} />
+                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontWeight: 'bold' }}>د.ج</span>
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>الزيادة المضافة لسعر الزبون (للدلو)</p>
+              <div style={{ position: 'relative', marginTop: '8px' }}>
+                <input type="number" className="input-glass" value={settings.tankerSpringCustomerMarkup} onChange={e => setSettings({...settings, tankerSpringCustomerMarkup: e.target.value})} min="0" step="0.01" style={{ fontSize: '18px', fontWeight: 'bold', paddingRight: '40px' }} />
                 <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontWeight: 'bold' }}>د.ج</span>
               </div>
             </div>
 
             {/* Well Water */}
-            <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '4px solid #f59e0b' }}>
+            <div className="glass-panel" style={{ padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '4px solid #f59e0b' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                 <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '10px', borderRadius: '10px' }}><Truck size={20} color="#f59e0b" /></div>
-                <span style={{ fontSize: '15px', fontWeight: '600', color: '#f8fafc' }}>صهاريج مياه الآبار</span>
+                <span style={{ fontSize: '15px', fontWeight: '600', color: '#f8fafc' }}>صهاريج مياه الآبار / الأشغال</span>
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>العمولة المقتطعة لكل وحدة حجم (أسفله)</p>
-              <div style={{ position: 'relative', marginTop: 'auto' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>إجمالي العمولة المقتطعة من السائق (للصهريج)</p>
+              <div style={{ position: 'relative', marginTop: '8px' }}>
                 <input type="number" className="input-glass" value={settings.tankerWellCommission} onChange={e => setSettings({...settings, tankerWellCommission: e.target.value})} min="0" step="0.01" style={{ fontSize: '18px', fontWeight: 'bold', paddingRight: '40px' }} />
+                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontWeight: 'bold' }}>د.ج</span>
+              </div>
+              <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>الزيادة المضافة لسعر الزبون (للصهريج)</p>
+              <div style={{ position: 'relative', marginTop: '8px' }}>
+                <input type="number" className="input-glass" value={settings.tankerWellCustomerMarkup} onChange={e => setSettings({...settings, tankerWellCustomerMarkup: e.target.value})} min="0" step="0.01" style={{ fontSize: '18px', fontWeight: 'bold', paddingRight: '40px' }} />
                 <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontWeight: 'bold' }}>د.ج</span>
               </div>
             </div>

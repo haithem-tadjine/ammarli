@@ -34,6 +34,8 @@ import { RegisterReqDto } from './dto/register.req.dto';
 import { RegisterResDto } from './dto/register.res.dto';
 import { JwtPayloadType } from './types/jwt-payload.type';
 import { JwtRefreshPayloadType } from './types/jwt-refresh-payload.type';
+import { ResetDriverPasswordDto } from './dto/reset-driver-password.req.dto';
+import { DriverEntity } from '../driver/entities/driver.entity';
 
 type Token = Branded<
   {
@@ -413,5 +415,38 @@ export class AuthService {
       accessToken,
       refreshToken,
     } as Token;
+  }
+
+  /**
+   * Verifies driver phone and truck plate number.
+   */
+  async verifyDriverPlate(dto: { phone: string, truckPlate: string }): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { phone: dto.phone, role: UserRoleEnum.DRIVER } });
+    if (!user) {
+      throw new ValidationException('Driver account not found');
+    }
+
+    const driver = await DriverEntity.findOne({ where: { user: { id: user.id } } });
+    if (!driver || driver.truckPlate !== dto.truckPlate) {
+      throw new ValidationException('Invalid truck plate number');
+    }
+  }
+
+  /**
+   * Resets driver password using phone and truck plate number.
+   */
+  async resetDriverPasswordWithPlate(dto: ResetDriverPasswordDto): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { phone: dto.phone, role: UserRoleEnum.DRIVER } });
+    if (!user) {
+      throw new ValidationException('Driver account not found');
+    }
+
+    const driver = await DriverEntity.findOne({ where: { user: { id: user.id } } });
+    if (!driver || driver.truckPlate !== dto.truckPlate) {
+      throw new ValidationException('Invalid truck plate number');
+    }
+
+    user.password = dto.newPassword;
+    await this.userRepository.save(user); // Will hash the password via @BeforeUpdate
   }
 }

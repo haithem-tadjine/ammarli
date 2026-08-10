@@ -26,6 +26,8 @@ export interface RegisteredDriver {
   location?: { lat: number; lng: number };
   defaultPrice?: number;
   bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
+  pricePerUnit?: number;
+  floorPrice?: number;
 }
 
 export interface DriverOrderItem {
@@ -50,6 +52,7 @@ export interface ActiveDriverOrder {
   total: number;
   status: DriverOrderStatus;
   createdAt: string;
+  tankerDetails?: { waterType?: string; volume?: number; floor?: number };
 }
 
 export interface PastTrip {

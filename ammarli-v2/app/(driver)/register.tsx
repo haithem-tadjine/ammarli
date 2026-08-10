@@ -147,7 +147,7 @@ const DriverRegistrationScreen = () => {
 
     setLoading(true);
     try {
-      await api.post('/auth/phone/register', {
+      await useAuthStore.getState().register({
         phone: phone.trim(),
         firstName: fullName.trim().split(' ')[0],
         lastName: fullName.trim().split(' ').slice(1).join(' ') || ' ',
@@ -160,8 +160,8 @@ const DriverRegistrationScreen = () => {
         capacity: vehicleType === 'tanker' ? Number(capacity) : undefined,
       });
 
-      // Show success modal instead of Alert for cross-platform support (Web)
-      setSuccessModal(true);
+      // الدخول التلقائي سيغير الـ state والـ router سيقوم بالتوجيه تلقائياً
+      // فلا نحتاج لإظهار نافذة نجاح تطلب منه تسجيل الدخول.
     } catch (e: any) {
       let errMsg = 'فشل التسجيل. تأكد من البيانات.';
       if (e?.response?.data?.message) {

@@ -69,4 +69,12 @@ export class DriverEntity extends AbstractEntity {
   // أسعار القوارير: فاردو 0.5L، فاردو 1.5L، قارورة 5L
   @Column({ name: 'bottled_prices', type: 'json', nullable: true })
   bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
+
+  // سعر الوحدة (1500 لتر) لسائقي الآبار والأشغال — لحساب السعر تلقائياً
+  @Column({ name: 'price_per_unit', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  pricePerUnit?: number;
+
+  // سعر إضافي لكل طابق — لسائقي الآبار والأشغال
+  @Column({ name: 'floor_price', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  floorPrice?: number;
 }

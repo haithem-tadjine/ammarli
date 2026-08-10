@@ -19,6 +19,7 @@ import { ListUserReqDto } from './dto/list-user.req.dto';
 import { LoadMoreUsersReqDto } from './dto/load-more-users.req.dto';
 import { UpdateUserReqDto } from './dto/update-user.req.dto';
 import { CreateManagerReqDto } from './dto/create-manager.req.dto';
+import { ChangePasswordDto } from './dto/change-password.req.dto';
 import { UserResDto } from './dto/user.res.dto';
 import { UserService } from './user.service';
 
@@ -150,13 +151,16 @@ export class UserController {
   /**
    * Initiates the password change process for the current user.
    *
-   * @returns A placeholder string for the change-password flow
-   * @todo Implement actual password change flow
+   * @returns A success message
    */
-  @ApiAuth()
+  @ApiAuth({ summary: 'Change password for the current user' })
   @Post('me/change-password')
-  async changePassword() {
-    return 'change-password';
+  async changePassword(
+    @CurrentUser() user: any,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.userService.changePassword(user.id, dto);
+    return { success: true, message: 'Password updated successfully' };
   }
 
   /**

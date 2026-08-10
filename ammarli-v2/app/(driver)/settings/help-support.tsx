@@ -8,7 +8,10 @@ import {
   TextInput,
   StatusBar,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Linking,
+  Modal,
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,8 +33,18 @@ const COLORS = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const SupportCategory = ({ label }: { label: string }) => (
-  <TouchableOpacity style={styles.categoryWrap} activeOpacity={0.7}>
+const FAQS_DATA = [
+  { category: 'مشاكل الحساب', title: 'كيف يمكنني إعادة تعيين كلمة المرور؟', answer: 'يمكنك إعادة تعيين كلمة المرور من خلال صفحة تسجيل الدخول بالضغط على "نسيت كلمة المرور" واتباع الخطوات البسيطة المرسلة لرقمك.' },
+  { category: 'مشاكل الحساب', title: 'كيف أحدّث بيانات مركبتي؟', answer: 'اذهب إلى "الملف الشخصي" > "الإعدادات" > "الوثائق"، وقم برفع أوراق سيارتك الجديدة ليراجعها الدعم الفني.' },
+  { category: 'معلومات عامة', title: 'أين يمكنني رؤية سجل الرحلات؟', answer: 'يمكنك عرض سجل رحلاتك بالذهاب إلى صفحة "الرحلات" من خلال الشريط السفلي في التطبيق.' },
+  { category: 'معلومات عامة', title: 'كيف أرفع وثيقة جديدة؟', answer: 'من الإعدادات، ادخل إلى قسم "الوثائق" واضغط على زر الرفع لإضافة رخصة القيادة أو البطاقة الرمادية.' },
+  { category: 'استفسارات الدفع', title: 'ما هي نسبة عمولة التطبيق؟', answer: 'تُحسب العمولة تلقائياً على كل طلبية مياه وتقيّد كدين عليك في المحفظة لحين تسديدها لاحقاً.' },
+  { category: 'استفسارات الدفع', title: 'متى يتم إيقاف حسابي بسبب الديون؟', answer: 'إذا تجاوز إجمالي ديونك "الحد الأقصى للديون" المسموح به، سيتم تعليق الحساب مؤقتاً حتى تقوم بالدفع.' },
+  { category: 'الدعم الفني', title: 'التطبيق لا يستجيب، ماذا أفعل؟', answer: 'تأكد من اتصالك بالإنترنت وأن التطبيق محدّث لأحدث إصدار. جرب إغلاق التطبيق وإعادة فتحه.' },
+];
+
+const SupportCategory = ({ label, onPress }: { label: string, onPress: () => void }) => (
+  <TouchableOpacity style={styles.categoryWrap} activeOpacity={0.7} onPress={onPress}>
     <BlurView intensity={70} tint="light" style={styles.categoryCard}>
       <Ionicons name='chevron-back' size={18} color={COLORS.primary} style={styles.arrowIconLeft} />
       <Text style={styles.categoryLabel}>{label}</Text>
@@ -39,14 +52,24 @@ const SupportCategory = ({ label }: { label: string }) => (
   </TouchableOpacity>
 );
 
-const FAQItem = ({ title }: { title: string }) => (
-  <TouchableOpacity style={styles.faqWrap} activeOpacity={0.6}>
-    <BlurView intensity={50} tint="light" style={styles.faqItem}>
-      <Ionicons name="open-outline" size={18} color={COLORS.textSecondary} />
-      <Text style={styles.faqTitle}>{title}</Text>
-    </BlurView>
-  </TouchableOpacity>
-);
+const FAQItem = ({ title, answer }: { title: string, answer: string }) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View style={styles.faqWrap}>
+      <TouchableOpacity activeOpacity={0.6} onPress={() => setExpanded(!expanded)}>
+        <BlurView intensity={50} tint="light" style={styles.faqItem}>
+          <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={COLORS.textSecondary} />
+          <Text style={styles.faqTitle}>{title}</Text>
+        </BlurView>
+      </TouchableOpacity>
+      {expanded && (
+        <View style={styles.faqAnswerContainer}>
+          <Text style={styles.faqAnswerText}>{answer}</Text>
+        </View>
+      )}
+    </View>
+  );
+};
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
@@ -54,14 +77,36 @@ export default function DriverHelpSupportScreen() {
   const insets  = useSafeAreaInsets();
   const router  = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const isOnline = useDriverStore((s: any) => s.isOnline);
   const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
 
-  const handleChatPress = () => {
+  const handleChatPress = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // منطق فتح الشات أو الواتساب هنا
+    const phoneNumber = '+213550000000'; // استبدل برقم الدعم الفني الحقيقي
+    const message = 'مرحباً، أحتاج إلى مساعدة بخصوص تطبيق عمارلي للسائقين.';
+    const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback إذا لم يكن واتساب مثبتاً
+        const fallbackUrl = `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
+        await Linking.openURL(fallbackUrl);
+      }
+    } catch (error) {
+      console.error('Error opening WhatsApp', error);
+    }
   };
+
+  const filteredFaqs = FAQS_DATA.filter(faq => {
+    const matchesSearch = faq.title.includes(searchQuery) || faq.answer.includes(searchQuery);
+    const matchesCategory = selectedCategory ? faq.category === selectedCategory : true;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <View style={styles.container}>
@@ -103,27 +148,36 @@ export default function DriverHelpSupportScreen() {
         </View>
 
         {/* الأقسام */}
-        <Text style={styles.sectionTitle}>الأقسام</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={styles.sectionTitle}>الأقسام</Text>
+          {selectedCategory && (
+            <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+              <Text style={{ fontFamily: 'Cairo-Bold', color: COLORS.secondary }}>عرض الكل</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.sectionSubtitle}>اختر موضوعاً لمساعدتك</Text>
 
         <View style={styles.categoriesGrid}>
-          <SupportCategory label="مشاكل الحساب"      />
-          <SupportCategory label="استفسارات الدفع"   />
-          <SupportCategory label="الدعم الفني"        />
-          <SupportCategory label="معلومات عامة"       />
+          <SupportCategory label="مشاكل الحساب" onPress={() => setSelectedCategory('مشاكل الحساب')} />
+          <SupportCategory label="استفسارات الدفع" onPress={() => setSelectedCategory('استفسارات الدفع')} />
+          <SupportCategory label="الدعم الفني" onPress={() => setSelectedCategory('الدعم الفني')} />
+          <SupportCategory label="معلومات عامة" onPress={() => setSelectedCategory('معلومات عامة')} />
         </View>
 
         {/* الأسئلة الشائعة */}
         <Text style={[styles.sectionTitle, { marginTop: 20, marginBottom: 15 }]}>
-          الأسئلة الشائعة
+          {selectedCategory ? `الأسئلة الشائعة - ${selectedCategory}` : 'الأسئلة الشائعة'}
         </Text>
 
         <View style={styles.faqList}>
-          <FAQItem title="كيف يمكنني إعادة تعيين كلمة المرور؟"  />
-          <FAQItem title="أين يمكنني رؤية سجل الرحلات؟"          />
-          <FAQItem title="كيف أحدّث بيانات مركبتي؟"              />
-          <FAQItem title="كيف أرفع وثيقة جديدة؟"                />
-          <FAQItem title="ما هي نسبة عمولة التطبيق؟"            />
+          {filteredFaqs.length > 0 ? (
+            filteredFaqs.map((faq, idx) => (
+              <FAQItem key={idx} title={faq.title} answer={faq.answer} />
+            ))
+          ) : (
+            <Text style={{ textAlign: 'center', fontFamily: 'Cairo-Bold', color: COLORS.textSecondary, marginTop: 20 }}>لا توجد نتائج مطابقة لبحثك.</Text>
+          )}
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
@@ -230,6 +284,24 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     flex: 1,
     marginLeft: 12,
+  },
+  faqAnswerContainer: {
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    marginTop: -8,
+    paddingTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
+    borderTopWidth: 0,
+  },
+  faqAnswerText: {
+    fontSize: 14,
+    fontFamily: 'Cairo-SemiBold',
+    color: '#475569',
+    textAlign: 'left',
+    lineHeight: 22,
   },
 
   // Footer

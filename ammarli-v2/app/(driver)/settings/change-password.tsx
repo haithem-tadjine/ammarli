@@ -48,13 +48,11 @@ export default function ChangePasswordScreen() {
   const confirmRef = useRef<TextInput>(null);
 
   // ── التحقق والحفظ ─────────────────────────────────────────────────────────
-  const handleSave = () => {
+  const handleSave = async () => {
     const errs: Record<string, string> = {};
 
     if (!oldPass) {
       errs.old = 'يرجى إدخال كلمة المرور الحالية';
-    } else if (oldPass !== registeredDriver?.password) {
-      errs.old = 'كلمة المرور الحالية غير صحيحة';
     }
 
     if (!newPass) {
@@ -74,23 +72,34 @@ export default function ChangePasswordScreen() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    // الحفظ في الـ Store
-    updatePassword(newPass);
-    setSuccess(true);
-    setOldPass('');
-    setNewPass('');
-    setConfirmPass('');
+    try {
+      // @ts-ignore
+      const { api } = require('../../../src/services/api');
+      await api.post('/users/me/change-password', {
+        oldPassword: oldPass,
+        newPassword: newPass,
+      });
 
-    setTimeout(() => {
-      router.back();
-    }, 1800);
+      setSuccess(true);
+      setOldPass('');
+      setNewPass('');
+      setConfirmPass('');
+
+      setTimeout(() => {
+        router.back();
+      }, 1800);
+    } catch (error: any) {
+      if (error.response?.data?.message?.includes('Invalid password')) {
+        setErrors({ old: 'كلمة المرور الحالية غير صحيحة' });
+      } else {
+        Alert.alert('خطأ', 'حدث خطأ أثناء تغيير كلمة المرور. حاول مرة أخرى.');
+      }
+    }
   };
 
   return (
     <ScreenContainer style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name='chevron-forward' size={26} color={COLORS.white} />

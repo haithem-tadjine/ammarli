@@ -1,10 +1,11 @@
 import ScreenContainer from '../../../components/ScreenContainer';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ScrollView, Switch, Alert, Linking } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COLORS = {
   primary:       '#002147',
@@ -55,9 +56,43 @@ const AppSettingsScreen = () => {
   const [orderNotifs, setOrderNotifs] = useState(true);
   const [alertSounds, setAlertSounds] = useState(false);
 
-  const toggleSwitch = (setter: Function, value: boolean) => {
-    setter(!value);
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const storedTwoFactor = await AsyncStorage.getItem('@settings_twoFactor');
+        const storedOrderNotifs = await AsyncStorage.getItem('@settings_orderNotifs');
+        const storedAlertSounds = await AsyncStorage.getItem('@settings_alertSounds');
+        
+        if (storedTwoFactor !== null) setTwoFactor(storedTwoFactor === 'true');
+        if (storedOrderNotifs !== null) setOrderNotifs(storedOrderNotifs === 'true');
+        if (storedAlertSounds !== null) setAlertSounds(storedAlertSounds === 'true');
+      } catch (e) {
+        console.error('Failed to load settings', e);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const toggleSwitch = async (setter: Function, value: boolean, key: string) => {
+    const newValue = !value;
+    setter(newValue);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await AsyncStorage.setItem(key, String(newValue));
+    } catch (e) {
+      console.error('Failed to save setting', e);
+    }
+  };
+
+  const handleTwoFactorToggle = () => {
+    Alert.alert('المصادقة الثنائية', 'سيتم توفير ميزة رسائل الـ SMS للمصادقة الثنائية في التحديث القادم لحماية إضافية لحسابك.');
+    toggleSwitch(setTwoFactor, twoFactor, '@settings_twoFactor');
+  };
+
+  const openDeviceSettings = () => {
+    Linking.openSettings().catch(() => {
+      Alert.alert('خطأ', 'تعذر فتح إعدادات الجهاز');
+    });
   };
 
   return (
@@ -89,7 +124,7 @@ const AppSettingsScreen = () => {
             icon="shield-check-outline"
             label="المصادقة الثنائية"
             value={twoFactor}
-            onValueChange={() => toggleSwitch(setTwoFactor, twoFactor)}
+            onValueChange={handleTwoFactorToggle}
           />
         </View>
 
@@ -100,14 +135,14 @@ const AppSettingsScreen = () => {
             icon="truck-outline"
             label="إشعارات الطلبات"
             value={orderNotifs}
-            onValueChange={() => toggleSwitch(setOrderNotifs, orderNotifs)}
+            onValueChange={() => toggleSwitch(setOrderNotifs, orderNotifs, '@settings_orderNotifs')}
           />
           <View style={styles.divider} />
           <SettingToggle
             icon="volume-high-outline"
             label="أصوات التنبيه"
             value={alertSounds}
-            onValueChange={() => toggleSwitch(setAlertSounds, alertSounds)}
+            onValueChange={() => toggleSwitch(setAlertSounds, alertSounds, '@settings_alertSounds')}
           />
         </View>
 
@@ -117,8 +152,9 @@ const AppSettingsScreen = () => {
           <SettingItem
             icon="location-outline"
             label="الوصول إلى الموقع"
-            subLabel="مفعل دائماً"
+            subLabel="مفعل دائماً (اضغط للتعديل)"
             showArrow
+            onPress={openDeviceSettings}
           />
         </View>
 

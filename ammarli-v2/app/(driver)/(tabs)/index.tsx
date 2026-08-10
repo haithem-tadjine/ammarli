@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import ScreenContainer from '../../../components/ScreenContainer';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, StatusBar, Dimensions, Switch, Modal, Animated, ActivityIndicator, AppState, Vibration, Alert, TextInput } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -35,61 +34,6 @@ const StockBox = ({ label, val, status, color, bg }: any) => (
   </View>
 );
 
-// خريطة ألوان وعناوين نوع المياه
-const WATER_TYPE_META: Record<string, { label: string; color: string; icon: string }> = {
-  spring:       { label: 'مياه ينابيع',  color: '#0EA5E9', icon: 'water'               },
-  well:         { label: 'مياه آبار',    color: '#16A34A', icon: 'water-well-outline'  },
-  construction: { label: 'مياه أشغال',  color: '#D97706', icon: 'dump-truck'          },
-};
-
-// مكون سعة الخزان (لأصحاب الصهاريج) — يعرض نوع المياه الصحيح
-const TankCapacityCard = () => {
-  const registeredDriver = useDriverStore(s => s.registeredDriver);
-  const remaining = useDriverStore(s => s.inventory.tanker.remaining);
-  const totalCapacity = registeredDriver?.capacity || 5000;
-  const wType = (registeredDriver?.waterType || 'spring').toLowerCase();
-  const meta = WATER_TYPE_META[wType] || WATER_TYPE_META.spring;
-
-  const size = 130;
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
-  const circum = radius * 2 * Math.PI;
-  const progress = remaining / totalCapacity;
-
-  return (
-    <View style={styles.bottomSection}>
-      <BlurView intensity={70} tint="light" style={styles.tankCard}>
-        <View style={styles.tankHeaderTarget}>
-          <Text style={styles.tankTitleTarget}>سعة الخزان</Text>
-          {/* شارة نوع المياه */}
-          <View style={[styles.waterTypeBadge, { backgroundColor: meta.color + '15', borderColor: meta.color + '40' }]}>
-            <MaterialCommunityIcons name={meta.icon as any} size={14} color={meta.color} />
-            <Text style={[styles.waterTypeBadgeText, { color: meta.color }]}>{meta.label}</Text>
-          </View>
-        </View>
-
-        <View style={styles.progressContainerTarget}>
-          <View style={styles.outerCircleTarget}>
-            <Svg width={size} height={size} style={{ position: 'absolute' }}>
-              <Circle stroke="rgba(0,33,71,0.05)" fill="none" cx={size/2} cy={size/2} r={radius} strokeWidth={strokeWidth} />
-              <Circle stroke={meta.color} fill="none" cx={size/2} cy={size/2} r={radius} strokeWidth={strokeWidth}
-                strokeDasharray={`${circum} ${circum}`} strokeDashoffset={circum * (1 - progress)}
-                strokeLinecap="round" transform={`rotate(-90 ${size/2} ${size/2})`} />
-            </Svg>
-            <View style={styles.innerCircleTarget}>
-              <Text style={[styles.capacityTextTarget, { color: meta.color }]}>{remaining}L</Text>
-              <Text style={styles.totalTextTarget}>/ {totalCapacity}L</Text>
-            </View>
-          </View>
-        </View>
-
-        <TouchableOpacity style={[styles.fillButtonTarget, { borderColor: meta.color + '40', backgroundColor: meta.color + '05' }]}>
-           <Text style={[styles.fillButtonTextTarget, { color: meta.color }]}>تعبئة الخزان</Text>
-        </TouchableOpacity>
-      </BlurView>
-    </View>
-  );
-};
 
 // جميع العلامات التجارية مع صورها
 const BRAND_ASSETS: Record<string, any> = {
@@ -397,9 +341,7 @@ export default function DriverDashboardScreen() {
     const waterTypeRaw = registeredDriver?.waterType?.toLowerCase() || '';
     const isSpringTanker = driverTypeRaw === 'tanker' && (waterTypeRaw === 'spring' || waterTypeRaw.includes('ينابيع'));
     const isBottled = driverTypeRaw === 'bottled';
-    const hasDefaultPrice = registeredDriver?.defaultPrice ? registeredDriver.defaultPrice > 0 : false;
-    const hasBottledPrices = !!registeredDriver?.bottledPrices
-      && Object.values(registeredDriver.bottledPrices).every((v) => v > 0);
+    const isWellOrConstructionTanker = driverTypeRaw === 'tanker' && !isSpringTanker;
 
     const params: any = {
       orderId: currentOffer.orderId,
@@ -427,6 +369,10 @@ export default function DriverDashboardScreen() {
     const driverDefaultPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 150;
     const defaultBottledPrices = { '0.5L': 15, '1.5L': 30, '5L': 100 };
     const driverBottledPrices = registeredDriver?.bottledPrices ? registeredDriver.bottledPrices : defaultBottledPrices;
+    
+    // إذا لم يحدد السائق سعر الوحدة بعد، نفترض سعراً افتراضياً 1500 لنتجاوز شاشة التأكيد دائماً
+    const driverPricePerUnit = Number(registeredDriver?.pricePerUnit) > 0 ? Number(registeredDriver?.pricePerUnit) : 1500;
+    const driverFloorPrice   = Number(registeredDriver?.floorPrice) > 0 ? Number(registeredDriver?.floorPrice) : 0;
 
     if (isSpringTanker) {
       // ينابيع: سعر الدلو × (اللترات ÷ 20)
@@ -435,7 +381,6 @@ export default function DriverDashboardScreen() {
       if (calculatedTotal > 0) {
         await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
         params.price = calculatedTotal.toString();
-        // small timeout allows the store to propagate the new active order
         setTimeout(() => {
           router.replace({ pathname: '/(driver)/order-details' as any, params });
         }, 150);
@@ -454,7 +399,6 @@ export default function DriverDashboardScreen() {
       if (calculatedTotal > 0) {
         await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
         params.price = calculatedTotal.toString();
-        // small timeout allows the store to propagate the new active order
         setTimeout(() => {
           router.replace({ pathname: '/(driver)/order-details' as any, params });
         }, 150);
@@ -462,11 +406,33 @@ export default function DriverDashboardScreen() {
       }
     }
 
+    if (isWellOrConstructionTanker) {
+      // آبار / أشغال: (الكمية ÷ 1500) × سعر الوحدة + (الطابق × سعر الطابق)
+      const requestedLiters = parseFloat(String(currentOffer?.tankerDetails?.volume || params.capacity)) || 1500;
+      const floorNum        = Number(currentOffer?.items?.[0]?.floor || currentOffer?.tankerDetails?.floor || 0);
+      const units           = Math.ceil(requestedLiters / 1500);
+      let calculatedTotal   = (units * driverPricePerUnit) + (floorNum * driverFloorPrice);
+
+      if (calculatedTotal <= 0) {
+        calculatedTotal = Number(currentOffer?.total || 1500);
+      }
+
+      await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
+      params.price = calculatedTotal.toString();
+      setTimeout(() => {
+        router.replace({ pathname: '/(driver)/order-details' as any, params });
+      }, 150);
+      return;
+    }
+
     router.push({
       pathname: '/(driver)/order-acceptance' as any,
       params,
     });
   };
+
+
+
 
 
   const handleDecline = () => {
@@ -535,21 +501,52 @@ export default function DriverDashboardScreen() {
             ]}
             pointerEvents="box-none"
           >
-            <NewOrderCard
-              orderType={resolveOrderType()}
-              customerName={currentOffer?.customer?.name || 'الزبون'}
-              price={Number(currentOffer?.total || 0)}
-              address={currentOffer?.deliveryAddress?.label || ''}
-              distance={currentOffer?.deliveryAddress?.distance || '---'}
-              quantity={currentOffer?.items?.map(i => i.detail).join(' + ') || ''}
-              rating={5.0}
-              totalSeconds={30}
-              onAccept={handleAccept}
-              onDecline={handleDecline}
-            />
+            {(() => {
+              // ── حساب السعر المعروض في البطاقة قبل القبول ──
+              const dTypeRaw  = registeredDriver?.driverType?.toLowerCase() || '';
+              const wTypeRaw  = registeredDriver?.waterType?.toLowerCase()  || '';
+              const _isSpring = dTypeRaw === 'tanker' && (wTypeRaw === 'spring' || wTypeRaw.includes('ينابيع'));
+              const _isBottled = dTypeRaw === 'bottled';
+              const _isWell   = dTypeRaw === 'tanker' && (wTypeRaw === 'well' || wTypeRaw.includes('آبار'));
+              const _isCons   = dTypeRaw === 'tanker' && (wTypeRaw === 'construction' || wTypeRaw.includes('أشغال'));
+
+              let previewPrice = 0;
+
+              if (_isSpring && (registeredDriver?.defaultPrice ?? 0) > 0) {
+                const liters = parseFloat(currentOffer?.items?.[0]?.detail?.replace(/\D/g, '') || '1000') || 1000;
+                previewPrice = Math.round((liters / 20) * (registeredDriver?.defaultPrice ?? 0));
+              } else if (_isBottled && registeredDriver?.bottledPrices) {
+                const offerItems = currentOffer?.items || [];
+                previewPrice = offerItems.reduce((sum: number, item: any) => {
+                  const unitPrice = (registeredDriver.bottledPrices as any)[item.detail] ?? 0;
+                  return sum + ((item.qty || 1) * unitPrice);
+                }, 0);
+              } else if ((_isWell || _isCons) && Number(registeredDriver?.pricePerUnit) > 0) {
+                const liters   = Number(currentOffer?.tankerDetails?.volume || currentOffer?.items?.[0]?.detail?.replace(/\D/g, '') || 1500);
+                const floor    = Number(currentOffer?.tankerDetails?.floor || currentOffer?.items?.[0]?.floor || 0);
+                const units    = Math.ceil(liters / 1500);
+                previewPrice   = Math.round(units * Number(registeredDriver?.pricePerUnit) + floor * Number(registeredDriver?.floorPrice || 0));
+              }
+
+              return (
+                <NewOrderCard
+                  orderType={resolveOrderType()}
+                  customerName={currentOffer?.customer?.name || 'الزبون'}
+                  price={previewPrice > 0 ? previewPrice : Number(currentOffer?.total || 0)}
+                  address={currentOffer?.deliveryAddress?.label || ''}
+                  distance={currentOffer?.deliveryAddress?.distance || '---'}
+                  quantity={currentOffer?.items?.map((i: any) => i.detail).join(' + ') || ''}
+                  rating={5.0}
+                  totalSeconds={30}
+                  onAccept={handleAccept}
+                  onDecline={handleDecline}
+                />
+              );
+            })()}
           </Animated.View>
         </Modal>
       )}
+
       
       {/* 1. Top Floating Header */}
       <View style={[styles.headerTarget, { paddingTop: insets.top + 15 }]}>
@@ -641,10 +638,12 @@ export default function DriverDashboardScreen() {
           </View>
         </View>
 
-        {/* لوحة المعلومات مفلترة حسب نوع المياه / فئة السائق */}
-        <View style={{ paddingHorizontal: 20, marginBottom: 15 }}>
-          {isBottled ? <InventoryListCard /> : <TankCapacityCard />}
-        </View>
+        {/* لوحة المخزون — للسائقين من نوع قوارير فقط */}
+        {isBottled && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 15 }}>
+            <InventoryListCard />
+          </View>
+        )}
         
         {/* قسم الطلبات الحالية المشترك */}
         <View style={styles.orderSection}>
@@ -700,20 +699,6 @@ const styles = StyleSheet.create({
   statLabelDark: { fontSize: 12, color: 'rgba(0,33,71,0.6)', fontWeight: '800', textAlign: 'left' },
   statValueDark: { fontSize: 22, fontWeight: '900', color: COLORS.primary, textAlign: 'left', marginTop: 5 },
   
-  // أنماط خاصة بالصهريج
-  tankCard: { marginHorizontal: 0, marginBottom: 0, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 32, padding: 25, alignItems: 'center', elevation: 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)', overflow: 'hidden' },
-  tankHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 25 },
-  tankTitle: { fontSize: 18, fontWeight: '900', color: COLORS.primary },
-  waterBadge: { backgroundColor: '#E0F2FE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  waterBadgeText: { fontSize: 12, fontWeight: '900', color: '#0284C7' },
-  waterTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1 },
-  waterTypeBadgeText: { fontSize: 12, fontFamily: 'Cairo-Bold', fontWeight: '800' },
-  progressContainer: { justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
-  progressTextCenter: { position: 'absolute', alignItems: 'center' },
-  currentLitres: { fontSize: 32, fontWeight: '900', color: COLORS.primary },
-  totalLitres: { fontSize: 14, color: COLORS.textSecondary, fontWeight: '600' },
-  refillBtn: { width: '100%', height: 55, borderRadius: 28, borderWidth: 2, borderColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
-  refillText: { fontSize: 16, fontWeight: '800', color: '#3B82F6' },
   
   // أنماط خاصة بالجرد والقوارير
   inventoryCard: { marginHorizontal: 0, marginBottom: 0, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 32, padding: 24, elevation: 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)', overflow: 'hidden' },
@@ -1033,63 +1018,6 @@ const styles = StyleSheet.create({
   statusSubtextTarget: {
     color: COLORS.primary,
     fontSize: 13,
-    fontFamily: 'Cairo-Bold',
-  },
-  bottomSection: {
-    paddingHorizontal: 0,
-    paddingBottom: 25,
-  },
-  tankHeaderTarget: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-    justifyContent: 'center',
-    gap: 8,
-  },
-  tankTitleTarget: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.primary,
-    fontFamily: 'Cairo-Black',
-  },
-  progressContainerTarget: {
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  outerCircleTarget: {
-    width: 130,
-    height: 130,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  innerCircleTarget: {
-    alignItems: 'center',
-  },
-  capacityTextTarget: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: COLORS.primary,
-    fontFamily: 'Cairo-Black',
-    marginBottom: -4,
-  },
-  totalTextTarget: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontFamily: 'Cairo-Bold',
-  },
-  fillButtonTarget: {
-    width: '100%',
-    height: 50,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  fillButtonTextTarget: {
-    color: COLORS.primary,
-    fontSize: 15,
     fontFamily: 'Cairo-Bold',
   },
   

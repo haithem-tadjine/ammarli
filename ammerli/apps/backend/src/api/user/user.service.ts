@@ -21,6 +21,8 @@ import { UserResDto } from './dto/user.res.dto';
 import { UserEntity } from './entities/user.entity';
 import { RedisLibsService } from '@/libs/redis/redis-libs.service';
 import { RedisConstants } from '@/constants/redis.constants';
+import { ChangePasswordDto } from './dto/change-password.req.dto';
+import { verifyPassword } from '@/utils/password.util';
 
 /**
  * Service responsible for managing user-related business logic.
@@ -203,13 +205,28 @@ export class UserService {
    * @example
    * await userService.update('uuid', { bio: 'New bio' });
    */
-  async update(id: Uuid, updateUserDto: UpdateUserReqDto) {
-    const user = await this.userRepository.findOneByOrFail({ id });
+  async update(id: Uuid, dto: UpdateUserReqDto): Promise<void> {
+    await this.userRepository.update({ id }, dto);
+  }
 
-    user.bio = updateUserDto.bio;
-    user.image = updateUserDto.image;
-    user.updatedBy = SYSTEM_USER_ID;
+  /**
+   * Changes a user's password.
+   *
+   * @param id - The UUID of the user
+   * @param dto - DTO with old and new passwords
+   * @throws {ValidationException} If the user is not found or old password is incorrect
+   */
+  async changePassword(id: Uuid, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.userRepository.findOneBy({ id });
+    assert(user, new ValidationException(ErrorMessageConstants.USER.NOT_FOUND));
 
+    const isPasswordValid = await verifyPassword(dto.oldPassword, user.password);
+    if (!isPasswordValid) {
+      throw new ValidationException(ErrorMessageConstants.AUTH.INVALID_CREDENTIALS);
+    }
+
+    user.password = dto.newPassword;
+    // The @BeforeUpdate hook on UserEntity will hash the password
     await this.userRepository.save(user);
   }
 

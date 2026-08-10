@@ -15,7 +15,6 @@ import {
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import MapView, { Marker, Polyline } from '../../components/Map';
 import { useCustomerStore } from '../../src/store/useCustomerStore';
 import * as Haptics from 'expo-haptics';
 
@@ -43,6 +42,7 @@ export default function OrderTrackingScreen() {
 
   // Animation values
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  const truckDriveAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     Animated.loop(
@@ -51,7 +51,15 @@ export default function OrderTrackingScreen() {
         Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
       ])
     ).start();
-  }, [pulseAnim]);
+
+    Animated.loop(
+      Animated.timing(truckDriveAnim, {
+        toValue: 1,
+        duration: 3500,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [pulseAnim, truckDriveAnim]);
 
   // Real driver info
   const driverInfo  = activeOrder?.driverInfo;
@@ -135,50 +143,44 @@ export default function OrderTrackingScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Map Card ───────────────────────────────────────────────────────── */}
+        {/* ── Map/Animation Card ─────────────────────────────────────────────── */}
         <View style={styles.mapContainer}>
-          <View style={styles.mapWrapper}>
-            {Platform.OS === 'web' ? (
-              <Image 
-                source={{ uri: 'https://placehold.co/800x600/EAECEE/002147?font=roboto&text=Map+Preview' }}
-                style={StyleSheet.absoluteFillObject}
-                resizeMode="cover"
-              />
-            ) : (
-              <MapView
-                style={StyleSheet.absoluteFillObject}
-                initialRegion={{
-                  latitude: (coordinates.latitude + dCoordinates.latitude) / 2,
-                  longitude: (coordinates.longitude + dCoordinates.longitude) / 2,
-                  latitudeDelta: 0.025,
-                  longitudeDelta: 0.025,
-                }}
-                scrollEnabled={false} zoomEnabled={false} pitchEnabled={false}
-              >
-                <Polyline 
-                  coordinates={[dCoordinates, coordinates]}
-                  strokeColor={COLORS.primary}
-                  strokeWidth={4}
-                  lineDashPattern={[10, 10]}
-                />
-                
-                <Marker coordinate={coordinates}>
-                  <View style={styles.userPin}>
-                    <Ionicons name="location" size={20} color={COLORS.white} />
-                  </View>
-                </Marker>
-
-                <Marker coordinate={dCoordinates}>
-                  <Animated.View style={[styles.driverPin, { transform: [{ scale: pulseAnim }] }]}>
-                    <MaterialCommunityIcons name="truck-fast" size={20} color={COLORS.primary} />
-                  </Animated.View>
-                </Marker>
-              </MapView>
-            )}
+          <View style={styles.animationWrapper}>
+            {/* The Road */}
+            <View style={styles.roadLine} />
             
-            {/* Map Overlay Gradients */}
-            <View style={styles.mapOverlayTop} pointerEvents="none" />
-            <View style={styles.mapOverlayBottom} pointerEvents="none" />
+            {/* Destination Pin */}
+            <View style={styles.destinationWrap}>
+              <Animated.View style={[styles.destinationPulse, { transform: [{ scale: pulseAnim }] }]} />
+              <View style={styles.destinationPin}>
+                <Ionicons name="home" size={20} color={COLORS.white} />
+              </View>
+            </View>
+
+            {/* The Truck */}
+            <Animated.View 
+              style={[
+                styles.animatedTruckWrap,
+                {
+                  transform: [
+                    {
+                      translateX: truckDriveAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [180, -120] // moving right to left
+                      })
+                    }, 
+                    {
+                      translateY: pulseAnim.interpolate({
+                        inputRange: [1, 1.05],
+                        outputRange: [15, 12] // align with road + slight bounce effect
+                      })
+                    }
+                  ]
+                }
+              ]}
+            >
+              <MaterialCommunityIcons name="truck-fast" size={54} color={COLORS.primary} />
+            </Animated.View>
           </View>
 
           {/* ETA Floating Badge */}
@@ -310,32 +312,47 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08, shadowRadius: 20, elevation: 5,
     position: 'relative',
   },
-  mapWrapper: {
+  animationWrapper: {
     flex: 1,
     borderRadius: 32,
+    backgroundColor: '#E8EEF5',
+    justifyContent: 'center',
+    alignItems: 'center',
     overflow: 'hidden',
   },
-  mapOverlayTop: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 60,
-    backgroundColor: 'rgba(255,255,255,0.1)', // Placeholder for actual gradient if needed
+  roadLine: {
+    position: 'absolute',
+    left: 40, right: 40,
+    height: 1,
+    borderBottomWidth: 3,
+    borderBottomColor: '#CBD5E1',
+    borderStyle: 'dashed',
+    bottom: '40%',
   },
-  mapOverlayBottom: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 60,
-    backgroundColor: 'rgba(255,255,255,0.1)', 
+  destinationWrap: {
+    position: 'absolute',
+    left: 40,
+    bottom: '40%',
+    transform: [{ translateY: 20 }],
+    zIndex: 2,
   },
-  userPin: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.primary,
+  destinationPulse: {
+    position: 'absolute',
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    top: -10, left: -10,
+  },
+  destinationPin: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: COLORS.success,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 3, borderColor: COLORS.white,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8,
   },
-  driverPin: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: COLORS.secondary,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 3, borderColor: COLORS.white,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+  animatedTruckWrap: {
+    position: 'absolute',
+    bottom: '40%',
+    zIndex: 1,
   },
   
   etaBadge: {

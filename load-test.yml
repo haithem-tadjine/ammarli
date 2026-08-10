@@ -1,0 +1,20 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 10
+      arrivalRate: 10
+      name: "Warm up"
+    - duration: 30
+      arrivalRate: 30
+      name: "Reconnection Storm (High Load)"
+  engines:
+    socketio: {}
+scenarios:
+  - name: "Driver WebSocket Connection"
+    engine: socketio
+    flow:
+      - connect:
+          namespace: "/tracking"
+          query:
+            driverId: "test_driver_{{ $randomNumber(1, 10000) }}"
+      - think: 5

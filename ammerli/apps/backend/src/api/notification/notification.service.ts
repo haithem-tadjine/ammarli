@@ -16,20 +16,49 @@ export class NotificationService implements OnModuleInit {
   }
 
   onModuleInit() {
-    // Initialize Firebase Admin SDK
-    // Consider moving credentials to ConfigService/environment variables
-    if (!admin.apps.length) {
-      try {
+    if (admin.apps.length) return; // Already initialized
+
+    try {
+      // ── الطريقة 1: ملف firebase-key.json (موصى به للتطوير المحلي) ──────────
+      // ضع ملف Service Account من Firebase Console في:
+      // ammerli/apps/backend/firebase-key.json
+      const fs = require('fs');
+      const path = require('path');
+      const keyPath = path.resolve(process.cwd(), 'firebase-key.json');
+
+      if (fs.existsSync(keyPath)) {
+        const serviceAccount = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+        this.logger.log('✅ Firebase Admin initialized from firebase-key.json');
+        return;
+      }
+
+      // ── الطريقة 2: متغير بيئة GOOGLE_APPLICATION_CREDENTIALS ───────────────
+      // ضع المسار لملف JSON في .env:
+      // GOOGLE_APPLICATION_CREDENTIALS=./firebase-key.json
+      if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         admin.initializeApp({
           credential: admin.credential.applicationDefault(),
-          // Ideally: admin.credential.cert(serviceAccount) from config
         });
-        this.logger.log('Firebase Admin Initialized');
-      } catch (error) {
-        this.logger.error('Firebase Init Failed', error);
+        this.logger.log('✅ Firebase Admin initialized from GOOGLE_APPLICATION_CREDENTIALS');
+        return;
       }
+
+      // ── لا يوجد إعداد Firebase ─────────────────────────────────────────────
+      this.logger.warn(
+        '⚠️  Firebase not configured. Push notifications will be disabled.\n' +
+        '   To enable:\n' +
+        '   1. Go to https://console.firebase.google.com\n' +
+        '   2. Project Settings → Service Accounts → Generate new private key\n' +
+        '   3. Save the file as: ammerli/apps/backend/firebase-key.json',
+      );
+    } catch (error) {
+      this.logger.error('❌ Firebase Init Failed', error);
     }
   }
+
 
   async saveToken(
     userId: string,

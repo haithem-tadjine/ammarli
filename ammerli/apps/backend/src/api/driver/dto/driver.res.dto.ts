@@ -52,4 +52,12 @@ export class DriverResDto {
 
   @Expose()
   isSuspended?: boolean;
+
+  @NumberFieldOptional()
+  @Expose()
+  pricePerUnit?: number;
+
+  @NumberFieldOptional()
+  @Expose()
+  floorPrice?: number;
 }

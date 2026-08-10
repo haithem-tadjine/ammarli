@@ -1,8 +1,8 @@
 import ScreenContainer from '../../components/ScreenContainer';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity,
-  Dimensions, Platform, Animated, Image, Alert
+  Dimensions, Platform, Animated, Image, Alert, Modal, PanResponder
 } from 'react-native';
 import MapView, { Marker } from '../../components/Map';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -34,26 +34,66 @@ export default function SearchingDriverScreen() {
   const createOrder      = useCustomerStore(s => s.createOrder);
   const activeOrderStatus = useCustomerStore(s => s.activeOrder?.status);
   const creatingRef      = useRef(false);
+  const mapRef           = useRef<any>(null);
+
+  const nearbyDrivers    = useCustomerStore(s => s.nearbyDrivers);
+  const fetchNearbyDrivers = useCustomerStore(s => s.fetchNearbyDrivers);
 
   const coordinates = activeOrder?.location || userLocation || { latitude: 35.5557, longitude: 6.1748 };
   const typeCfg     = TYPE_CONFIG[activeOrder?.type || 'Bottled'] ?? TYPE_CONFIG['Bottled'];
   const locationName = activeOrder?.locationName || userLocation?.address || 'موقع التوصيل';
   const quantity     = activeOrder?.quantity ? `${activeOrder.quantity} لتر` : '';
 
+  const [showEndModal, setShowEndModal] = useState(false);
+  const [endModalMsg, setEndModalMsg] = useState('');
+  const [endModalType, setEndModalType] = useState<'expired' | 'cancelled'>('expired');
+
   // ── Pulse animations ─────────────────────────────────────────────────────────
   const pulse1 = useRef(new Animated.Value(0)).current;
   const pulse2 = useRef(new Animated.Value(0)).current;
   const pulse3 = useRef(new Animated.Value(0)).current;
   const dotAnim = useRef(new Animated.Value(0)).current;
-  const slideUp  = useRef(new Animated.Value(80)).current;
   const fadeIn   = useRef(new Animated.Value(0)).current;
 
+  // Bottom sheet drag animation
+  // 75 = resting state (hides button), 0 = fully expanded
+  const sheetY = useRef(new Animated.Value(200)).current; 
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+      onPanResponderGrant: () => {
+        // @ts-ignore
+        sheetY.setOffset(sheetY._value);
+        sheetY.setValue(0);
+      },
+      onPanResponderMove: Animated.event([null, { dy: sheetY }], { useNativeDriver: false }),
+      onPanResponderRelease: (_, gestureState) => {
+        sheetY.flattenOffset();
+        if (gestureState.dy < -20) {
+          // Swipe up -> open fully
+          Animated.spring(sheetY, { toValue: 0, friction: 8, tension: 50, useNativeDriver: false }).start();
+        } else if (gestureState.dy > 20) {
+          // Swipe down -> close (hide button)
+          Animated.spring(sheetY, { toValue: 75, friction: 8, tension: 50, useNativeDriver: false }).start();
+        } else {
+          // snap to closest
+          // @ts-ignore
+          if (sheetY._value < 37) {
+            Animated.spring(sheetY, { toValue: 0, friction: 8, tension: 50, useNativeDriver: false }).start();
+          } else {
+            Animated.spring(sheetY, { toValue: 75, friction: 8, tension: 50, useNativeDriver: false }).start();
+          }
+        }
+      },
+    })
+  ).current;
+
   useEffect(() => {
-    // Sheet slide up + fade in
-    Animated.parallel([
-      Animated.spring(slideUp, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true }),
-      Animated.timing(fadeIn, { toValue: 1, duration: 400, useNativeDriver: true }),
-    ]).start();
+    // Initial entrance
+    Animated.timing(fadeIn, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    Animated.spring(sheetY, { toValue: 75, tension: 60, friction: 12, useNativeDriver: false }).start();
 
     // Radar pulse rings
     const makePulse = (anim: Animated.Value, delay: number) =>
@@ -81,7 +121,30 @@ export default function SearchingDriverScreen() {
     if (!(typeof currentOrder?.id === 'string' && currentOrder.id.startsWith('local-'))) {
       useCustomerStore.getState().fetchActiveOrder();
     }
+
+    // Polling nearby drivers
+    fetchNearbyDrivers(coordinates.latitude, coordinates.longitude, 15);
+    const intervalId = setInterval(() => {
+      fetchNearbyDrivers(coordinates.latitude, coordinates.longitude, 15);
+    }, 7000);
+
+    return () => clearInterval(intervalId);
   }, []);
+
+  // Map Auto-Zoom
+  useEffect(() => {
+    if (mapRef.current && nearbyDrivers && nearbyDrivers.length > 0) {
+      const coords = nearbyDrivers.map(d => ({ latitude: d.lat, longitude: d.lng }));
+      coords.push(coordinates); // Add customer location
+      
+      setTimeout(() => {
+        mapRef.current?.fitToCoordinates(coords, {
+          edgePadding: { top: 120, right: 60, bottom: 450, left: 60 },
+          animated: true,
+        });
+      }, 500);
+    }
+  }, [nearbyDrivers]);
 
   // Navigation observer
   useEffect(() => {
@@ -103,12 +166,11 @@ export default function SearchingDriverScreen() {
           [{ text: 'حسناً', onPress: () => router.back() }]);
       });
     } else if (activeOrder?.status === 'cancelled' || activeOrder?.status === 'expired') {
-      const msg = activeOrder.status === 'expired'
-        ? 'عذراً، لا يوجد سائقون متاحون حالياً.'
-        : 'تم إلغاء الطلب بنجاح.';
+      const isExpired = activeOrder.status === 'expired';
+      setEndModalType(isExpired ? 'expired' : 'cancelled');
+      setEndModalMsg(isExpired ? 'عذراً، لم نعثر على سائق متاح حالياً.\nيرجى المحاولة مرة أخرى لاحقاً.' : 'تم إلغاء الطلب بنجاح.');
       useCustomerStore.getState().clearActiveOrderStore();
-      router.replace('/(customer)/(tabs)' as any);
-      setTimeout(() => Alert.alert('تنبيه', msg), 500);
+      setShowEndModal(true);
     }
   }, [activeOrder, createOrder, router]);
 
@@ -139,13 +201,14 @@ export default function SearchingDriverScreen() {
         />
       ) : (
         <MapView
+          ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           initialRegion={{ ...coordinates, latitudeDelta: 0.018, longitudeDelta: 0.018 }}
         >
           <Marker coordinate={coordinates} title="موقعك" />
-          <Marker coordinate={{ latitude: coordinates.latitude + 0.005, longitude: coordinates.longitude + 0.005 }} title="شاحنة 1" iconType="truck" />
-          <Marker coordinate={{ latitude: coordinates.latitude - 0.006, longitude: coordinates.longitude - 0.003 }} title="شاحنة 2" iconType="truck" />
-          <Marker coordinate={{ latitude: coordinates.latitude + 0.002, longitude: coordinates.longitude - 0.007 }} title="شاحنة 3" iconType="truck" />
+          {nearbyDrivers?.map(driver => (
+            <Marker key={driver.id} coordinate={{ latitude: driver.lat, longitude: driver.lng }} title={`شاحنة`} iconType="truck" />
+          ))}
         </MapView>
       )}
 
@@ -158,7 +221,10 @@ export default function SearchingDriverScreen() {
       </Animated.View>
 
       {/* ── Bottom Sheet ────────────────────────────────────────────────── */}
-      <Animated.View style={[styles.sheet, { paddingBottom: insets.bottom + 20, transform: [{ translateY: slideUp }], opacity: fadeIn }]}>
+      <Animated.View 
+        {...panResponder.panHandlers}
+        style={[styles.sheet, { paddingBottom: insets.bottom + 20, transform: [{ translateY: sheetY }], opacity: fadeIn }]}
+      >
 
         {/* Drag handle */}
         <View style={styles.handle} />
@@ -230,6 +296,34 @@ export default function SearchingDriverScreen() {
         </TouchableOpacity>
 
       </Animated.View>
+
+      {/* ── End Modal (Expired or Cancelled) ────────────────────────────── */}
+      <Modal visible={showEndModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={[styles.modalIconWrap, { backgroundColor: endModalType === 'expired' ? '#F59E0B' : '#10B981' }]}>
+              <Ionicons 
+                name={endModalType === 'expired' ? 'sad-outline' : 'checkmark-circle'} 
+                size={44} 
+                color={WHITE} 
+              />
+            </View>
+            <Text style={styles.modalTitle}>{endModalType === 'expired' ? 'عذراً!' : 'تم الإلغاء'}</Text>
+            <Text style={styles.modalMessage}>{endModalMsg}</Text>
+            <TouchableOpacity 
+              style={styles.modalButton} 
+              activeOpacity={0.85}
+              onPress={() => {
+                setShowEndModal(false);
+                router.replace('/(customer)/(tabs)' as any);
+              }}
+            >
+              <Text style={styles.modalButtonText}>العودة للرئيسية</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </ScreenContainer>
   );
 }
@@ -376,4 +470,31 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   cancelBtnText: { fontSize: 17, fontFamily: 'Cairo-Bold', color: NAVY },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(1, 32, 71, 0.7)',
+    justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 25,
+  },
+  modalCard: {
+    backgroundColor: WHITE,
+    width: '100%', borderRadius: 28,
+    padding: 30, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25, shadowRadius: 20, elevation: 15,
+  },
+  modalIconWrap: {
+    width: 80, height: 80, borderRadius: 40,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 24, fontFamily: 'Cairo-Bold', color: NAVY, marginBottom: 12 },
+  modalMessage: { fontSize: 16, fontFamily: 'Cairo-Regular', color: '#64748B', textAlign: 'center', lineHeight: 26, marginBottom: 30 },
+  modalButton: {
+    backgroundColor: NAVY, width: '100%',
+    height: 58, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  modalButtonText: { fontSize: 18, fontFamily: 'Cairo-Bold', color: WHITE },
 });

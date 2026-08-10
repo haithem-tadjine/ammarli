@@ -250,7 +250,25 @@ export class RequestService {
 
     request.status = status;
     if (price !== undefined) {
-      request.totalPrice = price;
+      const settings = await this.settingService.getSettings();
+      let markup = 0;
+      const reqTypeStr = String(request.type).toUpperCase();
+      
+      if (reqTypeStr === 'BOTTLED') {
+        markup = (request.quantity || 1) * Number(settings.bottledCustomerMarkup || 3);
+      } else if (reqTypeStr === 'TANKER') {
+        const volume = request.tankerDetails?.volume || request.quantity || 1;
+        const waterType = (request.tankerDetails?.waterType || '').toLowerCase();
+        
+        if (waterType === 'spring' || waterType === 'مياه ينابيع') {
+          markup = volume * Number(settings.tankerSpringCustomerMarkup || 5);
+        } else {
+          // For well water or fallback
+          markup = Math.ceil(volume / Number(settings.tankerWellVolumeUnit || 1500)) * Number(settings.tankerWellCustomerMarkup || 50);
+        }
+      }
+      
+      request.totalPrice = price + markup;
     }
 
     const isTerminal = [

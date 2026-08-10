@@ -1,6 +1,6 @@
 import React from 'react';
 import ScreenContainer from '../../../components/ScreenContainer';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, StatusBar, Alert } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useAuthStore } from '../../../src/store/useAuthStore';
 import { useDriverStore } from '../../../src/store/useDriverStore';
+import { api } from '../../../src/services/api';
 
 const COLORS = {
   primary: '#003366',
@@ -44,6 +45,31 @@ const DriverProfileScreen = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     await logout();
     router.replace('/(driver)/login' as any);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'حذف الحساب بشكل نهائي',
+      'هل أنت متأكد أنك تريد حذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه وسيتم مسح جميع بياناتك.',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'نعم، احذف حسابي',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (userProfile?.id) {
+                await api.delete(`/users/${userProfile.id}`);
+              }
+              await logout();
+              router.replace('/(driver)/login' as any);
+            } catch (err) {
+              Alert.alert('خطأ', 'حدث خطأ أثناء محاولة حذف الحساب.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const isOnline = useDriverStore(s => s.isOnline);
@@ -109,7 +135,7 @@ const DriverProfileScreen = () => {
             subLabel="السمة، الإشعارات، اللغة" 
             onPress={() => router.push('/(driver)/settings/app-settings' as any)}
           />
-          {((registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType === 'spring') || registeredDriver?.driverType === 'Bottled') && (
+          {(registeredDriver?.driverType === 'Tanker' || registeredDriver?.driverType === 'Bottled') && (
             <MenuItem 
               icon="cash-fast" 
               label="التسعير السريع (Fast Accept)" 
@@ -138,6 +164,16 @@ const DriverProfileScreen = () => {
                <MaterialCommunityIcons name="logout" size={22} color={COLORS.danger} />
              </View>
              <Text style={styles.logoutText}>تسجيل الخروج</Text>
+          </BlurView>
+        </TouchableOpacity>
+
+        {/* Delete Account Action */}
+        <TouchableOpacity style={[styles.logoutButton, { marginTop: 0 }]} onPress={handleDeleteAccount} activeOpacity={0.8}>
+          <BlurView intensity={70} tint="light" style={styles.logoutBlur}>
+             <View style={[styles.logoutIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+               <MaterialCommunityIcons name="delete-outline" size={22} color={COLORS.danger} />
+             </View>
+             <Text style={styles.logoutText}>حذف الحساب نهائياً</Text>
           </BlurView>
         </TouchableOpacity>
       </ScrollView>
