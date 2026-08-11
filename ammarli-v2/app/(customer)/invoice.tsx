@@ -54,13 +54,13 @@ export default function InvoiceScreen() {
   const driverName = activeOrder?.driverInfo?.name || "السائق";
   const deliveryFee = activeOrder?.deliveryFee || 0;
 
-  const currentDate = new Date().toLocaleDateString('ar-EG', {
+  const currentDate = new Date().toLocaleDateString('ar-DZ', {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
   });
   
-  const currentTime = new Date().toLocaleTimeString('ar-EG', {
+  const currentTime = new Date().toLocaleTimeString('ar-DZ', {
     hour: '2-digit',
     minute: '2-digit'
   });
@@ -166,8 +166,6 @@ export default function InvoiceScreen() {
           <Text style={styles.primaryBtnText}>الاستمرار للتقييم</Text>
           <Ionicons name="arrow-back" size={20} color={COLORS.primary} style={{ marginLeft: 8 }} />
         </TouchableOpacity>
-
-        <Text style={styles.footerBrand}>عمّارلي برو • مياه نقية بتوصيل سريع</Text>
       </ScrollView>
     </ScreenContainer>
   );
