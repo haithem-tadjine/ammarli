@@ -167,40 +167,36 @@ export default function IncomingOrderScreen() {
       items: JSON.stringify(orderItems),
     };
 
+    let finalTotal = Number(price) || 0;
+    const isWellOrConstruction = driverTypeRaw === 'tanker' && !isSpringTanker;
+
     if (isSpringTanker) {
-      const driverDefaultPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 150;
+      const driverDefaultPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 0;
       const requestedLiters = parseFloat(navParams.capacity) || 1000;
       const calculatedTotal = (requestedLiters / 20) * driverDefaultPrice;
-      if (calculatedTotal > 0) {
-        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, activeDriverOrder?.orderId);
-        navParams.price = calculatedTotal.toString();
-        router.replace({ pathname: '/(driver)/order-details' as any, params: navParams });
-        return;
-      }
-    }
-
-    if (isBottled) {
-      const defaultBottledPrices = { '0.5L': 15, '1.5L': 30, '5L': 100 };
-      const driverBottledPrices = registeredDriver?.bottledPrices ? registeredDriver.bottledPrices : defaultBottledPrices;
-      const prices = driverBottledPrices;
+      if (calculatedTotal > 0) finalTotal = calculatedTotal;
+    } else if (isBottled) {
+      const driverBottledPrices = registeredDriver?.bottledPrices || { '0.5L': 0, '1.5L': 0, '5L': 0 };
       const calculatedTotal = orderItems.reduce((sum: number, item: any) => {
         const size = item.unit as '0.5L' | '1.5L' | '5L';
-        const unitPrice = (prices as any)[size] ?? 0;
+        const unitPrice = (driverBottledPrices as any)[size] ?? 0;
         return sum + (item.qty * unitPrice);
       }, 0);
-      if (calculatedTotal > 0) {
-        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, activeDriverOrder?.orderId);
-        navParams.price = calculatedTotal.toString();
-        router.replace({ pathname: '/(driver)/order-details' as any, params: navParams });
-        return;
-      }
+      if (calculatedTotal > 0) finalTotal = calculatedTotal;
+    } else if (isWellOrConstruction) {
+      const unitPrice = registeredDriver?.pricePerUnit ? Number(registeredDriver.pricePerUnit) : 0;
+      const floorPrice = registeredDriver?.floorPrice ? Number(registeredDriver.floorPrice) : 0;
+      const requestedLiters = parseFloat(navParams.capacity) || 1500;
+      const numUnits = Math.ceil(requestedLiters / 1500);
+      const floorCount = parseInt(navParams.floor) || 0;
+      const calculatedTotal = (numUnits * unitPrice) + (floorCount * floorPrice);
+      if (calculatedTotal > 0) finalTotal = calculatedTotal;
     }
 
-    // ── Fallback: Route to order-acceptance ──
-    router.replace({
-      pathname: '/(driver)/order-acceptance' as any,
-      params: navParams,
-    });
+    // Always accept and route to order-details
+    await useDriverStore.getState().updateDriverOrderStatus('driving', finalTotal, activeDriverOrder?.orderId);
+    navParams.price = finalTotal.toString();
+    router.replace({ pathname: '/(driver)/order-details' as any, params: navParams });
   };
 
   const handleDecline = async () => {

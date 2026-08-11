@@ -138,7 +138,7 @@ const DriverProfileScreen = () => {
           {(registeredDriver?.driverType === 'Tanker' || registeredDriver?.driverType === 'Bottled') && (
             <MenuItem 
               icon="cash-fast" 
-              label="التسعير السريع (Fast Accept)" 
+              label="تسعيرتك" 
               subLabel="تحديد الأسعار الافتراضية لقبول الطلبات المباشر" 
               onPress={() => router.push('/(driver)/settings/pricing' as any)}
             />

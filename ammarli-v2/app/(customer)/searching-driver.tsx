@@ -39,8 +39,22 @@ export default function SearchingDriverScreen() {
   const nearbyDrivers    = useCustomerStore(s => s.nearbyDrivers);
   const fetchNearbyDrivers = useCustomerStore(s => s.fetchNearbyDrivers);
 
-  const coordinates = activeOrder?.location || userLocation || { latitude: 35.5557, longitude: 6.1748 };
-  const typeCfg     = TYPE_CONFIG[activeOrder?.type || 'Bottled'] ?? TYPE_CONFIG['Bottled'];
+  const coordinates = (activeOrder?.location?.latitude && activeOrder?.location?.longitude) 
+    ? activeOrder.location 
+    : (userLocation?.latitude && userLocation?.longitude) 
+      ? userLocation 
+      : { latitude: 35.5557, longitude: 6.1748 };
+
+  const getWaterTypeKey = () => {
+    const wt = (activeOrder?.waterType || activeOrder?.type || '').toLowerCase();
+    if (wt.includes('spring') || wt.includes('ينابيع')) return 'Spring';
+    if (wt.includes('well') || wt.includes('آبار')) return 'Well';
+    if (wt.includes('construction') || wt.includes('ashghal') || wt.includes('بناء')) return 'Ashghal';
+    if (wt.includes('tanker')) return 'Spring';
+    return 'Bottled';
+  };
+  const typeCfg = TYPE_CONFIG[getWaterTypeKey()] || TYPE_CONFIG['Bottled'];
+  
   const locationName = activeOrder?.locationName || userLocation?.address || 'موقع التوصيل';
   const quantity     = activeOrder?.quantity ? `${activeOrder.quantity} لتر` : '';
 

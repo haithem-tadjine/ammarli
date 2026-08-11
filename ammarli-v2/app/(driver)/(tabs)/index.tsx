@@ -140,11 +140,43 @@ export default function DriverDashboardScreen() {
   const toggleStatus = async () => {
     Vibration.vibrate(50);
     const newValue = !isOnline;
-    setIsOnline(newValue);
+
     if (newValue) {
+      const registeredDriver = useDriverStore.getState().registeredDriver;
+      const driverTypeRaw = registeredDriver?.driverType?.toLowerCase() || '';
+      const waterTypeRaw = registeredDriver?.waterType?.toLowerCase() || '';
+      const isSpringTanker = driverTypeRaw === 'tanker' && (waterTypeRaw === 'spring' || waterTypeRaw.includes('ينابيع'));
+      const isBottled = driverTypeRaw === 'bottled';
+      const isWellOrConstructionTanker = driverTypeRaw === 'tanker' && !isSpringTanker;
+
+      let isPricesComplete = false;
+
+      if (isSpringTanker) {
+        isPricesComplete = (Number(registeredDriver?.defaultPrice) || 0) > 0;
+      } else if (isBottled) {
+        const bp = registeredDriver?.bottledPrices;
+        isPricesComplete = !!(bp && Number(bp['0.5L']) > 0 && Number(bp['1.5L']) > 0 && Number(bp['5L']) > 0);
+      } else if (isWellOrConstructionTanker) {
+        isPricesComplete = (Number(registeredDriver?.pricePerUnit) || 0) > 0 && (Number(registeredDriver?.floorPrice) || 0) >= 0;
+      }
+
+      if (!isPricesComplete) {
+        Alert.alert(
+          'تنبيه',
+          'يجب إدخال أسعارك الافتراضية في "تسعيرتك" قبل بدء العمل واستقبال الطلبات.',
+          [
+            { text: 'إدخال الأسعار', onPress: () => router.push('/(driver)/settings/pricing' as any) },
+            { text: 'إلغاء', style: 'cancel' }
+          ]
+        );
+        return;
+      }
+
+      setIsOnline(true);
       useDriverStore.getState().setDriverStatus('AVAILABLE');
       await useDriverStore.getState().startLocationTracking();
     } else {
+      setIsOnline(false);
       useDriverStore.getState().setDriverStatus('OFFLINE');
       useDriverStore.getState().stopLocationTracking();
     }
@@ -366,7 +398,6 @@ export default function DriverDashboardScreen() {
     }
 
     // ── Fast Accept: حساب السعر تلقائياً ──
-    const driverDefaultPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 150;
     const defaultBottledPrices = { '0.5L': 15, '1.5L': 30, '5L': 100 };
     const driverBottledPrices = registeredDriver?.bottledPrices ? registeredDriver.bottledPrices : defaultBottledPrices;
     
@@ -374,61 +405,35 @@ export default function DriverDashboardScreen() {
     const driverPricePerUnit = Number(registeredDriver?.pricePerUnit) > 0 ? Number(registeredDriver?.pricePerUnit) : 1500;
     const driverFloorPrice   = Number(registeredDriver?.floorPrice) > 0 ? Number(registeredDriver?.floorPrice) : 0;
 
+    let finalTotal = Number(currentOffer?.total) || 0;
+
     if (isSpringTanker) {
       // ينابيع: سعر الدلو × (اللترات ÷ 20)
-      const requestedLiters = parseFloat(params.capacity) || 1000;
+      const driverDefaultPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 0;
+      const requestedLiters = parseFloat(String(currentOffer?.tankerDetails?.volume || params.capacity)) || 1000;
       const calculatedTotal = (requestedLiters / 20) * driverDefaultPrice;
-      if (calculatedTotal > 0) {
-        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
-        params.price = calculatedTotal.toString();
-        setTimeout(() => {
-          router.replace({ pathname: '/(driver)/order-details' as any, params });
-        }, 150);
-        return;
-      }
-    }
-
-    if (isBottled) {
-      // قوارير: لكل حجم سعره الخاص (0.5L, 1.5L, 5L)
+      if (calculatedTotal > 0) finalTotal = calculatedTotal;
+    } else if (isBottled) {
       const prices = driverBottledPrices;
       const calculatedTotal = orderItems.reduce((sum: number, item: any) => {
         const size = item.unit as '0.5L' | '1.5L' | '5L';
         const unitPrice = (prices as any)[size] ?? 0;
         return sum + (item.qty * unitPrice);
       }, 0);
-      if (calculatedTotal > 0) {
-        await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
-        params.price = calculatedTotal.toString();
-        setTimeout(() => {
-          router.replace({ pathname: '/(driver)/order-details' as any, params });
-        }, 150);
-        return;
-      }
-    }
-
-    if (isWellOrConstructionTanker) {
-      // آبار / أشغال: (الكمية ÷ 1500) × سعر الوحدة + (الطابق × سعر الطابق)
+      if (calculatedTotal > 0) finalTotal = calculatedTotal;
+    } else if (isWellOrConstructionTanker) {
       const requestedLiters = parseFloat(String(currentOffer?.tankerDetails?.volume || params.capacity)) || 1500;
       const floorNum        = Number(currentOffer?.items?.[0]?.floor || currentOffer?.tankerDetails?.floor || 0);
       const units           = Math.ceil(requestedLiters / 1500);
-      let calculatedTotal   = (units * driverPricePerUnit) + (floorNum * driverFloorPrice);
-
-      if (calculatedTotal <= 0) {
-        calculatedTotal = Number(currentOffer?.total || 1500);
-      }
-
-      await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
-      params.price = calculatedTotal.toString();
-      setTimeout(() => {
-        router.replace({ pathname: '/(driver)/order-details' as any, params });
-      }, 150);
-      return;
+      const calculatedTotal = (units * driverPricePerUnit) + (floorNum * driverFloorPrice);
+      if (calculatedTotal > 0) finalTotal = calculatedTotal;
     }
 
-    router.push({
-      pathname: '/(driver)/order-acceptance' as any,
-      params,
-    });
+    await useDriverStore.getState().updateDriverOrderStatus('driving', finalTotal, currentOffer.orderId);
+    params.price = finalTotal.toString();
+    setTimeout(() => {
+      router.replace({ pathname: '/(driver)/order-details' as any, params });
+    }, 150);
   };
 
 
@@ -573,16 +578,16 @@ export default function DriverDashboardScreen() {
         
         {/* 2. Quick Stats Cards (Glassmorphism) */}
         <View style={styles.statsContainerTarget}>
-          <BlurView intensity={60} tint="light" style={[styles.statCardTarget, { borderColor: 'rgba(255,255,255,0.8)' }]}>
-            <View style={styles.statIconWrap}><Ionicons name="car-outline" size={20} color={COLORS.primary} /></View>
-            <Text style={styles.statValueTarget}>{completedTrips}</Text>
-            <Text style={styles.statLabelTarget}>رحلة مكتملة</Text>
+          <BlurView intensity={80} tint="light" style={[styles.statCardTarget, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: COLORS.primary }]}><Ionicons name="car-outline" size={20} color={COLORS.white} /></View>
+            <Text style={[styles.statValueTarget, { color: COLORS.primary }]}>{completedTrips}</Text>
+            <Text style={[styles.statLabelTarget, { color: COLORS.primary }]}>رحلة مكتملة</Text>
           </BlurView>
           
-          <BlurView intensity={60} tint="light" style={[styles.statCardTarget, { borderColor: 'rgba(255,255,255,0.8)' }]}>
-            <View style={[styles.statIconWrap, { backgroundColor: COLORS.secondary }]}><Ionicons name="wallet-outline" size={20} color={COLORS.primary} /></View>
-            <Text style={[styles.statValueTarget, { color: COLORS.primary }]}>{(totalEarnings || 0).toLocaleString('ar-DZ')}</Text>
-            <Text style={styles.statLabelTarget}>أرباح اليوم (د.ج)</Text>
+          <BlurView intensity={80} tint="light" style={[styles.statCardTarget, { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' }]}>
+            <View style={[styles.statIconWrap, { backgroundColor: COLORS.success }]}><Ionicons name="wallet-outline" size={20} color={COLORS.white} /></View>
+            <Text style={[styles.statValueTarget, { color: COLORS.success }]}>{(totalEarnings || 0).toLocaleString('ar-DZ')}</Text>
+            <Text style={[styles.statLabelTarget, { color: COLORS.success }]}>أرباح اليوم (د.ج)</Text>
           </BlurView>
         </View>
 

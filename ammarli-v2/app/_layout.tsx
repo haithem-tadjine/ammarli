@@ -153,7 +153,7 @@ export default function RootLayout() {
         // ── 1. الزبون ضغط على زر "قبول" في إشعار طلبية جديدة ─────────────
         if (actionId === 'accept' || (actionId === Notifications.DEFAULT_ACTION_IDENTIFIER && notifType === 'NEW_ORDER')) {
           router.push({
-            pathname: '/(driver)/order-acceptance' as any,
+            pathname: '/(driver)/incoming-order' as any,
             params: {
               orderId: data.orderId
             },
@@ -233,14 +233,48 @@ export default function RootLayout() {
               }
               quantity={globalIncomingOrder.items?.map(i => i.detail).join(' + ') || ''}
               totalSeconds={30}
-              onAccept={() => {
-                useDriverStore.getState().acceptDriverOrder(globalIncomingOrder).then(() => {
-                  router.push({
-                    pathname: '/(driver)/order-acceptance' as any,
-                    params: { 
-                      orderId: globalIncomingOrder.orderId
-                    }
-                  });
+              onAccept={async () => {
+                await useDriverStore.getState().acceptDriverOrder(globalIncomingOrder);
+                
+                const registeredDriver = useDriverStore.getState().registeredDriver;
+                const driverTypeRaw = registeredDriver?.driverType?.toLowerCase() || '';
+                const waterTypeRaw = registeredDriver?.waterType?.toLowerCase() || '';
+                const isSpringTanker = driverTypeRaw === 'tanker' && (waterTypeRaw === 'spring' || waterTypeRaw.includes('ينابيع'));
+                const isBottled = driverTypeRaw === 'bottled';
+                const isWellOrConstruction = driverTypeRaw === 'tanker' && !isSpringTanker;
+                let finalTotal = Number(globalIncomingOrder.total) || 0;
+                
+                if (isSpringTanker) {
+                  const driverDefaultPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 0;
+                  const requestedLiters = parseFloat(globalIncomingOrder.items?.[0]?.detail?.replace(/\D/g, '') || '1000');
+                  const calculatedTotal = (requestedLiters / 20) * driverDefaultPrice;
+                  if (calculatedTotal > 0) finalTotal = calculatedTotal;
+                } else if (isBottled) {
+                  const driverBottledPrices = registeredDriver?.bottledPrices || { '0.5L': 0, '1.5L': 0, '5L': 0 };
+                  const calculatedTotal = (globalIncomingOrder.items || []).reduce((sum: number, item: any) => {
+                    const size = item.detail as '0.5L' | '1.5L' | '5L';
+                    const unitPrice = (driverBottledPrices as any)[size] ?? 0;
+                    return sum + ((item.qty || 1) * unitPrice);
+                  }, 0);
+                  if (calculatedTotal > 0) finalTotal = calculatedTotal;
+                } else if (isWellOrConstruction) {
+                  const unitPrice = registeredDriver?.pricePerUnit ? Number(registeredDriver.pricePerUnit) : 0;
+                  const floorPrice = registeredDriver?.floorPrice ? Number(registeredDriver.floorPrice) : 0;
+                  const requestedLiters = parseFloat(globalIncomingOrder.items?.[0]?.detail?.replace(/\D/g, '') || '1500');
+                  const numUnits = Math.ceil(requestedLiters / 1500);
+                  const floorCount = parseInt(globalIncomingOrder.items?.[0]?.floor || '0') || 0;
+                  const calculatedTotal = (numUnits * unitPrice) + (floorCount * floorPrice);
+                  if (calculatedTotal > 0) finalTotal = calculatedTotal;
+                }
+                
+                await useDriverStore.getState().updateDriverOrderStatus('driving', finalTotal, globalIncomingOrder.orderId);
+
+                router.push({
+                  pathname: '/(driver)/order-details' as any,
+                  params: { 
+                    orderId: globalIncomingOrder.orderId,
+                    price: finalTotal.toString(),
+                  }
                 });
               }}
               onDecline={() => {

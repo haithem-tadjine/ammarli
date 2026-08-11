@@ -60,9 +60,9 @@ const VehicleCard = ({ title, iconName, imageSource, active, onPress }: any) => 
     activeOpacity={0.8}
   >
     {imageSource ? (
-      <Image source={imageSource} style={{ width: 34, height: 34, marginBottom: 6 }} resizeMode="contain" />
+      <Image source={imageSource} style={{ width: 50, height: 50, marginBottom: 4 }} resizeMode="contain" />
     ) : (
-      <MaterialCommunityIcons name={iconName} size={34} color={active ? COLORS.primary : COLORS.textGray} style={{ marginBottom: 6 }} />
+      <MaterialCommunityIcons name={iconName} size={42} color={active ? COLORS.primary : COLORS.textGray} style={{ marginBottom: 4 }} />
     )}
     <Text style={[styles.selectionTitle, active && styles.selectionTitleActive]}>{title}</Text>
   </TouchableOpacity>
@@ -76,9 +76,9 @@ const TypeChip = ({ label, iconName, imageSource, active, onPress }: any) => (
     activeOpacity={0.8}
   >
     {imageSource ? (
-      <Image source={imageSource} style={{ width: 34, height: 34, marginBottom: 6 }} resizeMode="contain" />
+      <Image source={imageSource} style={{ width: 44, height: 44, marginBottom: 4 }} resizeMode="contain" />
     ) : (
-      <MaterialCommunityIcons name={iconName} size={32} color={active ? COLORS.primary : COLORS.textGray} style={{ marginBottom: 6 }} />
+      <MaterialCommunityIcons name={iconName} size={38} color={active ? COLORS.primary : COLORS.textGray} style={{ marginBottom: 4 }} />
     )}
     <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
   </TouchableOpacity>
@@ -102,7 +102,7 @@ const DriverRegistrationScreen = () => {
     ]).start();
   };
 
-  const [successModal, setSuccessModal] = useState(false);
+
 
   const [vehicleType, setVehicleType] = useState<'tanker' | 'bottled'>('tanker');
   const [waterType,   setWaterType]   = useState('spring');
@@ -160,8 +160,9 @@ const DriverRegistrationScreen = () => {
         capacity: vehicleType === 'tanker' ? Number(capacity) : undefined,
       });
 
-      // الدخول التلقائي سيغير الـ state والـ router سيقوم بالتوجيه تلقائياً
-      // فلا نحتاج لإظهار نافذة نجاح تطلب منه تسجيل الدخول.
+      // الدخول التلقائي سيغير الـ state 
+      // نقوم بتوجيه السائق مباشرة إلى التطبيق
+      router.replace('/(driver)/(tabs)' as any);
     } catch (e: any) {
       let errMsg = 'فشل التسجيل. تأكد من البيانات.';
       if (e?.response?.data?.message) {
@@ -309,32 +310,7 @@ const DriverRegistrationScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} translucent={false} />
 
-      {/* ── Success Modal ──────────────────────────────────────────────── */}
-      <Modal visible={successModal} transparent animationType="fade">
-        <View style={styles.successOverlay}>
-          <View style={styles.successCard}>
-            <View style={styles.successIconWrap}>
-              <Text style={styles.successIconText}>✓</Text>
-            </View>
-
-            <Text style={styles.successTitle}>تم إنشاء الحساب بنجاح!</Text>
-            <Text style={styles.successMsg}>
-              مرحباً بك في AMMARLI 🎉{'\n'}
-              يمكنك الآن تسجيل الدخول كـسائق باستخدام رقم هاتفك.
-            </Text>
-
-            <TouchableOpacity
-              style={styles.successBtn}
-              onPress={() => {
-                setSuccessModal(false);
-                router.replace('/(driver)/login' as any);
-              }}
-            >
-              <Text style={styles.successBtnText}>تسجيل الدخول ←</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} translucent={false} />
 
       {/* ── Navy Header with Logo ──────────────────────────────────────────── */}
       <View style={styles.header}>
@@ -358,7 +334,7 @@ const DriverRegistrationScreen = () => {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.formCard}>
-            <Text style={styles.cardHeaderTitle}>إنشاء حساب سائق</Text>
+            <Text style={styles.cardHeaderTitle}>تسجيل حساب</Text>
             {FormContent}
           </View>
         </ScrollView>
@@ -368,8 +344,6 @@ const DriverRegistrationScreen = () => {
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-
-const CARD_W = (width - 65) / 2;
 
 const styles = StyleSheet.create({
   container:    { flex: 1, backgroundColor: COLORS.primary },
@@ -397,8 +371,8 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginBottom: 12, textAlign: 'left', marginTop: 15 },
 
   // Vehicle cards
-  row:                  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  selectionCard:        { width: CARD_W, height: 90, borderRadius: 20, borderWidth: 2, borderColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF', overflow: 'hidden' },
+  row:                  { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  selectionCard:        { flex: 1, height: 90, borderRadius: 20, borderWidth: 2, borderColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF', overflow: 'hidden' },
   selectionCardActive:  { borderColor: COLORS.secondary, shadowColor: COLORS.secondary, shadowOpacity: 0.15, elevation: 5 },
   vehicleImage:         { width: 64, height: 64 },
   selectionTitle:       { fontSize: 13, fontWeight: '700', color: COLORS.textGray, marginTop: 4 },

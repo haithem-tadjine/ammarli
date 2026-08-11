@@ -37,6 +37,8 @@ export interface Order {
   quantity?: string;
   displayVolume?: string;
   price?: number;
+  subtotal?: number;
+  deliveryFee?: number;
   waterType?: string;
   locationName?: string;
   orderTime?: string;
@@ -194,7 +196,7 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   fetchNearbyDrivers: async (lat, lng, radius = 15) => {
     try {
-      const response = await api.get('/driver/nearby', {
+      const response = await api.get('/drivers/nearby', {
         params: { lat, lng, radius }
       });
       // Assuming response.data is an array of drivers [{ id, lat, lng }, ...] or similar
@@ -223,6 +225,8 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
           quantity: data.quantity?.toString(),
           displayVolume: data.displayVolume,
           price: data.totalPrice || data.subtotal,
+          subtotal: data.subtotal,
+          deliveryFee: data.deliveryFee,
           locationName: data.deliveryAddress,
           location: { latitude: data.pickupLat, longitude: data.pickupLng },
           waterType: data.tankerDetails?.waterType,
@@ -275,6 +279,8 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
       quantity:     payload.quantity?.toString(),
       displayVolume: payload.displayVolume,
       price:        payload.total || payload.totalPrice || payload.subtotal,
+      subtotal:     payload.subtotal,
+      deliveryFee:  payload.deliveryFee,
       locationName: payload.deliveryAddress,
       location:     { latitude: payload.pickupLat, longitude: payload.pickupLng },
       waterType:    payload.tankerDetails?.waterType,
@@ -296,6 +302,8 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
           quantity: r.quantity?.toString(),
           displayVolume: r.displayVolume,
           price: r.totalPrice || r.subtotal,
+          subtotal: r.subtotal,
+          deliveryFee: r.deliveryFee,
           locationName: r.deliveryAddress,
           location: { latitude: r.pickupLat, longitude: r.pickupLng },
           waterType: r.tankerDetails?.waterType,

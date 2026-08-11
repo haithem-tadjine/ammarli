@@ -52,7 +52,7 @@ export default function InvoiceScreen() {
 
   const invoiceNumber = activeOrder ? `INV-${activeOrder.id.toString().substring(0, 6).toUpperCase()}` : `INV-${Math.floor(1000 + Math.random() * 9000)}`;
   const driverName = activeOrder?.driverInfo?.name || "السائق";
-  const deliveryFee = 0;
+  const deliveryFee = activeOrder?.deliveryFee || 0;
 
   const currentDate = new Date().toLocaleDateString('ar-EG', {
     day: 'numeric',
@@ -66,11 +66,14 @@ export default function InvoiceScreen() {
   });
 
   const calculatedItemsTotal = items.reduce((acc, item) => acc + (item.qty * (item.unitPrice || 0)), 0);
-  const subtotal = isTanker 
+  
+  // Use activeOrder.subtotal if available, otherwise calculate it
+  const subtotal = activeOrder?.subtotal || (isTanker 
     ? (activeOrder?.price || 0) 
-    : (calculatedItemsTotal > 0 ? calculatedItemsTotal : (activeOrder?.price || 0));
+    : (calculatedItemsTotal > 0 ? calculatedItemsTotal : (activeOrder?.price || 0)));
 
-  const totalAmount = subtotal + deliveryFee;
+  // Total amount should be subtotal + deliveryFee (or activeOrder.price if it represents the total)
+  const totalAmount = activeOrder?.price || (subtotal + deliveryFee);
 
   const handleFinish = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -104,7 +107,6 @@ export default function InvoiceScreen() {
             <>
               {/* Table Header */}
               <View style={styles.tableHeader}>
-                <Text style={[styles.columnHeader, { flex: 1.2 }]}>المجموع</Text>
                 <Text style={[styles.columnHeader, { flex: 0.5 }]}>الكمية</Text>
                 <Text style={[styles.columnHeader, { flex: 1 }]}>الحجم</Text>
                 <Text style={[styles.columnHeader, { flex: 2, textAlign: 'right' }]}>العلامة / الصنف</Text>
@@ -114,12 +116,8 @@ export default function InvoiceScreen() {
               <View style={{ maxHeight: 220 }}>
                 <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true}>
                   {items.map((item, index) => {
-                    const itemTotal = item.qty * (item.unitPrice || 0);
                     return (
                       <View key={index} style={styles.tableRow}>
-                        <Text style={[styles.rowText, styles.boldText, { flex: 1.2 }]}>
-                          {itemTotal > 0 ? `${itemTotal.toFixed(0)} د.ج` : '-'}
-                        </Text>
                         <Text style={[styles.rowText, { flex: 0.5 }]}>{item.qty}x</Text>
                         <Text style={[styles.rowText, { flex: 1 }]}>{item.size}</Text>
                         <Text style={[styles.rowText, styles.brandText, { flex: 2, textAlign: 'right' }]}>{item.brand || 'قوارير'}</Text>
@@ -133,13 +131,11 @@ export default function InvoiceScreen() {
             <>
               {/* Tanker Details Header */}
               <View style={styles.tableHeader}>
-                <Text style={[styles.columnHeader, { flex: 1.5 }]}>السعر</Text>
                 <Text style={[styles.columnHeader, { flex: 1 }]}>الحجم</Text>
                 <Text style={[styles.columnHeader, { flex: 2, textAlign: 'right' }]}>نوع المياه</Text>
               </View>
               {/* Tanker Details Row */}
               <View style={styles.tableRow}>
-                <Text style={[styles.rowText, styles.boldText, { flex: 1.5 }]}>{subtotal.toLocaleString()} د.ج</Text>
                 <Text style={[styles.rowText, { flex: 1 }]}>{activeOrder?.displayVolume || 'غير محدد'}</Text>
                 <Text style={[styles.rowText, styles.brandText, { flex: 2, textAlign: 'right' }]}>{getWaterTypeLabel(activeOrder?.waterType)}</Text>
               </View>
@@ -151,17 +147,7 @@ export default function InvoiceScreen() {
              {/* Creating dashed effect with repeated view is complex in RN, using solid but subtle border for now */}
           </View>
 
-          {/* Summary Section */}
-          <View style={styles.summarySection}>
-             <View style={styles.summaryRow}>
-                <Text style={styles.summaryValue}>{subtotal.toLocaleString()} د.ج</Text>
-                <Text style={styles.summaryLabel}>المجموع الفرعي:</Text>
-             </View>
-             <View style={styles.summaryRow}>
-                <Text style={[styles.summaryValue, { color: COLORS.success }]}>مجاناً</Text>
-                <Text style={styles.summaryLabel}>رسوم التوصيل:</Text>
-             </View>
-          </View>
+          {/* Summary section removed per user request */}
 
           {/* Total Box */}
           <View style={styles.totalBox}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -97,6 +97,52 @@ export default function OrderDetailsScreen() {
   const currentOffer = incomingOffers[0];
   useDriverAlert(!!currentOffer);
 
+  const calculatedOfferPrice = useMemo(() => {
+    if (!currentOffer) return null;
+    
+    const isSpring = registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType === 'spring';
+    const isWell = registeredDriver?.driverType === 'Tanker' && registeredDriver?.waterType !== 'spring';
+    const isBottled = registeredDriver?.driverType === 'Bottled';
+    
+    let subtotal = 0;
+    let markup = 0;
+    let hasSettings = false;
+
+    if (isSpring) {
+      if ((registeredDriver?.defaultPrice || 0) > 0) {
+        hasSettings = true;
+        const capacity = Number(currentOffer.items?.[0]?.qty || 1000);
+        subtotal = (capacity / 20) * registeredDriver!.defaultPrice!;
+        markup = (capacity / 20) * 5;
+      }
+    } else if (isWell) {
+      if ((registeredDriver?.pricePerUnit || 0) > 0) {
+        hasSettings = true;
+        const capacity = Number(currentOffer.items?.[0]?.qty || 1500);
+        const floorPrice = registeredDriver?.floorPrice || 0;
+        const floor = Number(currentOffer.items?.[0]?.floor || 0);
+        subtotal = Math.ceil(capacity / 1500) * registeredDriver!.pricePerUnit! + (floor * floorPrice);
+        markup = Math.ceil(capacity / 1500) * 50;
+      }
+    } else if (isBottled) {
+      if (registeredDriver?.bottledPrices) {
+        hasSettings = true;
+        const items = currentOffer.items || [];
+        subtotal = items.reduce((sum: number, item: any) => {
+          const itemSize = item.size || '1.5L';
+          const price = (registeredDriver!.bottledPrices as any)[itemSize] || 0;
+          return sum + (item.qty * price);
+        }, 0);
+        const totalFardous = items.reduce((sum: number, item: any) => sum + (item.qty || 1), 0);
+        markup = totalFardous * 3;
+      }
+    }
+
+    if (!hasSettings || subtotal <= 0) return null;
+
+    return { subtotal, markup, total: subtotal + markup };
+  }, [currentOffer, registeredDriver]);
+
   useEffect(() => {
     if (currentOffer) {
       Animated.spring(bannerAnim, {
@@ -145,24 +191,17 @@ export default function OrderDetailsScreen() {
         capacity: String(capacity),
       };
 
-      if ((isSpringTanker || isBottled) && hasDefaultPrice) {
-        let calculatedTotal = 0;
-        if (isSpringTanker) {
-          calculatedTotal = (Number(capacity) / 20) * registeredDriver!.defaultPrice!;
-        } else if (isBottled) {
-          calculatedTotal = orderItems.reduce((sum: number, item: any) =>
-            sum + (item.qty * registeredDriver!.defaultPrice!), 0);
-        }
+      let finalPrice = String(currentOffer.total || 0);
+      let subtotalPrice = currentOffer.total || 0;
 
-        if (calculatedTotal > 0) {
-          await useDriverStore.getState().updateDriverOrderStatus('driving', calculatedTotal, currentOffer.orderId);
-          baseParams.price = calculatedTotal.toString();
-          router.push({ pathname: '/(driver)/order-details' as any, params: baseParams });
-          return;
-        }
+      if (calculatedOfferPrice) {
+        subtotalPrice = calculatedOfferPrice.subtotal;
+        finalPrice = calculatedOfferPrice.total.toString();
       }
 
-      router.push({ pathname: '/(driver)/order-acceptance' as any, params: baseParams });
+      await useDriverStore.getState().updateDriverOrderStatus('driving', subtotalPrice, currentOffer.orderId);
+      baseParams.price = finalPrice;
+      router.push({ pathname: '/(driver)/order-details' as any, params: baseParams });
     } catch (e) {
       Alert.alert('خطأ', 'تعذر قبول الطلبية');
     }
@@ -337,6 +376,11 @@ export default function OrderDetailsScreen() {
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={styles.bannerTitle}>طلبية جديدة بانتظارك!</Text>
                 <Text style={styles.bannerSubtitle}>{currentOffer.deliveryAddress?.label || 'موقع جديد'}</Text>
+                {calculatedOfferPrice && (
+                  <Text style={[styles.bannerTitle, { color: COLORS.secondary, marginTop: 4, fontSize: 16 }]}>
+                    المبلغ: {calculatedOfferPrice.total.toLocaleString()} د.ج
+                  </Text>
+                )}
               </View>
               <View style={styles.bannerActions}>
                 <TouchableOpacity style={styles.bannerBtnAccept} onPress={handleAcceptNewOrder}>
@@ -479,10 +523,16 @@ export default function OrderDetailsScreen() {
             <View style={styles.psDivider} />
 
             <View style={styles.priceSizeHalf}>
-              <View style={[styles.psIconBox, { backgroundColor: '#F0FDF4' }]}>
+              {activeDriverOrder?.deliveryFee ? (
+                <>
+                  <Text style={[styles.psLabel, { fontSize: 11, marginBottom: 2 }]}>السعر الأساسي: {activeDriverOrder.subtotal?.toLocaleString('ar-DZ')} د.ج</Text>
+                  <Text style={[styles.psLabel, { fontSize: 11, marginBottom: 4 }]}>حقوق التطبيق: {activeDriverOrder.deliveryFee.toLocaleString('ar-DZ')} د.ج</Text>
+                </>
+              ) : null}
+              <View style={[styles.psIconBox, { backgroundColor: '#F0FDF4', marginBottom: activeDriverOrder?.deliveryFee ? 2 : 8 }]}>
                 <Ionicons name="cash" size={22} color="#16A34A" />
               </View>
-              <Text style={styles.psLabel}>السعر الإجمالي</Text>
+              <Text style={styles.psLabel}>السعر الإجمالي للزبون</Text>
               <Text style={[styles.psValue, { color: '#16A34A' }]}>{(total || 0).toLocaleString('ar-DZ')} د.ج</Text>
             </View>
           </View>

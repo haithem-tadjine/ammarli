@@ -135,6 +135,18 @@ export class RequestService {
       .leftJoinAndSelect('request.driver', 'driver')
       .orderBy('request.createdAt', 'DESC');
 
+    if ((reqDto as any).driverUserId) {
+      const driverResult = await this.dataSource.query(
+        `SELECT id FROM drivers WHERE user_id = $1 LIMIT 1`,
+        [(reqDto as any).driverUserId]
+      );
+      if (driverResult && driverResult.length > 0) {
+        query.andWhere('request.driverId = :driverId', { driverId: driverResult[0].id });
+      } else {
+        query.andWhere('1 = 0');
+      }
+    }
+
     applyFiltersToQueryBuilder(query, reqDto, {
       searchColumns: [
         'user.firstName',
@@ -255,19 +267,21 @@ export class RequestService {
       const reqTypeStr = String(request.type).toUpperCase();
       
       if (reqTypeStr === 'BOTTLED') {
-        markup = (request.quantity || 1) * Number(settings.bottledCustomerMarkup || 3);
+        markup = (request.quantity || 1) * 3; // 3 DZD per fardou
       } else if (reqTypeStr === 'TANKER') {
         const volume = request.tankerDetails?.volume || request.quantity || 1;
         const waterType = (request.tankerDetails?.waterType || '').toLowerCase();
         
         if (waterType === 'spring' || waterType === 'مياه ينابيع') {
-          markup = volume * Number(settings.tankerSpringCustomerMarkup || 5);
+          markup = (volume / 20) * 5; // 5 DZD per 20L bucket
         } else {
           // For well water or fallback
-          markup = Math.ceil(volume / Number(settings.tankerWellVolumeUnit || 1500)) * Number(settings.tankerWellCustomerMarkup || 50);
+          markup = Math.ceil(volume / 1500) * 50; // 50 DZD per 1500 L
         }
       }
       
+      request.subtotal = price;
+      request.deliveryFee = markup;
       request.totalPrice = price + markup;
     }
 
@@ -347,18 +361,16 @@ export class RequestService {
             const reqTypeStr = String(request.type).toUpperCase();
             
             if (reqTypeStr === 'BOTTLED') {
-              commission = (request.quantity || 1) * Number(settings.bottledCommission);
+              commission = (request.quantity || 1) * 6; // 3 for customer + 3 for driver
             } else if (reqTypeStr === 'TANKER') {
               const volume = request.tankerDetails?.volume || request.quantity || 0;
               const waterType = (request.tankerDetails?.waterType || driver.waterType || '').toLowerCase();
               
               if (waterType === 'spring' || waterType === 'مياه ينابيع') {
-                commission = volume * Number(settings.tankerSpringCommission);
-              } else if (waterType === 'well' || waterType === 'مياه آبار') {
-                commission = Math.ceil(volume / Number(settings.tankerWellVolumeUnit)) * Number(settings.tankerWellCommission);
+                commission = (volume / 20) * 7; // 5 for customer + 2 for driver per 20L bucket
               } else {
-                // Default fallback if type is unknown
-                commission = Math.ceil(volume / Number(settings.tankerWellVolumeUnit)) * Number(settings.tankerWellCommission); 
+                // For well water or fallback
+                commission = Math.ceil(volume / 1500) * 100; // 50 for customer + 50 for driver per 1500 L
               }
             }
 

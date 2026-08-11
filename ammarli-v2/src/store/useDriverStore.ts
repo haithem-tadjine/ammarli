@@ -325,7 +325,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       const stats = await api.get('/drivers/dashboard');
       if (stats.data) {
         set({
-          totalEarnings:  stats.data.totalEarnings  ?? 0,
+          totalEarnings:  stats.data.todayEarnings  ?? 0,
           walletBalance:  stats.data.walletBalance   ?? 0,
           completedTrips: stats.data.todayJobs  ?? 0, // Using todayJobs for now
           driverRating:   stats.data.rating   ?? 4.9,
@@ -520,10 +520,16 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   updateDriverOrderStatus: async (status, price?: number, orderId?: string) => {
     const activeId = orderId || get().activeDriverOrder?.orderId;
+    let updatedRequest: any = null;
     if (activeId) {
       try {
         if (status === 'arrived') await api.post(`/requests/${activeId}/arrived`);
-        if (status === 'driving') await api.post(`/requests/${activeId}/start`, { price });
+        if (status === 'driving') {
+          const res = await api.post(`/requests/${activeId}/start`, { price });
+          if (res.data) {
+            updatedRequest = res.data;
+          }
+        }
       } catch (e: any) {
         console.error('Failed to update order status (arrived/driving):', e?.response?.data || e.message);
         // We catch the error here so it doesn't crash the calling function (handleAccept)
@@ -535,9 +541,22 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       const activeId = orderId || s.activeDriverOrder?.orderId;
       if (!activeId) return {};
       
-      const newOrders = s.activeDriverOrders.map(o => 
-        o.orderId === activeId ? { ...o, status, ...(price !== undefined && { total: price }) } : o
-      );
+      const newOrders = s.activeDriverOrders.map(o => {
+        if (o.orderId === activeId) {
+          const newSubtotal = updatedRequest?.subtotal ?? (price !== undefined ? price : o.subtotal);
+          const newDeliveryFee = updatedRequest?.deliveryFee ?? o.deliveryFee;
+          const newTotal = updatedRequest?.totalPrice ?? (price !== undefined ? price : o.total);
+
+          return { 
+            ...o, 
+            status, 
+            subtotal: newSubtotal,
+            deliveryFee: newDeliveryFee,
+            total: newTotal
+          };
+        }
+        return o;
+      });
       
       return {
         activeDriverOrders: newOrders,
@@ -563,11 +582,20 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       
       let commission = 0;
       const isBottled = s.registeredDriver?.driverType === 'Bottled';
+      const isSpring = s.registeredDriver?.driverType === 'Tanker' && s.registeredDriver?.waterType === 'spring';
+      const isWell = s.registeredDriver?.driverType === 'Tanker' && s.registeredDriver?.waterType !== 'spring';
+      
       if (isBottled && targetOrder.items) {
         const totalFardeaus = targetOrder.items.reduce((sum, item) => sum + (Number(item.qty) || 1), 0);
-        commission = totalFardeaus * 3;
+        commission = totalFardeaus * 6; // 3 customer + 3 driver
+      } else if (isSpring) {
+        const capacity = Number(targetOrder.items?.[0]?.qty || 1000);
+        commission = (capacity / 20) * 7; // 5 customer + 2 driver
+      } else if (isWell) {
+        const capacity = Number(targetOrder.items?.[0]?.qty || 1500);
+        commission = Math.ceil(capacity / 1500) * 100; // 50 customer + 50 driver
       } else {
-        commission = Math.round(earned * 0.1);
+        commission = Math.round(earned * 0.1); // Fallback
       }
 
       const newTrip: PastTrip = {

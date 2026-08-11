@@ -164,13 +164,7 @@ export default function PricingSettingsScreen() {
   const isOnline = useDriverStore((s: any) => s.isOnline);
   const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
 
-  // ── مثال حسابي للآبار/الأشغال ────────────────────────────────────────────
-  const exampleVolume  = 3000;
-  const exampleFloor   = 2;
-  const exampleTotal   = isWellOrConstruction
-    ? Math.ceil(exampleVolume / 1500) * (parseFloat(pricePerUnit) || 0)
-      + exampleFloor * (parseFloat(floorPrice) || 0)
-    : 0;
+
 
   return (
     <View style={styles.container}>
@@ -184,7 +178,7 @@ export default function PricingSettingsScreen() {
             <MaterialCommunityIcons name="chevron-right" size={28} color={COLORS.primary} />
           </BlurView>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>التسعير السريع (Fast Accept)</Text>
+        <Text style={styles.headerTitle}>تسعيرتك</Text>
         <View style={{ width: 44 }} />
       </View>
 
@@ -195,13 +189,13 @@ export default function PricingSettingsScreen() {
           <BlurView intensity={50} tint="light" style={styles.iconCircle}>
             <MaterialCommunityIcons name="cash-fast" size={40} color={COLORS.primary} />
           </BlurView>
-          <Text style={styles.title}>تحديد الأسعار الافتراضية</Text>
+          <Text style={styles.title}>ادخل تسعيرتك</Text>
           <Text style={styles.description}>
-            {isBottled
-              ? 'عند وصول طلبية، سيحسب التطبيق السعر تلقائياً بناءً على حجم القارورة والكمية المطلوبة — دون الحاجة لإدخال السعر في كل مرة.'
-              : isSpring
-              ? 'سيتم استخدام سعر الدلو لحساب التكلفة الإجمالية تلقائياً (إجمالي اللترات ÷ 20 × سعر الدلو) وتخطي شاشة تسعير الطلبية.'
-              : 'يُحدَّد السعر تلقائياً عند وصول الطلبية: كل 1500 لتر بسعر ثابت، مع رسوم إضافية لكل طابق — لا حاجة لإدخال السعر يدوياً.'}
+            إدخال هذه الأسعار إلزامي من أجل تفعيل حسابك واستقبال الطلبات للعمل.
+            {'\n'}
+            <Text style={{ color: '#E53935', fontFamily: 'Cairo-Bold' }}>
+              تحذير: يُمنع التلاعب بالأسعار أو إدخال أسعار وهمية.
+            </Text>
           </Text>
         </View>
 
@@ -233,13 +227,7 @@ export default function PricingSettingsScreen() {
               onChange={setPrice5}
             />
 
-            {/* مثال توضيحي */}
-            <BlurView intensity={40} tint="light" style={styles.exampleBox}>
-              <MaterialCommunityIcons name="information-outline" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.exampleText}>
-                مثال: طلب 3 فاردو 1.5L = 3 × {price15 || '---'} = {price15 ? (3 * parseFloat(price15) || 0).toLocaleString('ar-DZ') : '---'} د.ج
-              </Text>
-            </BlurView>
+
           </BlurView>
 
         ) : isSpring ? (
@@ -252,12 +240,7 @@ export default function PricingSettingsScreen() {
               value={defaultPrice}
               onChange={setDefaultPrice}
             />
-            <BlurView intensity={40} tint="light" style={styles.exampleBox}>
-              <MaterialCommunityIcons name="information-outline" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.exampleText}>
-                مثال: طلب 1000 لتر = 50 دلو × {defaultPrice || '---'} = {defaultPrice ? ((1000 / 20) * (parseFloat(defaultPrice) || 0)).toLocaleString('ar-DZ') : '---'} د.ج
-              </Text>
-            </BlurView>
+
           </BlurView>
 
         ) : (
@@ -286,15 +269,7 @@ export default function PricingSettingsScreen() {
               icon="stairs"
             />
 
-            {/* مثال توضيحي */}
-            <BlurView intensity={40} tint="light" style={styles.exampleBox}>
-              <MaterialCommunityIcons name="information-outline" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.exampleText}>
-                {'مثال: طلب 3000 لتر في الطابق 2\n'}
-                {'= (3000÷1500) × ' + (pricePerUnit || '---') + ' + 2 × ' + (floorPrice || '---') + '\n'}
-                {'= ' + (exampleTotal > 0 ? exampleTotal.toLocaleString('ar-DZ') + ' د.ج' : '---')}
-              </Text>
-            </BlurView>
+
           </BlurView>
         )}
 
@@ -376,14 +351,6 @@ const styles = StyleSheet.create({
   currency: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.textSecondary, marginLeft: 8 },
 
   divider: { height: 1, backgroundColor: 'rgba(0,33,71,0.06)', marginVertical: 16 },
-
-  exampleBox: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 16, padding: 14,
-    marginTop: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)',
-    overflow: 'hidden',
-  },
-  exampleText: { flex: 1, fontSize: 12, fontFamily: 'Cairo-Bold', color: COLORS.textSecondary, lineHeight: 20 },
 
   saveBtn: {
     height: 60, backgroundColor: COLORS.secondary, borderRadius: 20,

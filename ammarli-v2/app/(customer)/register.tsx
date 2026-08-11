@@ -37,7 +37,7 @@ export default function CustomerRegisterScreen() {
   const [showPassword,     setShowPassword]     = useState(false);
   const [showConfirm,      setShowConfirm]      = useState(false);
   const [loading,          setLoading]          = useState(false);
-  const [successModal,     setSuccessModal]     = useState(false);
+
 
   // ── Error state ───────────────────────────────────────────────────────────
   const [nameErr,    setNameErr]    = useState('');
@@ -106,7 +106,8 @@ export default function CustomerRegisterScreen() {
         password:  password,
         role:      'CLIENT',
       });
-      // تم الدخول التلقائي في `useAuthStore`، والـ router سيحوّله للصفحة الرئيسية مباشرة
+      // الدخول التلقائي تم، نقوم بالتوجيه مباشرة للتطبيق
+      router.replace('/(customer)/(tabs)' as any);
     } catch (e: any) {
       const errCode = e?.response?.data?.response?.errorCode;
       const msg = Array.isArray(e?.response?.data?.message)
@@ -127,31 +128,6 @@ export default function CustomerRegisterScreen() {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={THEME_NAVY} barStyle="light-content" />
-
-      {/* ── Success Modal ──────────────────────────────────────────────────── */}
-      <Modal visible={successModal} transparent animationType="fade">
-        <View style={styles.successOverlay}>
-          <View style={styles.successCard}>
-            <View style={styles.successIconWrap}>
-              <Text style={styles.successIconText}>✓</Text>
-            </View>
-            <Text style={styles.successTitle}>تم إنشاء الحساب بنجاح!</Text>
-            <Text style={styles.successMsg}>
-              مرحباً بك في AMMARLI 🎉{'\n'}
-              يمكنك الآن تسجيل الدخول بالرقم وكلمة المرور.
-            </Text>
-            <TouchableOpacity
-              style={styles.successBtn}
-              onPress={() => {
-                setSuccessModal(false);
-                router.replace('/(customer)/login' as any);
-              }}
-            >
-              <Text style={styles.successBtnText}>تسجيل الدخول ←</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* ── Navy Header with Logo ──────────────────────────────────────────── */}
       <View style={styles.header}>

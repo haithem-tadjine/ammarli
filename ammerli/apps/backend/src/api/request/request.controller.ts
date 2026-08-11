@@ -88,7 +88,7 @@ export class RequestController {
     if (user.role === 'CLIENT') {
       reqDto.userId = user.id as string;
     } else if (user.role === 'DRIVER') {
-      reqDto.driverId = user.id as string;
+      (reqDto as any).driverUserId = user.id as string;
     }
     return this.requestService.findAll(reqDto);
   }

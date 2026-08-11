@@ -123,16 +123,22 @@ export default function OrderAcceptanceScreen() {
     setBottleItems(prev => prev.map(item => item.id === id ? { ...item, price: text } : item));
   };
 
+  const [markup, setMarkup] = useState(0);
+
   useEffect(() => {
     if (orderType === 'spring_water') {
       const p = parseFloat(bucketPrice);
       setTotalPrice(!isNaN(p) && p >= 0 ? (capacityLiters / BUCKET_CAPACITY) * p : 0);
+      setMarkup((capacityLiters / 20) * 5);
     } else if (orderType === 'well_water' || orderType === 'construction_water') {
       const p = parseFloat(wellWaterPrice);
       setTotalPrice(!isNaN(p) && p >= 0 ? p : 0);
+      setMarkup(Math.ceil(capacityLiters / 1500) * 50);
     } else if (orderType === 'bottles') {
       const total = bottleItems.reduce((sum, item) => sum + (item.qty * (parseFloat(item.price) || 0)), 0);
       setTotalPrice(total);
+      const totalFardous = bottleItems.reduce((sum, item) => sum + (item.qty || 1), 0);
+      setMarkup(totalFardous * 3);
     }
   }, [bucketPrice, wellWaterPrice, bottleItems, capacityLiters, orderType]);
 
@@ -360,9 +366,19 @@ export default function OrderAcceptanceScreen() {
             {orderType !== 'well_water' && orderType !== 'construction_water' && (
               <>
                 <View style={styles.divider} />
+                <View style={[styles.totalRow, { marginBottom: 8 }]}>
+                   <Text style={[styles.totalLabel, { color: COLORS.textSecondary }]}>السعر الأساسي</Text>
+                   <Text style={[styles.totalValue, { fontSize: 16, color: COLORS.primary }]}>{totalPrice.toLocaleString('ar-DZ')} د.ج</Text>
+                </View>
+                {markup > 0 && (
+                  <View style={[styles.totalRow, { marginBottom: 8 }]}>
+                     <Text style={[styles.totalLabel, { color: COLORS.textSecondary }]}>حقوق التطبيق</Text>
+                     <Text style={[styles.totalValue, { fontSize: 16, color: COLORS.success }]}>+ {markup.toLocaleString('ar-DZ')} د.ج</Text>
+                  </View>
+                )}
                 <View style={styles.totalRow}>
                    <Text style={styles.totalLabel}>المبلغ الإجمالي</Text>
-                   <Text style={styles.totalValue}>{totalPrice.toLocaleString('ar-DZ')} <Text style={styles.currencyLarge}>د.ج</Text></Text>
+                   <Text style={styles.totalValue}>{(totalPrice + markup).toLocaleString('ar-DZ')} <Text style={styles.currencyLarge}>د.ج</Text></Text>
                 </View>
               </>
             )}
