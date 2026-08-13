@@ -2,7 +2,7 @@ import ScreenContainer from '../../components/ScreenContainer';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity,
-  Dimensions, Platform, Animated, Image, Alert, Modal, PanResponder
+  Dimensions, Platform, Animated, Image, Alert, Modal
 } from 'react-native';
 import MapView, { Marker } from '../../components/Map';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useCustomerStore } from '../../src/store/useCustomerStore';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const NAVY   = '#012047';
 const YELLOW = '#F3CD0D';
@@ -28,88 +28,52 @@ export default function SearchingDriverScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const activeOrder      = useCustomerStore(s => s.activeOrder);
-  const userLocation     = useCustomerStore(s => s.userLocation);
-  const cancelOrder      = useCustomerStore(s => s.cancelOrder);
-  const createOrder      = useCustomerStore(s => s.createOrder);
+  const activeOrder       = useCustomerStore(s => s.activeOrder);
+  const userLocation      = useCustomerStore(s => s.userLocation);
+  const cancelOrder       = useCustomerStore(s => s.cancelOrder);
+  const createOrder       = useCustomerStore(s => s.createOrder);
   const activeOrderStatus = useCustomerStore(s => s.activeOrder?.status);
-  const creatingRef      = useRef(false);
-  const mapRef           = useRef<any>(null);
+  const creatingRef       = useRef(false);
+  const mapRef            = useRef<any>(null);
 
-  const nearbyDrivers    = useCustomerStore(s => s.nearbyDrivers);
+  const nearbyDrivers      = useCustomerStore(s => s.nearbyDrivers);
   const fetchNearbyDrivers = useCustomerStore(s => s.fetchNearbyDrivers);
 
-  const coordinates = (activeOrder?.location?.latitude && activeOrder?.location?.longitude) 
-    ? activeOrder.location 
-    : (userLocation?.latitude && userLocation?.longitude) 
-      ? userLocation 
+  const coordinates = (activeOrder?.location?.latitude && activeOrder?.location?.longitude)
+    ? activeOrder.location
+    : (userLocation?.latitude && userLocation?.longitude)
+      ? userLocation
       : { latitude: 35.5557, longitude: 6.1748 };
 
   const getWaterTypeKey = () => {
     const wt = (activeOrder?.waterType || activeOrder?.type || '').toLowerCase();
     if (wt.includes('spring') || wt.includes('ينابيع')) return 'Spring';
-    if (wt.includes('well') || wt.includes('آبار')) return 'Well';
+    if (wt.includes('well')   || wt.includes('آبار'))   return 'Well';
     if (wt.includes('construction') || wt.includes('ashghal') || wt.includes('بناء')) return 'Ashghal';
     if (wt.includes('tanker')) return 'Spring';
     return 'Bottled';
   };
   const typeCfg = TYPE_CONFIG[getWaterTypeKey()] || TYPE_CONFIG['Bottled'];
-  
+
   const locationName = activeOrder?.locationName || userLocation?.address || 'موقع التوصيل';
   const quantity     = activeOrder?.quantity ? `${activeOrder.quantity} لتر` : '';
 
   const [showEndModal, setShowEndModal] = useState(false);
-  const [endModalMsg, setEndModalMsg] = useState('');
+  const [endModalMsg,  setEndModalMsg]  = useState('');
   const [endModalType, setEndModalType] = useState<'expired' | 'cancelled'>('expired');
 
-  // ── Pulse animations ─────────────────────────────────────────────────────────
-  const pulse1 = useRef(new Animated.Value(0)).current;
-  const pulse2 = useRef(new Animated.Value(0)).current;
-  const pulse3 = useRef(new Animated.Value(0)).current;
+  // ── Animations – ALL use useNativeDriver: true ─────────────────────────────
+  const pulse1  = useRef(new Animated.Value(0)).current;
+  const pulse2  = useRef(new Animated.Value(0)).current;
+  const pulse3  = useRef(new Animated.Value(0)).current;
+  const fadeIn  = useRef(new Animated.Value(0)).current;
   const dotAnim = useRef(new Animated.Value(0)).current;
-  const fadeIn   = useRef(new Animated.Value(0)).current;
-
-  // Bottom sheet drag animation
-  // 75 = resting state (hides button), 0 = fully expanded
-  const sheetY = useRef(new Animated.Value(200)).current; 
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-      onPanResponderGrant: () => {
-        // @ts-ignore
-        sheetY.setOffset(sheetY._value);
-        sheetY.setValue(0);
-      },
-      onPanResponderMove: Animated.event([null, { dy: sheetY }], { useNativeDriver: false }),
-      onPanResponderRelease: (_, gestureState) => {
-        sheetY.flattenOffset();
-        if (gestureState.dy < -20) {
-          // Swipe up -> open fully
-          Animated.spring(sheetY, { toValue: 0, friction: 8, tension: 50, useNativeDriver: false }).start();
-        } else if (gestureState.dy > 20) {
-          // Swipe down -> close (hide button)
-          Animated.spring(sheetY, { toValue: 75, friction: 8, tension: 50, useNativeDriver: false }).start();
-        } else {
-          // snap to closest
-          // @ts-ignore
-          if (sheetY._value < 37) {
-            Animated.spring(sheetY, { toValue: 0, friction: 8, tension: 50, useNativeDriver: false }).start();
-          } else {
-            Animated.spring(sheetY, { toValue: 75, friction: 8, tension: 50, useNativeDriver: false }).start();
-          }
-        }
-      },
-    })
-  ).current;
 
   useEffect(() => {
     // Initial entrance
-    Animated.timing(fadeIn, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-    Animated.spring(sheetY, { toValue: 75, tension: 60, friction: 12, useNativeDriver: false }).start();
+    Animated.timing(fadeIn, { toValue: 1, duration: 500, useNativeDriver: true }).start();
 
-    // Radar pulse rings
+    // Radar pulse rings – useNativeDriver: true (only opacity+scale)
     const makePulse = (anim: Animated.Value, delay: number) =>
       Animated.loop(
         Animated.sequence([
@@ -122,11 +86,11 @@ export default function SearchingDriverScreen() {
     makePulse(pulse2, 600).start();
     makePulse(pulse3, 1200).start();
 
-    // Dots animation
+    // Dots bounce – useNativeDriver: true (opacity + translateY only)
     Animated.loop(
       Animated.sequence([
-        Animated.timing(dotAnim, { toValue: 3, duration: 900, useNativeDriver: false }),
-        Animated.timing(dotAnim, { toValue: 0, duration: 0,   useNativeDriver: false }),
+        Animated.timing(dotAnim, { toValue: 3, duration: 900, useNativeDriver: true }),
+        Animated.timing(dotAnim, { toValue: 0, duration: 0,   useNativeDriver: true }),
       ])
     ).start();
 
@@ -234,10 +198,9 @@ export default function SearchingDriverScreen() {
         </View>
       </Animated.View>
 
-      {/* ── Bottom Sheet ────────────────────────────────────────────────── */}
-      <Animated.View 
-        {...panResponder.panHandlers}
-        style={[styles.sheet, { paddingBottom: insets.bottom + 20, transform: [{ translateY: sheetY }], opacity: fadeIn }]}
+      {/* ── Bottom Sheet (static position, no translateY) ─────────────── */}
+      <Animated.View
+        style={[styles.sheet, { paddingBottom: insets.bottom + 20, opacity: fadeIn }]}
       >
 
         {/* Drag handle */}
@@ -316,16 +279,16 @@ export default function SearchingDriverScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={[styles.modalIconWrap, { backgroundColor: endModalType === 'expired' ? '#F59E0B' : '#10B981' }]}>
-              <Ionicons 
-                name={endModalType === 'expired' ? 'sad-outline' : 'checkmark-circle'} 
-                size={44} 
-                color={WHITE} 
+              <Ionicons
+                name={endModalType === 'expired' ? 'sad-outline' : 'checkmark-circle'}
+                size={44}
+                color={WHITE}
               />
             </View>
             <Text style={styles.modalTitle}>{endModalType === 'expired' ? 'عذراً!' : 'تم الإلغاء'}</Text>
             <Text style={styles.modalMessage}>{endModalMsg}</Text>
-            <TouchableOpacity 
-              style={styles.modalButton} 
+            <TouchableOpacity
+              style={styles.modalButton}
               activeOpacity={0.85}
               onPress={() => {
                 setShowEndModal(false);
@@ -341,6 +304,7 @@ export default function SearchingDriverScreen() {
     </ScreenContainer>
   );
 }
+
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#E8EEF5' },

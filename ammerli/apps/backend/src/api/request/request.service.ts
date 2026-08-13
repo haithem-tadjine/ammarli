@@ -26,6 +26,7 @@ import { RequestCacheRepository } from './request-cache.repository';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, DataSource } from 'typeorm';
 import { RequestEntity } from './entities/request.entity';
+import { RatingEntity } from '../rating/entities/rating.entity';
 
 import { DriverMetadataService } from '../driver/driver-metadata.service';
 import { UserService } from '../user/user.service';
@@ -599,19 +600,23 @@ export class RequestService {
 
     try {
       // 1. Insert Rating Record
-      await queryRunner.manager.query(
-        `INSERT INTO "ratings" ("id", "rating", "comment", "reviewerId", "targetId", "requestId", "created_at", "updated_at") 
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
-        [uuidv4(), dto.rating, dto.comment || null, reviewerId, actualTargetId, requestId]
-      );
+      await queryRunner.manager.insert(RatingEntity, {
+        id: uuidv4() as any,
+        rating: dto.rating,
+        comment: dto.comment || null,
+        reviewerId: reviewerId as any,
+        targetId: actualTargetId as any,
+        requestId: requestId as any,
+      });
 
       // 2. Calculate New Average
-      const result = await queryRunner.manager.query(
-        `SELECT AVG(rating) as avg_rating FROM "ratings" WHERE "targetId" = $1`,
-        [actualTargetId]
-      );
+      const result = await queryRunner.manager
+        .createQueryBuilder(RatingEntity, 'rating')
+        .select('AVG(rating.rating)', 'avg_rating')
+        .where('rating.targetId = :targetId', { targetId: actualTargetId })
+        .getRawOne();
       
-      const newAvg = result[0]?.avg_rating ? parseFloat(result[0].avg_rating) : dto.rating;
+      const newAvg = result?.avg_rating ? parseFloat(result.avg_rating) : dto.rating;
 
       // 3. Update Target Entity
       if (isCustomerRatingDriver) {
