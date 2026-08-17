@@ -16,9 +16,8 @@ import { useRouter } from 'expo-router';
 const THEME_NAVY = '#012047';
 const THEME_YELLOW = '#FFCC00';
 
-// URL الرسمي لسياسة الخصوصية — الملف المحلي على الخادم أو GitHub Pages
-// استخدمنا الملف المحلي مع Asset في Expo:
-const PRIVACY_POLICY_URL = 'https://haithemtadjine.github.io/amerli-/privacy-policy.html';
+// URL الرسمي لسياسة الخصوصية — Netlify
+const PRIVACY_POLICY_URL = 'https://ammarli-privacy.netlify.app';
 
 // Fallback: HTML مضمّن في حالة عدم الاتصال
 const FALLBACK_HTML = `

@@ -1,169 +1,193 @@
 import ScreenContainer from '../../components/ScreenContainer';
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StatusBar,
-  Dimensions,
+  ActivityIndicator,
   Platform,
-  I18nManager
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { ChevronRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-const { width } = Dimensions.get('window');
 const THEME_NAVY = '#012047';
 const THEME_YELLOW = '#FFCC00';
 
-// تفعيل اتجاه اليمين لليسار
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
+// URL الرسمي لسياسة الخصوصية — Netlify
+const PRIVACY_POLICY_URL = 'https://ammarli-privacy.netlify.app';
+
+// Fallback: HTML مضمّن في حالة عدم الاتصال
+const FALLBACK_HTML = `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Cairo',sans-serif; background:#f4f7f6; color:#1a2740; padding:20px; direction:rtl; }
+    h2 { color:#003366; font-size:1.3rem; margin-bottom:8px; }
+    .card { background:#fff; border-radius:16px; padding:20px; margin-bottom:16px;
+            box-shadow:0 4px 20px rgba(0,51,102,0.1); border-right:4px solid #FFCC00; }
+    p, li { color:#5a6e8a; font-size:0.95rem; line-height:1.8; }
+    ul { padding-right:20px; margin-top:8px; }
+    li { margin-bottom:6px; }
+    .title { font-size:1.5rem; font-weight:800; color:#003366; text-align:center; margin-bottom:20px; }
+    .date { text-align:center; color:#FFCC00; background:#012047; padding:6px 16px;
+            border-radius:50px; display:inline-block; font-size:0.8rem; font-weight:600; margin-bottom:20px; }
+    .center { text-align:center; }
+    strong { color:#012047; }
+    .email { color:#012047; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="title">سياسة الخصوصية — عمارلي</div>
+  <div class="center"><span class="date">📅 آخر تحديث: 17 أوت 2026</span></div>
+  <br/>
+  <div class="card">
+    <h2>1. المعلومات التي نجمعها</h2>
+    <ul>
+      <li>الاسم ورقم الهاتف</li>
+      <li>بيانات الموقع الجغرافي (GPS)</li>
+      <li><strong>تطبيق الزبون:</strong> الموقع الدقيق لتحديد مكان التوصيل</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>2. كيف نستخدم معلوماتك</h2>
+    <ul>
+      <li>تسهيل طلبات توصيل المياه</li>
+      <li>ربط الزبائن بالسائقين</li>
+      <li>منع الاحتيال</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>3. مشاركة المعلومات</h2>
+    <p>لا نبيع بياناتك. نشارك فقط اسم وموقع الزبون مع السائق المعين.</p>
+  </div>
+  <div class="card">
+    <h2>4. أمان البيانات</h2>
+    <p>نستخدم تشفيراً قوياً لحماية بياناتك.</p>
+  </div>
+  <div class="card">
+    <h2>5. حذف الحساب والبيانات</h2>
+    <p>يحق لك طلب حذف حسابك وبياناتك نهائياً عبر زر "حذف الحساب" داخل التطبيق أو بمراسلتنا.</p>
+    <p><strong>⏱️ سيتم الحذف خلال 14 يوماً.</strong></p>
+  </div>
+  <div class="card">
+    <h2>6. الاتصال بنا</h2>
+    <p class="email">📧 haithemtadjine27@gmail.com</p>
+  </div>
+</body>
+</html>
+`;
 
 const PrivacyPolicyScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
-  const sections = [
-    {
-      id: 1,
-      title: 'جمع البيانات',
-      content: 'نقوم بجمع المعلومات الضرورية لتقديم خدمات التوصيل، بما في ذلك الاسم، رقم الهاتف، العنوان، ومعلومات الموقع لضمان وصول المياه إليك بدقة وكفاءة في الجزائر.'
-    },
-    {
-      id: 2,
-      title: 'استخدام البيانات',
-      content: 'تُستخدم بياناتك حصرياً لتحسين تجربة التوصيل، إدارة الطلبات، وتقديم عروض مخصصة. نحن نلتزم بعدم مشاركة معلوماتك مع أطراف ثالثة بموافقتك، باستثناء ما يقتضيه القانون.'
-    },
-    {
-      id: 3,
-      title: 'حماية البيانات',
-      content: 'نتخذ أقصى درجات الأمان لحماية معلوماتك الشخصية من الوصول غير المصرح به، باستخدام تقنيات تشفير متقدمة وفقاً للمعايير المعمول بها في الجزائر.'
-    }
-  ];
+  const webViewRef = useRef<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   return (
-    <ScreenContainer style={styles.container}>
-      {/* إخفاء شريط الحالة العلوي لمظهر نظيف */}
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_NAVY} />
 
-      {/* الترويسة (Header) */}
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <ChevronRight color={THEME_YELLOW} size={32} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>سياسة الخصوصية</Text>
-            <View style={{ width: 32 }} /> 
-          </View>
+        <View style={styles.headerContent}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
+            <ChevronRight color={THEME_YELLOW} size={30} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>سياسة الخصوصية</Text>
+          <View style={{ width: 40 }} />
+        </View>
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
-        showsVerticalScrollIndicator={false}
-      >
-        {sections.map((section) => (
-          <View key={section.id} style={styles.policyCard}>
-            <View style={styles.yellowAccent} />
-            <Text style={styles.cardTitle}>{section.title}</Text>
-            <Text style={styles.cardContent}>{section.content}</Text>
+      {/* WebView */}
+      <View style={styles.webviewContainer}>
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={THEME_NAVY} />
+            <Text style={styles.loadingText}>جارٍ التحميل...</Text>
           </View>
-        ))}
+        )}
 
-        {/* زر الموافقة السفلي */}
-        <TouchableOpacity style={styles.confirmButton} activeOpacity={0.8} onPress={() => router.back()}>
-          <Text style={styles.confirmButtonText}>موافق</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </ScreenContainer>
+        <WebView
+          ref={webViewRef}
+          source={hasError ? { html: FALLBACK_HTML } : { uri: PRIVACY_POLICY_URL }}
+          style={styles.webview}
+          onLoadStart={() => setLoading(true)}
+          onLoadEnd={() => setLoading(false)}
+          onError={() => {
+            setHasError(true);
+            setLoading(false);
+          }}
+          javaScriptEnabled
+          domStorageEnabled
+          startInLoadingState={false}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          bounces={false}
+          overScrollMode="never"
+        />
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FB',
+    backgroundColor: '#F4F7F6',
   },
   header: {
     backgroundColor: THEME_NAVY,
-    paddingBottom: 20,
-    // paddingTop is set dynamically via inline style using insets.top
+    paddingBottom: 16,
   },
   headerContent: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   headerTitle: {
     color: THEME_YELLOW,
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: 'Cairo-Bold',
     textAlign: 'center',
   },
   backButton: {
-    padding: 5,
-  },
-  scrollContent: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  policyCard: {
-    backgroundColor: '#FFF',
-    width: '100%',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-  },
-  yellowAccent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: THEME_YELLOW,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontFamily: 'Cairo-Bold',
-    color: THEME_NAVY,
-    textAlign: 'left',
-    marginBottom: 10,
-  },
-  cardContent: {
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'left',
-    lineHeight: 26,
-    fontFamily: 'Cairo-SemiBold',
-  },
-  confirmButton: {
-    backgroundColor: THEME_YELLOW,
-    width: '100%',
-    height: 60,
-    borderRadius: 30,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,204,0,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 40,
-    elevation: 6,
-    shadowColor: THEME_YELLOW,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
   },
-  confirmButtonText: {
-    fontSize: 20,
-    fontFamily: 'Cairo-Bold',
+  webviewContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: '#F4F7F6',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#F4F7F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    fontFamily: 'Cairo-SemiBold',
     color: THEME_NAVY,
   },
 });

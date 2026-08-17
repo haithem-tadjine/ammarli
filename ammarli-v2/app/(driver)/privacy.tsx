@@ -16,8 +16,8 @@ import { useRouter } from 'expo-router';
 const THEME_NAVY = '#003366';
 const THEME_YELLOW = '#F3CD0D';
 
-// URL الرسمي لسياسة الخصوصية
-const PRIVACY_POLICY_URL = 'https://haithemtadjine.github.io/amerli-/privacy-policy.html';
+// URL الرسمي لسياسة الخصوصية — Netlify
+const PRIVACY_POLICY_URL = 'https://ammarli-privacy.netlify.app';
 
 // Fallback: HTML مضمّن في حالة عدم الاتصال
 const FALLBACK_HTML = `
