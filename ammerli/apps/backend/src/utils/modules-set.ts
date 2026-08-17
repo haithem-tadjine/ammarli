@@ -23,6 +23,8 @@ import {
 } from 'nestjs-i18n';
 import { LoggerModule } from 'nestjs-pino';
 import path from 'path';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import loggerFactory from './logger-factory';
 
@@ -129,6 +131,31 @@ function generateModulesSet() {
     inject: [ConfigService],
   });
 
+  const throttlerModule = ThrottlerModule.forRootAsync({
+    imports: [ConfigModule],
+    inject: [ConfigService],
+    useFactory: (configService: ConfigService<AllConfigType>) => ({
+      throttlers: [
+        {
+          name: 'default',
+          ttl: 60000,
+          limit: 20, // 20 requests per minute by default
+        },
+        {
+          name: 'auth',
+          ttl: 60000,
+          limit: 3, // 3 requests per minute for auth endpoints
+        },
+      ],
+      storage: new ThrottlerStorageRedisService({
+        host: configService.getOrThrow('redis.host', { infer: true }),
+        port: configService.getOrThrow('redis.port', { infer: true }),
+        password: configService.getOrThrow('redis.password', { infer: true }),
+        tls: configService.get('redis.tlsEnabled', { infer: true }) as any,
+      }),
+    }),
+  });
+
   const modulesSet = process.env.MODULES_SET || 'monolith';
 
   switch (modulesSet) {
@@ -138,6 +165,7 @@ function generateModulesSet() {
         bullModule,
         BackgroundModule,
         cacheModule,
+        throttlerModule,
         dbModule,
         i18nModule,
         loggerModule,
@@ -150,6 +178,7 @@ function generateModulesSet() {
         ApiModule,
         bullModule,
         cacheModule,
+        throttlerModule,
         dbModule,
         i18nModule,
         loggerModule,

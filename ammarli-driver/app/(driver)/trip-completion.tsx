@@ -18,6 +18,7 @@ import { useDriverStore } from '../../src/store/useDriverStore';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +32,7 @@ const COLORS = {
 
 export default function TripCompletionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     orderId: string;
     serviceType: string;
@@ -94,7 +96,7 @@ export default function TripCompletionScreen() {
       <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
       
       {/* Header */}
-      <View style={[styles.header, { paddingTop: 50 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <Text style={styles.headerTitle}>ملخص الرحلة</Text>
       </View>
 
@@ -145,7 +147,7 @@ export default function TripCompletionScreen() {
       </View>
 
       {/* Buttons Footer (Glassmorphism) */}
-      <BlurView intensity={90} tint="light" style={styles.footer}>
+      <BlurView intensity={90} tint="light" style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <TouchableOpacity 
           style={[styles.primaryButton, isLoading && { opacity: 0.8 }]} 
           activeOpacity={0.8}

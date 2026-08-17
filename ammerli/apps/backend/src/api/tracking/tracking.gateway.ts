@@ -64,85 +64,88 @@ export class TrackingGateway
   }
 
   async handleConnection(client: Socket): Promise<void> {
-    const { driverId } = client.handshake.query as { driverId?: string };
-    const token = client.handshake.auth?.token;
+    const token = client.handshake.auth?.token || client.handshake.headers?.authorization?.split(' ')[1];
 
-    // 1. Driver Connection
-    if (driverId) {
-      client.data.driverId = driverId;
-      await client.join(`driver_${driverId}`); // Join driver room
-
-      let driverType = undefined;
-      let waterType = undefined;
-      let isSuspended = undefined;
-      try {
-        const cacheKey = `ws_auth:driver:${driverId}`;
-        const cachedDriver: any = await this.cacheManager.get(cacheKey);
-
-        if (cachedDriver) {
-          // Cache Hit: Proceed immediately
-          driverType = cachedDriver.type;
-          waterType = cachedDriver.waterType;
-          isSuspended = cachedDriver.isSuspended;
-          this.logger.debug(`[Cache Hit] Driver ${driverId} authenticated from Redis`);
-        } else {
-          // Cache Miss: Query Database
-          const driver = await this.driverService.findByUserId(driverId as any);
-          driverType = driver.type;
-          waterType = driver.waterType;
-          isSuspended = driver.isSuspended;
-          
-          // Save to Redis for 24 hours (86400000ms in cache-manager v5, or 86400s in v4)
-          // We assume standard usage (using milliseconds for cache-manager or standard seconds depending on version. Let's use 86400000 just in case, but standard nestjs cache manager v5 uses milliseconds, v4 uses seconds). Let's use 86400 for max compat if it's seconds, but wait, usually it's seconds. Actually, wait, let's use 86400.
-          await this.cacheManager.set(cacheKey, {
-            type: driverType,
-            waterType: waterType,
-            isSuspended: isSuspended,
-          }, 86400 * 1000); 
-          this.logger.debug(`[Cache Miss] Driver ${driverId} authenticated from DB and cached`);
-        }
-      } catch (e) {
-        this.logger.warn(
-          `Could not find driver details for userId ${driverId} during connection: ${e?.message}`,
-        );
-      }
-
-      await this.trackingService.setDriverOnline(
-        driverId,
-        driverType,
-        waterType,
-        isSuspended,
-      );
-      this.logger.log(`${LogConstants.TRACKING.DRIVER_CONNECTED}: ${driverId}`);
-      
-      // Opportunistically trigger matching for the new online driver
-      this.dispatchService.triggerMatchingForDriver(driverId);
+    if (!token) {
+      this.logger.warn(LogConstants.TRACKING.CONNECTION_REJECTED + ' - No token provided');
+      client.disconnect();
       return;
     }
 
-    // 2. User Connection (via JWT)
-    if (token) {
-      try {
-        const payload = this.jwtService.verify(token, {
-          secret: this.configService.get('auth.secret'),
-        });
-        const userId = payload.id;
+    try {
+      const payload = this.jwtService.verify(token, {
+        secret: this.configService.get('auth.secret'),
+      });
+      
+      const userId = payload.id;
+      client.data.user = payload;
+      
+      // Determine if connecting as driver or user.
+      // We check if it's a driver connecting based on their intent (e.g. from query or simply by checking role if it was in payload).
+      // Since frontend sends query: { driverId: userId }, we can use that to distinguish the connection type.
+      // Crucially, we NEVER trust the driverId from the query itself for identity, we ONLY use the verified userId.
+      const isDriverConnection = client.handshake.query?.driverId !== undefined;
+      
+      if (isDriverConnection) {
+        const driverId = userId; // Securely force identity to the token's ID
+        client.data.driverId = driverId;
+        await client.join(`driver_${driverId}`); // Join driver room
+
+        let driverType = undefined;
+        let waterType = undefined;
+        let isSuspended = undefined;
+        try {
+          const cacheKey = `ws_auth:driver:${driverId}`;
+          const cachedDriver: any = await this.cacheManager.get(cacheKey);
+
+          if (cachedDriver) {
+            // Cache Hit: Proceed immediately
+            driverType = cachedDriver.type;
+            waterType = cachedDriver.waterType;
+            isSuspended = cachedDriver.isSuspended;
+            this.logger.debug(`[Cache Hit] Driver ${driverId} authenticated from Redis`);
+          } else {
+            // Cache Miss: Query Database
+            const driver = await this.driverService.findByUserId(driverId as any);
+            driverType = driver.type;
+            waterType = driver.waterType;
+            isSuspended = driver.isSuspended;
+            
+            await this.cacheManager.set(cacheKey, {
+              type: driverType,
+              waterType: waterType,
+              isSuspended: isSuspended,
+            }, 86400 * 1000); 
+            this.logger.debug(`[Cache Miss] Driver ${driverId} authenticated from DB and cached`);
+          }
+        } catch (e) {
+          this.logger.warn(
+            `Could not find driver details for userId ${driverId} during connection: ${e?.message}`,
+          );
+        }
+
+        await this.trackingService.setDriverOnline(
+          driverId,
+          driverType,
+          waterType,
+          isSuspended,
+        );
+        this.logger.log(`${LogConstants.TRACKING.DRIVER_CONNECTED}: ${driverId}`);
+        
+        // Opportunistically trigger matching for the new online driver
+        this.dispatchService.triggerMatchingForDriver(driverId);
+      } else {
+        // User Connection
         client.data.userId = userId;
         await client.join(`user_${userId}`); // Join user room
         this.logger.log(`${LogConstants.TRACKING.USER_CONNECTED}: ${userId}`);
-        return;
-      } catch (error) {
-        this.logger.warn(
-          `${LogConstants.TRACKING.INVALID_TOKEN}: ${error.message}`,
-        );
-        client.disconnect();
-        return;
       }
+    } catch (error) {
+      this.logger.warn(
+        `${LogConstants.TRACKING.INVALID_TOKEN}: ${error.message}`,
+      );
+      client.disconnect();
     }
-
-    // 3. Unauthorized
-    this.logger.warn(LogConstants.TRACKING.CONNECTION_REJECTED);
-    client.disconnect();
   }
 
   handleDisconnect(client: Socket): void {

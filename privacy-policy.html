@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>سياسة الخصوصية — Ammarli</title>
+  <meta name="description" content="سياسة الخصوصية لتطبيقات عمارلي لتوصيل المياه | Privacy Policy for Ammarli Water Delivery Apps" />
+  <meta name="robots" content="index, follow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ═══════════════════════════════════════════════
+       CSS RESET & ROOT TOKENS
+    ═══════════════════════════════════════════════ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --navy:         #003366;
+      --navy-dark:    #002147;
+      --navy-mid:     #004080;
+      --navy-light:   #0a4d8c;
+      --gold:         #F3CD0D;
+      --gold-dark:    #d4b200;
+      --gold-glow:    rgba(243, 205, 13, 0.25);
+      --bg:           #f4f7f6;
+      --bg-card:      rgba(255, 255, 255, 0.82);
+      --bg-glass:     rgba(255, 255, 255, 0.55);
+      --text-main:    #1a2740;
+      --text-muted:   #5a6e8a;
+      --text-light:   #8fa3bb;
+      --border:       rgba(0, 51, 102, 0.10);
+      --shadow-sm:    0 2px 12px rgba(0, 51, 102, 0.08);
+      --shadow-md:    0 8px 32px rgba(0, 51, 102, 0.12);
+      --shadow-lg:    0 20px 60px rgba(0, 51, 102, 0.16);
+      --radius:       20px;
+      --radius-sm:    12px;
+      --transition:   0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.8;
+    }
+
+    /* ═══════════════════════════════════════════════
+       ANIMATED BACKGROUND MESH
+    ═══════════════════════════════════════════════ */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background:
+        radial-gradient(ellipse 80% 50% at 10% 0%, rgba(0, 64, 128, 0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 90% 100%, rgba(243, 205, 13, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 60% at 50% 50%, rgba(0, 51, 102, 0.03) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ═══════════════════════════════════════════════
+       HEADER — Compact & Premium
+    ═══════════════════════════════════════════════ */
+    header {
+      position: relative;
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 50%, var(--navy-light) 100%);
+      padding: 0;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    /* Animated glow orb */
+    header::before {
+      content: '';
+      position: absolute;
+      top: -30%; right: -10%;
+      width: 55%; height: 220%;
+      background: radial-gradient(ellipse, rgba(243, 205, 13, 0.13) 0%, transparent 65%);
+      animation: pulse 7s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+
+    /* Gold bottom border */
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0;
+      width: 100%; height: 3px;
+      background: linear-gradient(90deg, transparent 0%, var(--gold) 30%, var(--gold-dark) 50%, var(--gold) 70%, transparent 100%);
+      background-size: 200% 100%;
+      animation: shimmer 3s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); opacity: 0.5; }
+      to   { transform: scale(1.15); opacity: 1; }
+    }
+
+    /* Floating particle dots */
+    .header-particles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .header-particles span {
+      position: absolute;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: rgba(243, 205, 13, 0.5);
+      animation: floatUp linear infinite;
+    }
+
+    .header-particles span:nth-child(1)  { left: 8%;  animation-duration: 8s;  animation-delay: 0s;   width: 3px; height: 3px; }
+    .header-particles span:nth-child(2)  { left: 20%; animation-duration: 11s; animation-delay: 2s; }
+    .header-particles span:nth-child(3)  { left: 35%; animation-duration: 9s;  animation-delay: 4s;   opacity: 0.6; }
+    .header-particles span:nth-child(4)  { left: 55%; animation-duration: 13s; animation-delay: 1s;   width: 2px; height: 2px; }
+    .header-particles span:nth-child(5)  { left: 70%; animation-duration: 10s; animation-delay: 3s; }
+    .header-particles span:nth-child(6)  { left: 85%; animation-duration: 7s;  animation-delay: 5s;   opacity: 0.4; }
+    .header-particles span:nth-child(7)  { left: 92%; animation-duration: 12s; animation-delay: 0.5s; width: 5px; height: 5px; background: rgba(243,205,13,0.25); }
+
+    @keyframes floatUp {
+      0%   { transform: translateY(100px) scale(0); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 0.5; }
+      100% { transform: translateY(-120px) scale(1); opacity: 0; }
+    }
+
+    .header-inner {
+      position: relative;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 32px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      z-index: 2;
+    }
+
+    /* Left: Logo block */
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    .logo-img-wrap {
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+      border: 1.5px solid rgba(243, 205, 13, 0.3);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25), 0 0 0 4px rgba(243,205,13,0.08);
+      transition: transform var(--transition), box-shadow var(--transition);
+      flex-shrink: 0;
+    }
+
+    .logo-img-wrap:hover {
+      transform: scale(1.06) rotate(2deg);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.3), 0 0 0 6px rgba(243,205,13,0.15);
+    }
+
+    .logo-img-wrap img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .logo-text-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .logo-name {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    .logo-name span { color: var(--gold); }
+
+    .logo-tagline {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* Center: Page title */
+    .header-title-block {
+      text-align: center;
+      flex: 1;
+    }
+
+    .header-page-title {
+      font-size: clamp(1rem, 2.2vw, 1.35rem);
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 0.01em;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    }
+
+    .header-page-subtitle {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.4);
+      font-weight: 400;
+      margin-top: 3px;
+      letter-spacing: 0.03em;
+    }
+
+    /* Right: Date badge */
+    .header-date-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 16px;
+      background: rgba(243, 205, 13, 0.12);
+      border: 1px solid rgba(243, 205, 13, 0.28);
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: rgba(243, 205, 13, 0.9);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .header-date-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 6px var(--gold);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.2; }
+    }
+
+    @media (max-width: 640px) {
+      .header-inner { flex-direction: column; align-items: center; text-align: center; padding: 20px 16px 18px; gap: 14px; }
+      .header-title-block { order: -1; }
+      .header-date-badge { font-size: 0.68rem; padding: 5px 12px; }
+      .logo-name { font-size: 1.2rem; }
+    }
+
+    /* ═══════════════════════════════════════════════
+       LANGUAGE TABS NAV
+    ═══════════════════════════════════════════════ */
+    .lang-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(244, 247, 246, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .lang-nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lang-tab {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 32px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-bottom: 3px solid transparent;
+      transition: all var(--transition);
+      cursor: pointer;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+
+    .lang-tab:hover {
+      color: var(--navy);
+      background: rgba(0, 51, 102, 0.04);
+    }
+
+    .lang-tab.active {
+      color: var(--navy);
+      border-bottom-color: var(--gold);
+    }
+
+    .lang-flag { font-size: 1.2rem; }
+
+    /* ═══════════════════════════════════════════════
+       MAIN CONTAINER
+    ═══════════════════════════════════════════════ */
+    main {
+      position: relative;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 24px 64px;
+      z-index: 1;
+    }
+
+    /* ═══════════════════════════════════════════════
+       SECTION DIVIDER
+    ═══════════════════════════════════════════════ */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 56px 0 40px;
+    }
+
+    .section-divider .line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    .section-divider .label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 24px;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      color: #fff;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      box-shadow: 0 4px 16px rgba(0, 51, 102, 0.25);
+      white-space: nowrap;
+    }
+
+    /* ═══════════════════════════════════════════════
+       POLICY SECTION
+    ═══════════════════════════════════════════════ */
+    .policy-section { animation: fadeUp 0.6s ease both; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════════════════════
+       HERO CARD
+    ═══════════════════════════════════════════════ */
+    .hero-card {
+      position: relative;
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, var(--navy-light) 100%);
+      border-radius: var(--radius);
+      padding: 40px 48px;
+      margin-bottom: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: -50%; right: -10%;
+      width: 50%; height: 200%;
+      background: radial-gradient(ellipse, rgba(243, 205, 13, 0.15) 0%, transparent 70%);
+    }
+
+    .hero-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0;
+      width: 100%; height: 3px;
+      background: linear-gradient(90deg, var(--gold), var(--gold-dark), var(--gold));
+    }
+
+    .hero-card-content { position: relative; z-index: 2; }
+
+    .hero-title {
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1.3;
+      margin-bottom: 16px;
+    }
+
+    .hero-title .highlight { color: var(--gold); }
+
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .meta-chip.date {
+      background: rgba(243, 205, 13, 0.18);
+      border: 1px solid rgba(243, 205, 13, 0.4);
+      color: var(--gold);
+    }
+
+    .meta-chip.legal {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.75);
+    }
+
+    /* ═══════════════════════════════════════════════
+       POLICY CARDS
+    ═══════════════════════════════════════════════ */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .policy-card {
+      position: relative;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: var(--radius);
+      padding: 32px 36px;
+      box-shadow: var(--shadow-md);
+      transition: transform var(--transition), box-shadow var(--transition);
+      overflow: hidden;
+    }
+
+    /* Glass sheen overlay */
+    .policy-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(145deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 60%);
+      pointer-events: none;
+      border-radius: var(--radius);
+    }
+
+    /* Soft 3D shadow blob */
+    .policy-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 5%; right: 5%;
+      height: 20px;
+      background: rgba(0, 51, 102, 0.08);
+      border-radius: 50%;
+      filter: blur(12px);
+      transform: translateY(10px);
+      transition: all var(--transition);
+      z-index: -1;
+    }
+
+    .policy-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .policy-card:hover::after {
+      filter: blur(20px);
+      opacity: 0.6;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .card-icon {
+      flex-shrink: 0;
+      width: 52px; height: 52px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      box-shadow: 0 6px 20px rgba(0, 51, 102, 0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+      position: relative;
+    }
+
+    .card-icon .num {
+      position: absolute;
+      bottom: -4px;
+      right: -4px;
+      width: 18px; height: 18px;
+      background: var(--gold);
+      border-radius: 50%;
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: var(--navy-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+    }
+
+    .card-title-wrap { flex: 1; }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--navy-dark);
+      margin-bottom: 4px;
+    }
+
+    .card-divider {
+      width: 40px; height: 3px;
+      background: linear-gradient(90deg, var(--gold), transparent);
+      border-radius: 2px;
+    }
+
+    .card-body p {
+      color: var(--text-muted);
+      font-size: 0.96rem;
+      font-weight: 400;
+      margin-bottom: 12px;
+    }
+
+    .card-body p:last-child { margin-bottom: 0; }
+
+    .card-body ul {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-body li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      color: var(--text-muted);
+      font-size: 0.96rem;
+    }
+
+    .card-body li .bullet {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+
+    .card-body li .bullet svg {
+      width: 10px; height: 10px;
+      fill: white;
+    }
+
+    .card-body li strong { color: var(--navy); font-weight: 700; }
+
+    /* ── Accent Card ──────────────────────────────── */
+    .policy-card.accent .card-icon {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+      box-shadow: 0 6px 20px rgba(243, 205, 13, 0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+
+    .policy-card.accent .card-icon .num {
+      background: var(--navy);
+      color: var(--gold);
+    }
+
+    .policy-card.accent .card-divider {
+      background: linear-gradient(90deg, var(--navy), transparent);
+    }
+
+    /* ── Deletion Card ────────────────────────────── */
+    .policy-card.deletion {
+      border-color: rgba(243, 205, 13, 0.3);
+      background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(243, 205, 13, 0.06) 100%);
+    }
+
+    .deletion-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, rgba(243, 205, 13, 0.15) 0%, rgba(243, 205, 13, 0.05) 100%);
+      border: 1px solid rgba(243, 205, 13, 0.35);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      margin-top: 16px;
+    }
+
+    .deletion-banner .icon-wrap { font-size: 1.4rem; flex-shrink: 0; }
+
+    .deletion-banner p {
+      margin: 0 !important;
+      font-size: 0.88rem !important;
+      color: var(--navy) !important;
+      font-weight: 600 !important;
+    }
+
+    /* ── Contact Card ─────────────────────────────── */
+    .policy-card.contact {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 100%);
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    .policy-card.contact .card-title { color: #fff; }
+    .policy-card.contact .card-divider { background: linear-gradient(90deg, var(--gold), transparent); }
+    .policy-card.contact .card-body p { color: rgba(255,255,255,0.7); }
+
+    .contact-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      padding: 14px 28px;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+      color: var(--navy-dark);
+      border-radius: 50px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      text-decoration: none;
+      box-shadow: 0 6px 20px rgba(243, 205, 13, 0.4);
+      transition: all var(--transition);
+    }
+
+    .contact-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px rgba(243, 205, 13, 0.5);
+    }
+
+    /* ═══════════════════════════════════════════════
+       RTL / LTR
+    ═══════════════════════════════════════════════ */
+    .rtl-section { direction: rtl; text-align: right; }
+    .rtl-section .card-header { flex-direction: row-reverse; }
+    .rtl-section .card-divider { background: linear-gradient(270deg, var(--gold), transparent); }
+    .rtl-section .policy-card.accent .card-divider { background: linear-gradient(270deg, var(--navy), transparent); }
+    .rtl-section .card-body li { flex-direction: row-reverse; }
+    .rtl-section .card-icon .num { right: auto; left: -4px; }
+    .rtl-section .deletion-banner { flex-direction: row-reverse; }
+    .rtl-section .contact-link { flex-direction: row-reverse; }
+    .ltr-section { direction: ltr; text-align: left; }
+
+    /* ═══════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════ */
+    footer {
+      position: relative;
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 100%);
+      padding: 40px 24px;
+      text-align: center;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    footer::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 3px;
+      background: linear-gradient(90deg, transparent, var(--gold), var(--gold-dark), var(--gold), transparent);
+    }
+
+    footer::after {
+      content: '';
+      position: absolute;
+      bottom: -50%; left: 20%;
+      width: 60%; height: 200%;
+      background: radial-gradient(ellipse, rgba(243, 205, 13, 0.07) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .footer-inner { position: relative; z-index: 2; max-width: 1100px; margin: 0 auto; }
+    .footer-logo { font-size: 1.6rem; font-weight: 900; color: #fff; margin-bottom: 10px; }
+    .footer-logo span { color: var(--gold); }
+    .footer-tagline { font-size: 0.88rem; color: rgba(255,255,255,0.5); margin-bottom: 24px; }
+    .footer-divider { width: 60px; height: 2px; background: var(--gold); margin: 0 auto 24px; border-radius: 2px; opacity: 0.6; }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px 24px;
+      margin-bottom: 24px;
+    }
+
+    .footer-links a {
+      color: rgba(255,255,255,0.5);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: color var(--transition);
+    }
+
+    .footer-links a:hover { color: var(--gold); }
+    .footer-copy { font-size: 0.78rem; color: rgba(255,255,255,0.3); }
+
+    /* ═══════════════════════════════════════════════
+       SCROLL REVEAL
+    ═══════════════════════════════════════════════ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal:nth-child(1) { transition-delay: 0.05s; }
+    .reveal:nth-child(2) { transition-delay: 0.12s; }
+    .reveal:nth-child(3) { transition-delay: 0.19s; }
+    .reveal:nth-child(4) { transition-delay: 0.26s; }
+    .reveal:nth-child(5) { transition-delay: 0.33s; }
+    .reveal:nth-child(6) { transition-delay: 0.40s; }
+
+    /* ═══════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .header-inner { padding: 40px 20px 36px; }
+      .logo-text { font-size: 2rem; }
+      .logo-icon { width: 52px; height: 52px; font-size: 1.5rem; }
+      .hero-card { padding: 28px 24px; }
+      .policy-card { padding: 24px 20px; }
+      .card-icon { width: 44px; height: 44px; font-size: 1.2rem; }
+      .lang-tab { padding: 14px 20px; font-size: 0.88rem; }
+    }
+
+    @media (max-width: 480px) {
+      .hero-title { font-size: 1.3rem; }
+      .hero-meta { flex-direction: column; align-items: flex-start; }
+      .card-header { flex-direction: column; align-items: flex-start; }
+      .rtl-section .card-header { flex-direction: column; align-items: flex-end; }
+    }
+
+    /* ═══════════════════════════════════════════════
+       CUSTOM SCROLLBAR
+    ═══════════════════════════════════════════════ */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--navy); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--navy-light); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════
+       HEADER — Compact Premium Bar
+  ═══════════════════════════════════════════════ -->
+  <header>
+    <!-- Floating particles -->
+    <div class="header-particles" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span>
+    </div>
+
+    <div class="header-inner">
+      <!-- Logo -->
+      <div class="header-logo">
+        <div class="logo-img-wrap">
+          <img src="C:\Users\Lenovo\.gemini\antigravity-ide\brain\27e502b8-2b93-4398-8b1b-086ce4c8252e\ammarli_logo_1786922018463.jpg"
+               alt="Ammarli Logo" />
+        </div>
+        <div class="logo-text-wrap">
+          <div class="logo-name">Ammar<span>li</span></div>
+          <div class="logo-tagline">Water Delivery · توصيل المياه</div>
+        </div>
+      </div>
+
+      <!-- Page Title -->
+      <div class="header-title-block">
+        <h1 class="header-page-title">سياسة الخصوصية</h1>
+        <p class="header-page-subtitle">Privacy Policy</p>
+      </div>
+
+      <!-- Date -->
+      <div class="header-date-badge">17 أوت 2026</div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════
+       STICKY LANGUAGE NAV
+  ═══════════════════════════════════════════════ -->
+  <nav class="lang-nav" id="langNav" aria-label="Language navigation">
+    <div class="lang-nav-inner">
+      <a class="lang-tab active" href="#arabic-section" id="tab-ar">
+        <span class="lang-flag">🇩🇿</span> العربية
+      </a>
+      <a class="lang-tab" href="#english-section" id="tab-en">
+        <span class="lang-flag">🇬🇧</span> English
+      </a>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════
+       MAIN CONTENT
+  ═══════════════════════════════════════════════ -->
+  <main>
+
+    <!-- ─── ARABIC SECTION (RTL) ─── -->
+    <section id="arabic-section" class="policy-section rtl-section" dir="rtl" lang="ar"
+             aria-label="سياسة الخصوصية بالعربية">
+
+      <div class="hero-card reveal">
+        <div class="hero-card-content">
+          <h2 class="hero-title">
+            سياسة الخصوصية<br/>لتطبيقات <span class="highlight">"عمارلي"</span>
+          </h2>
+          <div class="hero-meta">
+            <span class="meta-chip date">📅 آخر تحديث: 17 أوت 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cards-grid">
+
+        <!-- 1 -->
+        <article class="policy-card reveal">
+          <div class="card-header">
+            <div class="card-icon">🗂️<span class="num">1</span></div>
+            <div class="card-title-wrap">
+              <h2 class="card-title">المعلومات التي نجمعها</h2>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>نجمع المعلومات التالية لضمان تقديم خدمة توصيل المياه بكفاءة وأمان:</p>
+            <ul>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span><strong>الاسم ورقم الهاتف</strong> — المعلومات الشخصية الأساسية لإنشاء حسابك.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span><strong>بيانات الموقع الجغرافي (GPS)</strong> — لتتبع الطلبات وضمان دقة التوصيل.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span><strong>تطبيق الزبون:</strong> نجمع الموقع الدقيق لتحديد مكان التوصيل بدقة.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span><strong>تطبيق السائق:</strong> نجمع الموقع الدقيق في الخلفية <em>(Background Location)</em> لتتبع مسار صهريج المياه وتحديث حالة الطلب في الوقت الفعلي.</span>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 2 -->
+        <article class="policy-card accent reveal">
+          <div class="card-header">
+            <div class="card-icon">⚙️<span class="num">2</span></div>
+            <div class="card-title-wrap">
+              <h2 class="card-title">كيف نستخدم معلوماتك</h2>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>تُستخدم بياناتك حصرياً لتشغيل خدماتنا وتحسين تجربتك:</p>
+            <ul>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>تسهيل طلبات توصيل المياه ومعالجتها بسرعة.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>ربط الزبائن بالسائقين المتاحين لتنفيذ الطلبات.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>منع الاحتيال وحماية سلامة المنصة.</span>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 3 -->
+        <article class="policy-card reveal">
+          <div class="card-header">
+            <div class="card-icon">🤝<span class="num">3</span></div>
+            <div class="card-title-wrap">
+              <h2 class="card-title">مشاركة المعلومات</h2>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p><strong>لا نبيع بياناتك أبداً</strong> لأي طرف ثالث. نحن نلتزم بأقصى درجات الخصوصية:</p>
+            <ul>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>نشارك فقط <strong>اسم وموقع الزبون</strong> مع السائق المعين لتنفيذ الطلب.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>لا تُشارك أي معلومات مع أطراف تسويقية أو تجارية.</span>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 4 -->
+        <article class="policy-card accent reveal">
+          <div class="card-header">
+            <div class="card-icon">🔒<span class="num">4</span></div>
+            <div class="card-title-wrap">
+              <h2 class="card-title">أمان البيانات</h2>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>نولي حماية بياناتك أهمية قصوى. نستخدم <strong>تشفيراً قوياً</strong> على مستوى بروتوكولات الاتصال والتخزين لضمان سرية معلوماتك وعدم الوصول إليها من غير المصرح لهم.</p>
+          </div>
+        </article>
+
+        <!-- 5 -->
+        <article class="policy-card deletion reveal">
+          <div class="card-header">
+            <div class="card-icon">🗑️<span class="num">5</span></div>
+            <div class="card-title-wrap">
+              <h2 class="card-title">طلب حذف الحساب والبيانات</h2>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>يحق لك في أي وقت طلب <strong>حذف حسابك وكل بياناتك نهائياً</strong>. يمكنك القيام بذلك بإحدى الطريقتين:</p>
+            <ul>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>عبر زر <strong>"حذف الحساب"</strong> الموجود داخل إعدادات التطبيق مباشرةً.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>عبر مراسلتنا على البريد الإلكتروني أدناه.</span>
+              </li>
+            </ul>
+            <div class="deletion-banner">
+              <span class="icon-wrap">⏱️</span>
+              <p>سيتم حذف جميع بياناتك نهائياً خلال مدة أقصاها <strong>14 يوماً</strong> من تاريخ الطلب.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 6 -->
+        <article class="policy-card contact reveal">
+          <div class="card-header">
+            <div class="card-icon" style="background:linear-gradient(135deg,var(--gold) 0%,var(--gold-dark) 100%);box-shadow:0 6px 20px rgba(243,205,13,.35);">
+              ✉️<span class="num" style="background:var(--navy);color:var(--gold);">6</span>
+            </div>
+            <div class="card-title-wrap">
+              <h2 class="card-title">الاتصال بنا</h2>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>لأي استفسار أو طلب يتعلق بخصوصيتك وبياناتك، تواصل معنا مباشرةً:</p>
+            <a href="mailto:haithemtadjine27@gmail.com" class="contact-link" id="contact-link-ar">
+              <span>📧</span>haithemtadjine27@gmail.com
+            </a>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- ─── DIVIDER ─── -->
+    <div class="section-divider" aria-hidden="true">
+      <div class="line"></div>
+      <div class="label">🌐 English Version</div>
+      <div class="line"></div>
+    </div>
+
+    <!-- ─── ENGLISH SECTION (LTR) ─── -->
+    <section id="english-section" class="policy-section ltr-section" dir="ltr" lang="en"
+             aria-label="Privacy Policy in English">
+
+      <div class="hero-card reveal">
+        <div class="hero-card-content">
+          <h3 class="hero-title">
+            Privacy Policy<br/>for <span class="highlight">Ammarli</span> Apps
+          </h3>
+          <div class="hero-meta">
+            <span class="meta-chip date">📅 Last Updated: August 17, 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cards-grid">
+
+        <!-- 1 -->
+        <article class="policy-card reveal">
+          <div class="card-header">
+            <div class="card-icon">🗂️<span class="num">1</span></div>
+            <div class="card-title-wrap">
+              <h3 class="card-title">Information We Collect</h3>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>We collect the following information to provide efficient and secure water delivery services:</p>
+            <ul>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span><strong>Name and phone number</strong> — Essential personal details to create your account.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span><strong>Location Data (GPS)</strong> — To track orders and ensure delivery accuracy.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span><strong>Customer App:</strong> We collect precise location to accurately determine your delivery destination.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span><strong>Driver App:</strong> We collect precise background location to track water tank routes and provide live order status updates.</span>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 2 -->
+        <article class="policy-card accent reveal">
+          <div class="card-header">
+            <div class="card-icon">⚙️<span class="num">2</span></div>
+            <div class="card-title-wrap">
+              <h3 class="card-title">How We Use Your Information</h3>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>Your data is used exclusively to operate our services and improve your experience:</p>
+            <ul>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>To dispatch and efficiently process water delivery orders.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>To connect customers with available drivers for order fulfillment.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>To prevent fraud and protect platform integrity.</span>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 3 -->
+        <article class="policy-card reveal">
+          <div class="card-header">
+            <div class="card-icon">🤝<span class="num">3</span></div>
+            <div class="card-title-wrap">
+              <h3 class="card-title">Data Sharing</h3>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p><strong>We do not sell your data</strong> to any third party. We are committed to the highest standards of privacy:</p>
+            <ul>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>We only share the <strong>customer's name and location</strong> with the assigned driver to fulfill the order.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>No information is shared with marketing or commercial third parties.</span>
+              </li>
+            </ul>
+          </div>
+        </article>
+
+        <!-- 4 -->
+        <article class="policy-card accent reveal">
+          <div class="card-header">
+            <div class="card-icon">🔒<span class="num">4</span></div>
+            <div class="card-title-wrap">
+              <h3 class="card-title">Data Security</h3>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>We prioritize the security of your data. We employ <strong>strong encryption</strong> at the communication protocol and storage levels to ensure the confidentiality of your information and prevent unauthorized access.</p>
+          </div>
+        </article>
+
+        <!-- 5 -->
+        <article class="policy-card deletion reveal">
+          <div class="card-header">
+            <div class="card-icon">🗑️<span class="num">5</span></div>
+            <div class="card-title-wrap">
+              <h3 class="card-title">Account and Data Deletion</h3>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>You have the right at any time to request the <strong>complete and permanent deletion of your account and all associated data</strong>. You can do so in one of two ways:</p>
+            <ul>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>Via the <strong>"Delete Account"</strong> option found directly in the app settings.</span>
+              </li>
+              <li>
+                <span class="bullet"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <span>By emailing us at the address below.</span>
+              </li>
+            </ul>
+            <div class="deletion-banner">
+              <span class="icon-wrap">⏱️</span>
+              <p>All your data will be permanently deleted within a maximum of <strong>14 days</strong> from the date of the request.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- 6 -->
+        <article class="policy-card contact reveal">
+          <div class="card-header">
+            <div class="card-icon" style="background:linear-gradient(135deg,var(--gold) 0%,var(--gold-dark) 100%);box-shadow:0 6px 20px rgba(243,205,13,.35);">
+              ✉️<span class="num" style="background:var(--navy);color:var(--gold);">6</span>
+            </div>
+            <div class="card-title-wrap">
+              <h3 class="card-title">Contact Us</h3>
+              <div class="card-divider"></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p>For any inquiry or request related to your privacy and data, contact us directly:</p>
+            <a href="mailto:haithemtadjine27@gmail.com" class="contact-link" id="contact-link-en">
+              <span>📧</span>haithemtadjine27@gmail.com
+            </a>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════ -->
+  <footer role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-logo">Ammar<span>li</span> 💧</div>
+      <p class="footer-tagline">منصة توصيل المياه الذكية · Smart Water Delivery Platform</p>
+      <div class="footer-divider"></div>
+      <nav class="footer-links" aria-label="Footer navigation">
+        <a href="#arabic-section">العربية 🇩🇿</a>
+        <a href="#english-section">English 🇬🇧</a>
+        <a href="mailto:haithemtadjine27@gmail.com">📧 Contact</a>
+      </nav>
+      <p class="footer-copy">© 2026 Ammarli. All rights reserved. · جميع الحقوق محفوظة.</p>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════
+       JS — Scroll Reveal + Active Tab
+  ═══════════════════════════════════════════════ -->
+  <script>
+    // Scroll Reveal
+    const revealObserver = new IntersectionObserver(
+      entries => entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          revealObserver.unobserve(e.target);
+        }
+      }),
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // Active Language Tab via IntersectionObserver
+    const tabAr = document.getElementById('tab-ar');
+    const tabEn = document.getElementById('tab-en');
+
+    const sectionObserver = new IntersectionObserver(
+      entries => entries.forEach(e => {
+        if (e.isIntersecting) {
+          const isAr = e.target.id === 'arabic-section';
+          tabAr.classList.toggle('active', isAr);
+          tabEn.classList.toggle('active', !isAr);
+        }
+      }),
+      { threshold: 0.3 }
+    );
+    sectionObserver.observe(document.getElementById('arabic-section'));
+    sectionObserver.observe(document.getElementById('english-section'));
+
+    // Click handler
+    document.querySelectorAll('.lang-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.lang-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+  </script>
+
+</body>
+</html>

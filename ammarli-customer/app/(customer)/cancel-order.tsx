@@ -8,7 +8,8 @@ import {
   StatusBar,
   Platform,
   ScrollView,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -117,9 +118,11 @@ export default function CancelOrderScreen() {
           disabled={!selectedReason || isCancelling}
           activeOpacity={0.8}
         >
-          <Text style={styles.cancelButtonText}>
-            {isCancelling ? 'جاري الإلغاء...' : 'إلغاء الطلب'}
-          </Text>
+          {isCancelling ? (
+            <ActivityIndicator color="#FFF" size="small" />
+          ) : (
+            <Text style={styles.cancelButtonText}>إلغاء الطلب</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.returnButton} activeOpacity={0.6} onPress={() => router.back()}>

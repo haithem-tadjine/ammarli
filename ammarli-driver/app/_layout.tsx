@@ -21,6 +21,7 @@ import { setupPushNotifications, registerPushTokenWithBackend } from '../src/ser
 import { useEffect, useState, useRef } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 import { I18nManager, Platform, View, LogBox } from 'react-native';
 import { useAuthStore } from '../src/store/useAuthStore';
@@ -209,11 +210,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="splash" />
-          <Stack.Screen name="(driver)" />
-        </Stack>
+        <ErrorBoundary>
+          <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="splash" />
+            <Stack.Screen name="(driver)" />
+          </Stack>
         
         {/* ── System Integration: Render NewOrderCard globally when active ── */}
         {globalIncomingOrder && (
@@ -282,6 +284,7 @@ export default function RootLayout() {
             />
           </View>
         )}
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

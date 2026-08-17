@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Image, Dimensions, Platform, KeyboardAvoidingView,
-  Animated, StatusBar
+  Animated, StatusBar, ActivityIndicator
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,6 +60,7 @@ export default function OrderDetailsScreen() {
   const createOrder  = useCustomerStore(s => s.createOrder);
   const userLocation = useCustomerStore(s => s.userLocation);
   const draftOrder   = useCustomerStore(s => s.draftOrder);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleOrderNow = async () => {
     if (totalQuantity === 0) { Alert.alert('تنبيه', 'أضف منتجاً واحداً على الأقل'); return; }
@@ -69,9 +70,13 @@ export default function OrderDetailsScreen() {
       if (cart[size] > 0) items.push({ size, qty: cart[size] });
     });
     try {
+      setIsLoading(true);
       await createOrder({ id: Math.floor(Math.random() * 100000), type: 'Bottled', status: 'searching', location: draftOrder.location, locationName: draftOrder.location.address || 'موقع التوصيل', items });
       router.push('/(customer)/searching-driver');
-    } catch {}
+    } catch {
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSchedule = () => {
@@ -238,12 +243,12 @@ export default function OrderDetailsScreen() {
           <Text style={styles.scheduleBtnText}>جدولة</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.orderBtn, totalQuantity === 0 && { opacity: 0.45 }]}
+          style={[styles.orderBtn, (totalQuantity === 0 || isLoading) && { opacity: 0.45 }]}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); handleOrderNow(); }}
-          disabled={totalQuantity === 0}
+          disabled={totalQuantity === 0 || isLoading}
         >
           <Text style={styles.orderBtnText}>تأكيد الطلب</Text>
-          <Ionicons name="arrow-back" size={20} color={NAVY} />
+          {isLoading ? <ActivityIndicator size="small" color={NAVY} /> : <Ionicons name="arrow-back" size={20} color={NAVY} />}
         </TouchableOpacity>
       </View>
 

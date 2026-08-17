@@ -3,6 +3,7 @@ import ScreenContainer from '../components/ScreenContainer';
 import { View, StyleSheet } from 'react-native';
 import { useRouter, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from '../src/store/useAuthStore';
+import { useDriverStore } from '../src/store/useDriverStore';
 import { applyStoredRTL } from '../src/shared/localization/i18n';
 
 const NAVY_DARK = '#001E3C';
@@ -29,10 +30,23 @@ export default function SplashScreen() {
       // Hydrate auth state
       const role = await hydrate();
 
-      // Determine target route
-      const target = !role || role !== 'DRIVER'
-        ? '/(driver)/login'
-        : '/(driver)/(tabs)';
+      let target: string = '/(driver)/login';
+
+      if (role === 'DRIVER') {
+        try {
+          // ── Check if driver has an interrupted active order ──────────────
+          // This handles: force-close, phone shutdown, internet loss and reconnect
+          const result = await useDriverStore.getState().fetchActiveOrder();
+          if (result.hasActiveOrder) {
+            // Bring the driver straight back to their active delivery
+            target = '/(driver)/order-details';
+          } else {
+            target = '/(driver)/(tabs)';
+          }
+        } catch {
+          target = '/(driver)/(tabs)';
+        }
+      }
 
       // If navigator is already mounted → navigate immediately.
       if (rootNavState?.key) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -93,6 +93,7 @@ const NewOrderCard = ({
   onDecline,
 }: NewOrderCardProps) => {
   const [timeLeft, setTimeLeft] = useState(totalSeconds);
+  const [isAccepting, setIsAccepting] = useState(false);
 
   // العداد التنازلي
   useEffect(() => {
@@ -193,9 +194,21 @@ const NewOrderCard = ({
           <TouchableOpacity
             style={[styles.acceptCircle, { backgroundColor: urgentColor }]}
             activeOpacity={0.9}
-            onPress={onAccept}
+            disabled={isAccepting}
+            onPress={async () => {
+              setIsAccepting(true);
+              try {
+                await onAccept();
+              } finally {
+                setIsAccepting(false);
+              }
+            }}
           >
-            <Text style={styles.acceptLabel}>قبول</Text>
+            {isAccepting ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <Text style={styles.acceptLabel}>قبول</Text>
+            )}
           </TouchableOpacity>
         </View>
 

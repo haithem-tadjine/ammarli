@@ -173,6 +173,7 @@ interface DriverState {
 
   completeDelivery: (earnings: number, quantityLiters: number) => void;
   markOrderAsCompleted: (orderData: { orderId: string; price: number; customerName: string }) => void;
+  fetchActiveOrder: () => Promise<{ hasActiveOrder: boolean; orderId?: string } >;
   clearStore: () => void;
 }
 
@@ -314,6 +315,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
             location:      { lat: 36.752887, lng: 3.042048 },
             defaultPrice:  d.defaultPrice,
             bottledPrices: d.bottledPrices,
+            pricePerUnit:  d.pricePerUnit,
+            floorPrice:    d.floorPrice,
           },
         });
       }
@@ -348,6 +351,55 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     } catch {
       // Stats endpoint may not exist yet — silently skip
     }
+  },
+
+  // ── Fetch & Restore Active Order on App Launch ─────────────────────────────
+  fetchActiveOrder: async () => {
+    try {
+      const res = await api.get('/drivers/me/active-order');
+      if (res.data && res.data.id) {
+        const raw = res.data;
+        // Map backend response to ActiveDriverOrder shape
+        const restoredOrder: ActiveDriverOrder = {
+          orderId:   raw.id,
+          status:    raw.status?.toLowerCase() === 'delivering' ? 'driving'
+                   : raw.status?.toLowerCase() === 'arrived'    ? 'arrived'
+                   : 'accepted',
+          customer: {
+            name:      raw.user ? `${raw.user.firstName || ''} ${raw.user.lastName || ''}`.trim() : 'الزبون',
+            phone:     raw.user?.phone || '',
+            avatarUrl: raw.user?.image || '',
+          },
+          deliveryAddress: {
+            label:    raw.deliveryAddress || 'موقع التوصيل',
+            distance: raw.distance || '',
+            lat:      raw.pickupLat  || 0,
+            lng:      raw.pickupLng  || 0,
+          },
+          items:       raw.bottledItems ? Object.entries(raw.bottledItems).map(([k, v]) => ({ icon: 'package', description: k, detail: k, price: 0, qty: Number(v) })) : [],
+          subtotal:    raw.subtotal || raw.totalPrice || 0,
+          deliveryFee: raw.appCommission || 0,
+          total:       raw.totalPrice || 0,
+          status_raw:  raw.status,
+          createdAt:   raw.createdAt || new Date().toISOString(),
+          tankerDetails: raw.tankerDetails,
+        };
+        set((state) => {
+          const alreadyExists = state.activeDriverOrders.some(o => o.orderId === restoredOrder.orderId);
+          if (alreadyExists) return state;
+          const newOrders = [restoredOrder];
+          return {
+            activeDriverOrders: newOrders,
+            activeDriverOrder:  newOrders[0],
+            driverStatus: 'BUSY',
+          };
+        });
+        return { hasActiveOrder: true, orderId: raw.id };
+      }
+    } catch (e) {
+      console.log('[fetchActiveOrder] No active order or error:', e);
+    }
+    return { hasActiveOrder: false };
   },
 
   fetchPastTrips: async () => {

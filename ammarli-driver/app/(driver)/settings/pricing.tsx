@@ -3,11 +3,14 @@ import ScreenContainer from '../../../components/ScreenContainer';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, ActivityIndicator, Alert, ScrollView, StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDriverStore } from '../../../src/store/useDriverStore';
 import { api } from '../../../src/services/api';
 
@@ -51,6 +54,7 @@ function PriceField({
 // ── الشاشة الرئيسية ───────────────────────────────────────────────────────────
 export default function PricingSettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const registeredDriver = useDriverStore((s: any) => s.registeredDriver);
 
   const isBottled = registeredDriver?.driverType === 'Bottled';
@@ -172,7 +176,7 @@ export default function PricingSettingsScreen() {
       <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <BlurView intensity={50} tint="light" style={styles.iconWrap}>
             <MaterialCommunityIcons name="chevron-right" size={28} color={COLORS.primary} />
@@ -182,7 +186,8 @@ export default function PricingSettingsScreen() {
         <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* أيقونة + وصف */}
         <View style={styles.heroSection}>
@@ -291,6 +296,7 @@ export default function PricingSettingsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -300,7 +306,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 40, paddingBottom: 15,
+    paddingHorizontal: 20, paddingBottom: 15,
   },
   headerTitle: { fontSize: 22, fontFamily: 'Cairo-Black', color: COLORS.primary },
   backBtn:     { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },

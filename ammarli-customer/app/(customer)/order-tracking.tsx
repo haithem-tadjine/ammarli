@@ -138,9 +138,11 @@ export default function OrderTrackingScreen() {
             <Feather name="x" size={24} color={COLORS.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>تتبع الطلبية</Text>
+          {/* 
           <TouchableOpacity style={styles.iconBtn} onPress={() => {}}>
             <Feather name="help-circle" size={24} color={COLORS.primary} />
           </TouchableOpacity>
+          */}
         </View>
 
         {/* ── Map/Animation Card ─────────────────────────────────────────────── */}
@@ -247,9 +249,11 @@ export default function OrderTrackingScreen() {
               ) : <View style={{ flex: 1 }} />}
 
               <View style={styles.actionButtonsRow}>
+                {/*
                 <TouchableOpacity style={styles.actionIconBtn} onPress={() => {}}>
                   <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.primary} />
                 </TouchableOpacity>
+                */}
                 <TouchableOpacity style={styles.callBtn} onPress={handleCallPress}>
                   <Ionicons name="call" size={20} color={COLORS.white} />
                   <Text style={styles.callBtnText}>اتصال</Text>

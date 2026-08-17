@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { storage, STORAGE_KEYS } from '../utils/storage';
+import { Alert } from 'react-native';
 
 // Use EXPO_PUBLIC_API_URL from .env — fallback to localhost for web/dev
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -28,7 +29,9 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401 && error.config?.url !== '/auth/logout') {
+    if (!error.response && error.message === 'Network Error') {
+      Alert.alert('خطأ في الاتصال', 'انقطع الاتصال بالإنترنت، يرجى التحقق من الشبكة وإعادة المحاولة.');
+    } else if (error.response?.status === 401 && error.config?.url !== '/auth/logout') {
       const { useAuthStore } = require('../store/useAuthStore');
       useAuthStore.getState().logout();
     }

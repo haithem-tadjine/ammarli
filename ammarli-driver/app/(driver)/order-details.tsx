@@ -15,7 +15,7 @@ import {
   FlatList,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useDriverStore } from '../../src/store/useDriverStore';
@@ -45,6 +45,7 @@ const ORDER_META: Record<string, { icon: string; color: string; bg: string; labe
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const params = useLocalSearchParams<{
     orderId?:     string;
@@ -355,7 +356,7 @@ export default function OrderDetailsScreen() {
       <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
 
       {/* 1) رأس الصفحة مع زر الرجوع والعنوان */}
-      <View style={[styles.header, { paddingTop: 40 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.replace('/(driver)/(tabs)' as any)}>
           <BlurView intensity={50} tint="light" style={styles.iconWrap}>
             <MaterialCommunityIcons name="chevron-right" size={28} color={COLORS.primary} />
@@ -556,10 +557,7 @@ export default function OrderDetailsScreen() {
       </ScrollView>
 
       {/* الأزرار العائمة في الأسفل */}
-      <BlurView intensity={90} tint="light" style={styles.bottomActions}>
-        <Text style={{ textAlign: 'center', color: COLORS.primary, fontSize: 14, fontFamily: 'Cairo-Bold', marginBottom: 12 }}>
-          سيتم تأكيد وصولك وإعلام الزبون تلقائياً عند الاقتراب مسافة 70 متراً
-        </Text>
+      <BlurView intensity={90} tint="light" style={[styles.bottomActions, { paddingBottom: insets.bottom + 15 }]}>
         <TouchableOpacity style={styles.completeBtn} onPress={handleComplete} disabled={completing}>
           {completing ? (
             <ActivityIndicator color={COLORS.primary} />
@@ -589,7 +587,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, paddingBottom: 15,
   },
-  headerTitle: { fontSize: 22, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  headerTitle: { fontSize: 24, fontFamily: 'Cairo-Black', color: COLORS.primary },
   backButton: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   iconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.7)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)' },
 
@@ -604,11 +602,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  tabButtonText: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary },
+  tabButtonText: { fontSize: 16, fontFamily: 'Cairo-Bold', color: COLORS.primary },
   tabButtonTextActive: { color: COLORS.white },
 
   // Content
-  scrollContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 140 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 5, paddingBottom: 160 },
 
   // Card
   card: {
@@ -618,16 +616,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  cardTitle: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  cardTitle: { fontSize: 20, fontFamily: 'Cairo-Black', color: COLORS.primary },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
-  statusText: { fontSize: 12, fontFamily: 'Cairo-Bold' },
+  statusText: { fontSize: 13, fontFamily: 'Cairo-Bold' },
 
   customerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   customerAvatar: { width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: COLORS.white },
   customerInfoText: { flex: 1, marginHorizontal: 12 },
-  customerName: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary, textAlign: 'left' },
+  customerName: { fontSize: 20, fontFamily: 'Cairo-Black', color: COLORS.primary, textAlign: 'left' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  ratingText: { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
+  ratingText: { fontSize: 13, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
   
   contactActions: { flexDirection: 'row', gap: 10 },
   contactBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.8)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.9)', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
@@ -637,23 +635,23 @@ const styles = StyleSheet.create({
   detailsGrid: { gap: 16, marginBottom: 20 },
   detailItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   detailIconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(0,33,71,0.05)', justifyContent: 'center', alignItems: 'center' },
-  detailLabel: { fontSize: 12, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, textAlign: 'left' },
-  detailValue: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary, textAlign: 'left' },
+  detailLabel: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary, textAlign: 'left' },
+  detailValue: { fontSize: 16, fontFamily: 'Cairo-Bold', color: COLORS.primary, textAlign: 'left' },
 
   mapBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 16 },
-  mapBtnText: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.white },
+  mapBtnText: { fontSize: 16, fontFamily: 'Cairo-Bold', color: COLORS.white },
 
   priceSizeCard: { flexDirection: 'row', alignItems: 'center' },
   priceSizeHalf: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   psDivider: { width: 1, height: '80%', backgroundColor: 'rgba(0,33,71,0.08)', marginHorizontal: 10 },
   psIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(37,99,235,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  psLabel: { fontSize: 13, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
-  psValue: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary, marginTop: 2 },
+  psLabel: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
+  psValue: { fontSize: 20, fontFamily: 'Cairo-Black', color: COLORS.primary, marginTop: 2 },
 
   // Bottom Actions
   bottomActions: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    paddingHorizontal: 20, paddingVertical: 20,
+    paddingHorizontal: 20, paddingTop: 15,
     borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.9)',
     backgroundColor: 'rgba(255,255,255,0.7)',
     gap: 12,
@@ -663,9 +661,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10,
     elevation: 5, shadowColor: COLORS.secondary, shadowOpacity: 0.3, shadowRadius: 10,
   },
-  completeBtnText: { fontSize: 18, fontFamily: 'Cairo-Black', color: COLORS.primary },
+  completeBtnText: { fontSize: 20, fontFamily: 'Cairo-Black', color: COLORS.primary },
   cancelBtn: { height: 50, justifyContent: 'center', alignItems: 'center' },
-  cancelBtnText: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.danger, textDecorationLine: 'underline' },
+  cancelBtnText: { fontSize: 17, fontFamily: 'Cairo-Bold', color: COLORS.danger, textDecorationLine: 'underline' },
 
   // Success Banner
   successBanner: {

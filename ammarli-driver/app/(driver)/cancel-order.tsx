@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { 
   ChevronRight, 
   Clock, 
@@ -62,7 +62,7 @@ export default function CancelOrderScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#FDFDFD" />
       
       {/* Header Section */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={{ width: 44 }} />
         <Text style={styles.headerTitle}>إلغاء الطلب</Text>
         <TouchableOpacity style={styles.backButton} activeOpacity={0.6} onPress={() => router.back()}>

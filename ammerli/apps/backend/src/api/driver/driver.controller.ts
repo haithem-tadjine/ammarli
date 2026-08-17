@@ -26,6 +26,7 @@ import { UpdateDriverReqDto } from './dto/update-driver.req.dto';
 import { RechargeWalletReqDto } from './dto/recharge-wallet.req.dto';
 
 import { TrackingService } from '../tracking/tracking.service';
+import { RequestService } from '../request/request.service';
 
 @ApiTags('drivers')
 @Controller({
@@ -37,6 +38,8 @@ export class DriverController {
     private readonly driverService: DriverService,
     @Inject(forwardRef(() => TrackingService))
     private readonly trackingService: TrackingService,
+    @Inject(forwardRef(() => RequestService))
+    private readonly requestService: RequestService,
   ) {}
 
   @Get()
@@ -80,6 +83,15 @@ export class DriverController {
   })
   async getDashboard(@CurrentUser() user: any) {
     return await this.driverService.getDashboard(user.id);
+  }
+
+  @Get('me/active-order')
+  @ApiAuth({
+    summary: 'Get the currently active order for the authenticated driver',
+  })
+  async getMyActiveOrder(@CurrentUser() user: any) {
+    const driver = await this.driverService.findByUserId(user.id);
+    return this.requestService.findActiveRequestForDriver(driver.id as string);
   }
 
 

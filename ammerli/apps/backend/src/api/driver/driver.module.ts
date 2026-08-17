@@ -8,11 +8,13 @@ import { DriverEntity } from './entities/driver.entity';
 import { DriverMetadataService } from './driver-metadata.service';
 
 import { TrackingModule } from '../tracking/tracking.module';
+import { RequestModule } from '../request/request.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([DriverEntity]),
     forwardRef(() => TrackingModule),
+    forwardRef(() => RequestModule),
   ],
   controllers: [DriverController],
   providers: [DriverService, DriverMetadataService],

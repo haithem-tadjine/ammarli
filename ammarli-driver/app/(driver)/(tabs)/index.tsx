@@ -128,6 +128,7 @@ export default function DriverDashboardScreen() {
   const isOnline = useDriverStore(s => s.isOnline);
   const setIsOnline = useDriverStore(s => s.setIsOnline);
   const [showOrder, setShowOrder] = useState(false);
+  const [showProminentDisclosure, setShowProminentDisclosure] = useState(false);
 
   // تشغيل صوت تنبيه + اهتزاز متكرر طوال مدة ظهور بطاقة الطلبية
   useDriverAlert(showOrder);
@@ -169,6 +170,13 @@ export default function DriverDashboardScreen() {
             { text: 'إلغاء', style: 'cancel' }
           ]
         );
+        return;
+      }
+
+      // Check permission before proceeding
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setShowProminentDisclosure(true);
         return;
       }
 
@@ -488,6 +496,27 @@ export default function DriverDashboardScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.locationDenyBtn} onPress={() => setShowLocationModal(false)}>
               <Text style={styles.locationDenyText}>ليس الآن</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Prominent Disclosure Modal for Background Location */}
+      <Modal visible={showProminentDisclosure} transparent animationType="fade">
+        <View style={styles.disclosureOverlay}>
+          <View style={styles.disclosureCard}>
+            <Ionicons name="location" size={54} color={COLORS.primary} style={{ alignSelf: 'center', marginBottom: 16 }} />
+            <Text style={styles.disclosureTitle}>تتبع الموقع</Text>
+            <Text style={styles.disclosureText}>
+              يجمع هذا التطبيق بيانات موقعك جغرافياً في الخلفية لتمكين الزبائن من تتبع مسار صهريج المياه بدقة، وتنبيهك بالطلبات القريبة منك حتى وإن كان التطبيق مغلقاً أو غير مستخدم.
+            </Text>
+            <TouchableOpacity style={styles.disclosureBtn} onPress={async () => {
+              setShowProminentDisclosure(false);
+              setIsOnline(true);
+              useDriverStore.getState().setDriverStatus('AVAILABLE');
+              await useDriverStore.getState().startLocationTracking();
+            }}>
+              <Text style={styles.disclosureBtnText}>موافق</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1075,4 +1104,52 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo-Bold',
     fontSize: 14,
   },
+
+  // Disclosure Modal Styles
+  disclosureOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  disclosureCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+  },
+  disclosureTitle: {
+    fontFamily: 'Cairo-Black',
+    fontSize: 22,
+    color: COLORS.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  disclosureText: {
+    fontFamily: 'Cairo-SemiBold',
+    fontSize: 16,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 24,
+  },
+  disclosureBtn: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 14,
+    width: '100%',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  disclosureBtnText: {
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.white,
+    fontSize: 18,
+  }
 });
