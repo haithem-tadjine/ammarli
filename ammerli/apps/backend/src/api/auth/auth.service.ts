@@ -35,6 +35,8 @@ import { RegisterResDto } from './dto/register.res.dto';
 import { JwtPayloadType } from './types/jwt-payload.type';
 import { JwtRefreshPayloadType } from './types/jwt-refresh-payload.type';
 import { ResetDriverPasswordDto } from './dto/reset-driver-password.req.dto';
+import { CheckClientPhoneDto } from './dto/check-client-phone.req.dto';
+import { ResetClientPasswordDto } from './dto/reset-client-password.req.dto';
 import { DriverEntity } from '../driver/entities/driver.entity';
 
 type Token = Branded<
@@ -448,5 +450,34 @@ export class AuthService {
 
     user.password = dto.newPassword;
     await this.userRepository.save(user); // Will hash the password via @BeforeUpdate
+  }
+
+  /**
+   * Checks whether a phone number is registered as a CLIENT.
+   * Returns { exists: true } if found, throws ValidationException if not.
+   */
+  async checkClientPhone(dto: CheckClientPhoneDto): Promise<{ exists: boolean }> {
+    const user = await this.userRepository.findOne({
+      where: { phone: dto.phone, role: UserRoleEnum.CLIENT },
+    });
+    if (!user) {
+      throw new ValidationException('رقم الهاتف غير مسجّل');
+    }
+    return { exists: true };
+  }
+
+  /**
+   * Resets the CLIENT password directly by phone number.
+   * Caller must have already verified the phone via checkClientPhone.
+   */
+  async resetClientPassword(dto: ResetClientPasswordDto): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { phone: dto.phone, role: UserRoleEnum.CLIENT },
+    });
+    if (!user) {
+      throw new ValidationException('رقم الهاتف غير مسجّل');
+    }
+    user.password = dto.newPassword;
+    await this.userRepository.save(user); // Will hash via @BeforeUpdate
   }
 }

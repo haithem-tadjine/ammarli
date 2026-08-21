@@ -32,6 +32,20 @@ export class WalletService {
     }
     const user = await this.userRepository.findOne({ where: { phone: formattedPhone } });
     if (!user) throw new BadRequestException('المستخدم غير موجود بهذا الرقم');
+
+    let appCommissionDebt: number | undefined;
+    let isSuspended: boolean | undefined;
+
+    if (user.role === UserRoleEnum.DRIVER) {
+      const driver = await this.userRepository.manager
+        .getRepository(DriverEntity)
+        .findOne({ where: { user: { id: user.id } } });
+      if (driver) {
+        appCommissionDebt = Number(driver.appCommissionDebt) || 0;
+        isSuspended = driver.isSuspended;
+      }
+    }
+
     return {
       id: user.id,
       firstName: user.firstName,
@@ -40,6 +54,8 @@ export class WalletService {
       role: user.role,
       walletBalance: user.walletBalance || 0,
       debt: user.debt || 0,
+      ...(appCommissionDebt !== undefined && { appCommissionDebt }),
+      ...(isSuspended !== undefined && { isSuspended }),
     };
   }
 

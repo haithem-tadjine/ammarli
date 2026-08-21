@@ -112,7 +112,6 @@ const DriverRegistrationScreen = () => {
   const [fullName,  setFullName]  = useState('');
   const [phone,     setPhone]     = useState('');
   const [password,  setPassword]  = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [license,   setLicense]   = useState('');
 
   const phoneRef    = useRef<TextInput>(null);
@@ -129,13 +128,8 @@ const DriverRegistrationScreen = () => {
   };
 
   const handleRegister = async () => {
-    if (!fullName.trim() || !phone.trim() || !password.trim() || !confirmPassword.trim() || !license.trim()) {
+    if (!fullName.trim() || !phone.trim() || !password.trim() || !license.trim()) {
       Alert.alert('بيانات ناقصة', 'يرجى تعبئة جميع الحقول قبل المتابعة.');
-      shake();
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('خطأ', 'كلمتا المرور غير متطابقتين.');
       shake();
       return;
     }
@@ -185,7 +179,6 @@ const DriverRegistrationScreen = () => {
         <AmmarliInput label="الاسم الكامل"        placeholder="أدخل اسمك الكامل"            iconName="person-outline"      value={fullName}  onChangeText={setFullName} />
         <AmmarliInput label="رقم الهاتف"          placeholder="05XX XXX XXX"                iconName="call-outline"        value={phone}     onChangeText={setPhone}    keyboardType="phone-pad" />
         <AmmarliInput label="كلمة المرور"         placeholder="أدخل كلمة المرور"            iconName="lock-closed-outline" value={password}  onChangeText={setPassword} secureTextEntry isPassword />
-        <AmmarliInput label="تأكيد كلمة المرور"   placeholder="أعد إدخال كلمة المرور"       iconName="lock-closed-outline" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry isPassword />
         <AmmarliInput label="رقم لوحة الترخيص"   placeholder="رقم اللوحة (مثلاً: 12345-120-05)" iconName="card-outline"   value={license}   onChangeText={setLicense} />
       </View>
 

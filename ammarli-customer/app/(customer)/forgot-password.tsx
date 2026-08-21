@@ -1,5 +1,5 @@
 import ScreenContainer from '../../components/ScreenContainer';
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { api } from '../../src/services/api';
 
 // ── Brand Tokens ──────────────────────────────────────────────────────────────
 const NAVY      = '#002147';
@@ -22,170 +24,270 @@ const NAVY_DARK = '#001530';
 const GOLD      = '#D4AF37';
 const WHITE     = '#FFFFFF';
 const MUTED     = '#8793A4';
+const ERROR     = '#E63946';
+const SUCCESS   = '#34C759';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
-  const [step, setStep] = useState(1); // 1: Phone, 2: OTP
-  const [phone, setPhone] = useState('');
-  const [phoneError, setPhoneError] = useState(false);
-  
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const otpRefs = useRef<Array<TextInput | null>>([]);
-  
+
+  // ── Step: 1 = enter phone, 2 = enter new password ──────────────────────────
+  const [step, setStep] = useState<1 | 2>(1);
+
+  // Step 1
+  const [phone, setPhone]           = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [loadingPhone, setLoadingPhone] = useState(false);
+
+  // Step 2
+  const [newPassword, setNewPassword]         = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNew, setShowNew]                 = useState(false);
+  const [showConfirm, setShowConfirm]         = useState(false);
+  const [passwordError, setPasswordError]     = useState('');
+  const [loadingReset, setLoadingReset]       = useState(false);
+
+  // Success modal
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleSendCode = () => {
-    if (!phone.trim() || phone.length < 9) {
-      setPhoneError(true);
+  // ── Step 1: verify phone exists ────────────────────────────────────────────
+  const handleCheckPhone = async () => {
+    const trimmed = phone.trim();
+    if (!trimmed || trimmed.length < 9) {
+      setPhoneError('يرجى إدخال رقم هاتف صحيح (9 أرقام على الأقل)');
       return;
     }
-    setPhoneError(false);
-    setStep(2); // الانتقال لخطوة الرمز
-  };
+    setPhoneError('');
+    setLoadingPhone(true);
+    try {
+      // Format: if user types 0550... convert to +213550...
+      const formatted = trimmed.startsWith('0')
+        ? '+213' + trimmed.slice(1)
+        : trimmed.startsWith('+213')
+        ? trimmed
+        : '+213' + trimmed;
 
-  const handleOtpChange = (text: string, index: number) => {
-    const newOtp = [...otp];
-    newOtp[index] = text;
-    setOtp(newOtp);
-
-    // Auto focus next
-    if (text && index < 3) {
-      otpRefs.current[index + 1]?.focus();
+      await api.post('/auth/client/check-phone', { phone: formatted });
+      setStep(2);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      setPhoneError(msg || 'رقم الهاتف غير مسجّل في النظام');
+    } finally {
+      setLoadingPhone(false);
     }
   };
 
-  const handleVerifyOtp = () => {
-    if (otp.join('').length === 4) {
+  // ── Step 2: reset password ─────────────────────────────────────────────────
+  const handleResetPassword = async () => {
+    if (newPassword.length < 6) {
+      setPasswordError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('كلمتا المرور غير متطابقتين');
+      return;
+    }
+    setPasswordError('');
+    setLoadingReset(true);
+    try {
+      const formatted = phone.trim().startsWith('0')
+        ? '+213' + phone.trim().slice(1)
+        : phone.trim().startsWith('+213')
+        ? phone.trim()
+        : '+213' + phone.trim();
+
+      await api.post('/auth/client/reset-password', {
+        phone: formatted,
+        newPassword,
+      });
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
         router.back();
       }, 3000);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      setPasswordError(msg || 'حدث خطأ، يرجى المحاولة مجدداً');
+    } finally {
+      setLoadingReset(false);
+    }
+  };
+
+  // ── Back handler ───────────────────────────────────────────────────────────
+  const handleBack = () => {
+    if (step === 2) {
+      setStep(1);
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordError('');
+    } else {
+      router.back();
     }
   };
 
   return (
-    <ScreenContainer style={[styles.root]}>
+    <ScreenContainer style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={NAVY_DARK} />
 
       {/* Back button */}
       <TouchableOpacity
         style={[styles.backBtn, { top: insets.top + 16 }]}
-        onPress={() => {
-          if (step === 2) {
-            setStep(1);
-            setOtp(['', '', '', '']);
-          } else {
-            router.back();
-          }
-        }}
+        onPress={handleBack}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <Ionicons name="arrow-forward-outline" size={24} color={GOLD} />
       </TouchableOpacity>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior="padding"
         style={{ flex: 1 }}
-       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}>
-        <ScrollView contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]} keyboardShouldPersistTaps="handled">
-          
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : (StatusBar.currentHeight || 24) + 20}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Icon */}
           <View style={styles.iconBadge}>
-            <Ionicons name={step === 1 ? "lock-closed-outline" : "chatbubble-ellipses-outline"} size={36} color={NAVY} />
+            <Ionicons
+              name={step === 1 ? 'lock-closed-outline' : 'key-outline'}
+              size={36}
+              color={NAVY}
+            />
           </View>
 
+          {/* Title & subtitle */}
           <Text style={styles.title}>
-            {step === 1 ? 'نسيت كلمة المرور؟' : 'تأكيد الرمز'}
+            {step === 1 ? 'نسيت كلمة المرور؟' : 'كلمة مرور جديدة'}
           </Text>
           <Text style={styles.subtitle}>
-            {step === 1 
-              ? 'الرجاء إدخال رقم هاتفك المرتبط بحسابك. سنقوم بإرسال رمز تحقق (OTP) لاستعادة الحساب.'
-              : `الرجاء إدخال رمز التحقق المكون من 4 أرقام والذي تم إرساله إلى رقمك ${phone}`
-            }
+            {step === 1
+              ? 'أدخل رقم هاتفك المسجّل. إذا كان الرقم موجوداً، سنسمح لك بتغيير كلمة المرور فوراً.'
+              : `أدخل كلمة المرور الجديدة لحسابك المرتبط بالرقم ${phone.trim()}`}
           </Text>
 
-          {step === 1 ? (
-            // الخطوة 1: إدخال رقم الهاتف
+          {/* ── STEP 1: Phone input ─────────────────────────────────────── */}
+          {step === 1 && (
             <View style={styles.formContainer}>
-              <View style={[styles.inputContainer, phoneError && styles.inputError]}>
+              <View style={[styles.inputContainer, phoneError ? styles.inputError : null]}>
                 <TextInput
                   style={styles.input}
                   placeholder="05 50 00 00 00"
                   placeholderTextColor={MUTED}
                   keyboardType="phone-pad"
                   value={phone}
-                  onChangeText={(text) => {
-                    setPhone(text);
-                    if (phoneError) setPhoneError(false);
+                  onChangeText={(t) => {
+                    setPhone(t);
+                    if (phoneError) setPhoneError('');
                   }}
-                  maxLength={10}
+                  maxLength={13}
+                  editable={!loadingPhone}
                 />
                 <View style={styles.countryCodeBox}>
                   <Text style={styles.countryCodeText}>+213</Text>
                   <Ionicons name="call" size={18} color={GOLD} style={{ marginLeft: 6 }} />
                 </View>
               </View>
-              {phoneError && <Text style={styles.errorText}>يرجى إدخال رقم هاتف صحيح</Text>}
+              {!!phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
 
-              <TouchableOpacity style={styles.btn} onPress={handleSendCode} activeOpacity={0.8}>
-                <Text style={styles.btnText}>إرسال الرمز</Text>
+              <TouchableOpacity
+                style={[styles.btn, loadingPhone && styles.btnDisabled]}
+                onPress={handleCheckPhone}
+                activeOpacity={0.8}
+                disabled={loadingPhone}
+              >
+                {loadingPhone
+                  ? <ActivityIndicator color={NAVY_DARK} />
+                  : <Text style={styles.btnText}>التحقق من الرقم</Text>
+                }
               </TouchableOpacity>
             </View>
-          ) : (
-            // الخطوة 2: إدخال رمز التحقق
+          )}
+
+          {/* ── STEP 2: New password ────────────────────────────────────── */}
+          {step === 2 && (
             <View style={styles.formContainer}>
-              <View style={styles.otpContainer}>
-                {otp.map((digit, index) => (
-                  <TextInput
-                    key={index}
-                    ref={(el) => { otpRefs.current[index] = el; }}
-                    style={styles.otpInput}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    value={digit}
-                    onChangeText={(text) => handleOtpChange(text, index)}
-                    onKeyPress={({ nativeEvent }) => {
-                      if (nativeEvent.key === 'Backspace' && !digit && index > 0) {
-                        otpRefs.current[index - 1]?.focus();
-                      }
-                    }}
-                  />
-                ))}
+              {/* New password */}
+              <Text style={styles.fieldLabel}>كلمة المرور الجديدة</Text>
+              <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
+                <TouchableOpacity onPress={() => setShowNew(!showNew)} style={styles.eyeBtn}>
+                  <Ionicons name={showNew ? 'eye-off-outline' : 'eye-outline'} size={22} color={MUTED} />
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••"
+                  placeholderTextColor={MUTED}
+                  secureTextEntry={!showNew}
+                  value={newPassword}
+                  onChangeText={(t) => {
+                    setNewPassword(t);
+                    if (passwordError) setPasswordError('');
+                  }}
+                  editable={!loadingReset}
+                />
               </View>
 
-              <TouchableOpacity 
-                style={[styles.btn, otp.join('').length < 4 && styles.btnDisabled]} 
-                onPress={handleVerifyOtp} 
-                activeOpacity={0.8}
-                disabled={otp.join('').length < 4}
-              >
-                <Text style={styles.btnText}>تحقق ومتابعة</Text>
-              </TouchableOpacity>
+              {/* Confirm password */}
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>تأكيد كلمة المرور</Text>
+              <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
+                <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} style={styles.eyeBtn}>
+                  <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={22} color={MUTED} />
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••"
+                  placeholderTextColor={MUTED}
+                  secureTextEntry={!showConfirm}
+                  value={confirmPassword}
+                  onChangeText={(t) => {
+                    setConfirmPassword(t);
+                    if (passwordError) setPasswordError('');
+                  }}
+                  editable={!loadingReset}
+                />
+              </View>
 
-              <TouchableOpacity style={styles.resendBtn}>
-                <Text style={styles.resendText}>لم تستلم الرمز؟ <Text style={styles.resendHighlight}>إعادة إرسال</Text></Text>
+              {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+
+              <TouchableOpacity
+                style={[styles.btn, (loadingReset || newPassword.length < 6 || !confirmPassword) && styles.btnDisabled]}
+                onPress={handleResetPassword}
+                activeOpacity={0.8}
+                disabled={loadingReset || newPassword.length < 6 || !confirmPassword}
+              >
+                {loadingReset
+                  ? <ActivityIndicator color={NAVY_DARK} />
+                  : <Text style={styles.btnText}>حفظ كلمة المرور</Text>
+                }
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Strength hint */}
+          {step === 2 && (
+            <View style={styles.hintRow}>
+              <Ionicons name="information-circle-outline" size={16} color={MUTED} />
+              <Text style={styles.hintText}>كلمة المرور يجب أن تكون 6 أحرف على الأقل</Text>
             </View>
           )}
 
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Success Modal */}
+      {/* ── Success Modal ───────────────────────────────────────────────────── */}
       <Modal visible={showSuccess} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.successCard}>
             <View style={styles.successIconBox}>
-              <Ionicons name="checkmark-circle" size={70} color="#34C759" />
+              <Ionicons name="checkmark-circle" size={70} color={SUCCESS} />
             </View>
-            <Text style={styles.successTitle}>تم التحقق بنجاح!</Text>
-            <Text style={styles.successDesc}>لقد تم تأكيد هويتك، سيتم توجيهك لإنشاء كلمة مرور جديدة لتأمين حسابك.</Text>
+            <Text style={styles.successTitle}>تم تغيير كلمة المرور!</Text>
+            <Text style={styles.successDesc}>
+              تم تحديث كلمة مرور حسابك بنجاح. يمكنك الآن تسجيل الدخول بالكلمة الجديدة.
+            </Text>
           </View>
         </View>
       </Modal>
-
     </ScreenContainer>
   );
 }
@@ -213,6 +315,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
     paddingBottom: 40,
+    paddingTop: 80,
   },
   iconBadge: {
     width: 80,
@@ -237,14 +340,21 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: 'Cairo-Regular',
-    fontSize: 15,
+    fontSize: 14,
     color: MUTED,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 40,
+    marginBottom: 36,
   },
   formContainer: {
     width: '100%',
+  },
+  fieldLabel: {
+    fontFamily: 'Cairo-SemiBold',
+    fontSize: 14,
+    color: MUTED,
+    textAlign: 'right',
+    marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row-reverse',
@@ -257,7 +367,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   inputError: {
-    borderColor: '#E63946',
+    borderColor: ERROR,
     backgroundColor: 'rgba(230, 57, 70, 0.05)',
   },
   input: {
@@ -283,29 +393,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo-Bold',
     fontSize: 16,
   },
+  eyeBtn: {
+    paddingHorizontal: 14,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   errorText: {
-    color: '#E63946',
+    color: ERROR,
     fontSize: 13,
     fontFamily: 'Cairo-SemiBold',
-    textAlign: 'left',
+    textAlign: 'right',
     marginTop: 8,
-  },
-  otpContainer: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-  },
-  otpInput: {
-    width: 60,
-    height: 65,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: GOLD,
-    borderRadius: 16,
-    color: WHITE,
-    fontSize: 28,
-    fontFamily: 'Cairo-Bold',
-    textAlign: 'center',
   },
   btn: {
     backgroundColor: GOLD,
@@ -318,10 +417,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
-    marginTop: 20,
+    marginTop: 24,
   },
   btnDisabled: {
-    backgroundColor: 'rgba(212, 175, 55, 0.4)',
+    backgroundColor: 'rgba(212, 175, 55, 0.35)',
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -330,17 +429,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: NAVY_DARK,
   },
-  resendBtn: {
-    marginTop: 25,
+  hintRow: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
+    gap: 6,
+    marginTop: 20,
   },
-  resendText: {
-    fontFamily: 'Cairo-SemiBold',
-    fontSize: 14,
+  hintText: {
+    fontFamily: 'Cairo-Regular',
+    fontSize: 12,
     color: MUTED,
-  },
-  resendHighlight: {
-    color: GOLD,
   },
   modalOverlay: {
     flex: 1,
@@ -377,5 +475,5 @@ const styles = StyleSheet.create({
     color: MUTED,
     textAlign: 'center',
     lineHeight: 24,
-  }
+  },
 });

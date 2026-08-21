@@ -20,6 +20,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// ─── تسميات الأحجام ────────────────────────────────────────────────────────────
+const SIZE_LABELS: Record<string, string> = {
+  '0.25L': 'فاردو 0.25 لتر',
+  '0.5L':  'فاردو 0.5 لتر',
+  '1L':    'فاردو 1 لتر',
+  '1.5L':  'فاردو 1.5 لتر',
+  '2L':    'فاردو 2 لتر',
+  '5L':    'بيدون 5 لتر',
+  '10L':   'بيدون 10 لتر',
+  '19L':   'بيدون 19 لتر',
+  '20L':   'بيدون 20 لتر',
+};
+const getSizeLabel = (size: string): string => SIZE_LABELS[size] ?? size;
+
 const { width } = Dimensions.get('window');
 
 const COLORS = {
@@ -38,9 +52,16 @@ export default function TripCompletionScreen() {
     serviceType: string;
     price: string;
     customerName: string;
+    items?: string;
+    orderType?: string;
   }>();
 
   const { orderId, serviceType, price, customerName } = params;
+  const parsedItems: { size: string; qty: number }[] = (() => {
+    try { return params.items ? JSON.parse(params.items) : []; }
+    catch { return []; }
+  })();
+  const isBottled = params.orderType === 'bottles';
   const completeDriverOrder = useDriverStore(state => state.completeDriverOrder);
   const isOnline = useDriverStore((s: any) => s.isOnline);
   
@@ -132,7 +153,32 @@ export default function TripCompletionScreen() {
               <Text style={styles.infoLabel}>نوع الخدمة:</Text>
             </View>
 
-            <View style={[styles.infoRow, { marginTop: 15 }]}>
+            {/* ── تفاصيل الأصناف — للمياه المعبأة فقط ── */}
+            {isBottled && parsedItems.length > 0 && (
+              <View style={styles.itemsSection}>
+                <View style={styles.itemsSectionHeader}>
+                  <MaterialCommunityIcons name="package-variant" size={16} color={COLORS.primary} />
+                  <Text style={styles.itemsSectionTitle}>ما ستُسلّمه للزبون</Text>
+                </View>
+                {parsedItems.map((item, index) => (
+                  <View key={index} style={styles.itemRow}>
+                    <View style={styles.itemIconBox}>
+                      <MaterialCommunityIcons name="bottle-soda-outline" size={16} color="#2563EB" />
+                    </View>
+                    <Text style={styles.itemLabel} numberOfLines={1}>
+                      {getSizeLabel(item.size || '1.5L')}
+                    </Text>
+                    <View style={styles.itemQtyBadge}>
+                      <Text style={styles.itemQtyText}>× {item.qty}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.divider} />
+
+            <View style={[styles.infoRow, { marginTop: 4 }]}>
               <Text style={styles.totalValue}>{price ? `${Number(price).toLocaleString('ar-DZ')} د.ج` : '0 د.ج'}</Text>
               <Text style={styles.infoLabel}>المبلغ الإجمالي:</Text>
             </View>
@@ -290,6 +336,27 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo-Black',
     color: COLORS.success,
   },
+
+  // Items breakdown
+  itemsSection: { marginTop: 15, marginBottom: 4 },
+  itemsSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  itemsSectionTitle: { fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary },
+  itemRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(37,99,235,0.06)', borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6,
+  },
+  itemIconBox: {
+    width: 30, height: 30, borderRadius: 8,
+    backgroundColor: 'rgba(37,99,235,0.12)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  itemLabel: { flex: 1, fontSize: 14, fontFamily: 'Cairo-Bold', color: COLORS.primary, textAlign: 'left' },
+  itemQtyBadge: {
+    backgroundColor: COLORS.primary, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  itemQtyText: { fontSize: 13, fontFamily: 'Cairo-Black', color: '#FFFFFF' },
   
   confirmationText: {
     textAlign: 'center',

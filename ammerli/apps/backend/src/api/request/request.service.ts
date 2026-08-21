@@ -136,16 +136,19 @@ export class RequestService {
       .leftJoinAndSelect('request.driver', 'driver')
       .orderBy('request.createdAt', 'DESC');
 
-    if ((reqDto as any).driverUserId) {
+    if (reqDto.driverId) {
       const driverResult = await this.dataSource.query(
         `SELECT id FROM drivers WHERE user_id = $1 LIMIT 1`,
-        [(reqDto as any).driverUserId]
+        [reqDto.driverId]
       );
       if (driverResult && driverResult.length > 0) {
-        query.andWhere('request.driverId = :driverId', { driverId: driverResult[0].id });
+        query.andWhere('request.driverId = :driverEntityId', { driverEntityId: driverResult[0].id });
       } else {
+        // السائق غير موجود أو لا يملك أي رحلات → إرجاع نتيجة فارغة
         query.andWhere('1 = 0');
       }
+      // نزيل driverId من reqDto حتى لا يطبقه applyFiltersToQueryBuilder مرة ثانية
+      delete (reqDto as any).driverId;
     }
 
     applyFiltersToQueryBuilder(query, reqDto, {

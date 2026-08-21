@@ -43,6 +43,20 @@ const ORDER_META: Record<string, { icon: string; color: string; bg: string; labe
   spring_water:       { icon: 'water',               color: '#0284C7', bg: 'rgba(2, 132, 199, 0.1)', label: 'مياه ينابيع طبيعية'  },
 };
 
+// ─── تسميات الأحجام بالعربية ──────────────────────────────────────────────────
+const SIZE_LABELS: Record<string, string> = {
+  '0.25L': 'فاردو 0.25 لتر',
+  '0.5L':  'فاردو 0.5 لتر',
+  '1L':    'فاردو 1 لتر',
+  '1.5L':  'فاردو 1.5 لتر',
+  '2L':    'فاردو 2 لتر',
+  '5L':    'بيدون 5 لتر',
+  '10L':   'بيدون 10 لتر',
+  '19L':   'بيدون 19 لتر',
+  '20L':   'بيدون 20 لتر',
+};
+const getSizeLabel = (size: string): string => SIZE_LABELS[size] ?? size;
+
 export default function OrderDetailsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -330,7 +344,9 @@ export default function OrderDetailsScreen() {
           orderId: activeDriverOrder?.orderId || params.orderId || orderNumber, 
           serviceType: meta.label, 
           price: String(price),
-          customerName: customerName
+          customerName: customerName,
+          items: JSON.stringify(activeDriverOrder?.items || []),
+          orderType: orderType,
         },
       });
     } catch (e: any) {
@@ -516,12 +532,37 @@ export default function OrderDetailsScreen() {
           <View style={styles.cardHeader}>
              <Text style={styles.cardTitle}>التكلفة والحجم</Text>
           </View>
+
+          {/* ── تفاصيل الأصناف — للمياه المعبأة فقط ── */}
+          {orderType === 'bottles' && activeDriverOrder?.items && activeDriverOrder.items.length > 0 && (
+            <View style={styles.itemsSection}>
+              <View style={styles.itemsSectionHeader}>
+                <MaterialCommunityIcons name="package-variant" size={18} color={COLORS.primary} />
+                <Text style={styles.itemsSectionTitle}>ما ستُنزله عند الوصول</Text>
+              </View>
+              {activeDriverOrder.items.map((item: any, index: number) => (
+                <View key={index} style={styles.itemRow}>
+                  <View style={styles.itemIconBox}>
+                    <MaterialCommunityIcons name="bottle-soda-outline" size={18} color="#2563EB" />
+                  </View>
+                  <Text style={styles.itemLabel} numberOfLines={1}>
+                    {getSizeLabel(item.size || '1.5L')}
+                  </Text>
+                  <View style={styles.itemQtyBadge}>
+                    <Text style={styles.itemQtyText}>× {item.qty}</Text>
+                  </View>
+                </View>
+              ))}
+              <View style={styles.divider} />
+            </View>
+          )}
+
           <View style={styles.priceSizeCard}>
             <View style={styles.priceSizeHalf}>
               <View style={styles.psIconBox}>
                 <MaterialCommunityIcons name="water" size={22} color="#2563EB" />
               </View>
-              <Text style={styles.psLabel}>الكمية / الحجم</Text>
+              <Text style={styles.psLabel}>الكمية الإجمالية</Text>
               <Text style={styles.psValue}>
                 {orderType === 'bottles' 
                   ? activeDriverOrder?.items?.reduce((sum, item) => sum + (Number(item.qty) || 1), 0) || params.capacity || '1'
@@ -647,6 +688,27 @@ const styles = StyleSheet.create({
   psIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(37,99,235,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   psLabel: { fontSize: 14, fontFamily: 'Cairo-SemiBold', color: COLORS.textSecondary },
   psValue: { fontSize: 20, fontFamily: 'Cairo-Black', color: COLORS.primary, marginTop: 2 },
+
+  // Items breakdown
+  itemsSection: { marginBottom: 16 },
+  itemsSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  itemsSectionTitle: { fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.primary },
+  itemRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(37,99,235,0.06)', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8,
+  },
+  itemIconBox: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: 'rgba(37,99,235,0.12)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  itemLabel: { flex: 1, fontSize: 15, fontFamily: 'Cairo-Bold', color: COLORS.primary, textAlign: 'left' },
+  itemQtyBadge: {
+    backgroundColor: COLORS.primary, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  itemQtyText: { fontSize: 14, fontFamily: 'Cairo-Black', color: COLORS.white },
 
   // Bottom Actions
   bottomActions: {

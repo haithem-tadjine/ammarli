@@ -33,9 +33,7 @@ export default function CustomerRegisterScreen() {
   const [fullName,         setFullName]         = useState('');
   const [phone,            setPhone]            = useState('');
   const [password,         setPassword]         = useState('');
-  const [confirmPassword,  setConfirmPassword]  = useState('');
   const [showPassword,     setShowPassword]     = useState(false);
-  const [showConfirm,      setShowConfirm]      = useState(false);
   const [loading,          setLoading]          = useState(false);
 
 
@@ -43,12 +41,10 @@ export default function CustomerRegisterScreen() {
   const [nameErr,    setNameErr]    = useState('');
   const [phoneErr,   setPhoneErr]   = useState('');
   const [passErr,    setPassErr]    = useState('');
-  const [confirmErr, setConfirmErr] = useState('');
 
   // ── Refs (tab-key chain) ──────────────────────────────────────────────────
   const phoneRef   = useRef<TextInput>(null);
   const passRef    = useRef<TextInput>(null);
-  const confirmRef = useRef<TextInput>(null);
 
   // ── Shake animation ───────────────────────────────────────────────────────
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -65,7 +61,7 @@ export default function CustomerRegisterScreen() {
   // ── Validation ────────────────────────────────────────────────────────────
   const validate = (): boolean => {
     let ok = true;
-    setNameErr(''); setPhoneErr(''); setPassErr(''); setConfirmErr('');
+    setNameErr(''); setPhoneErr(''); setPassErr('');
 
     if (!fullName.trim()) {
       setNameErr('الاسم الكامل مطلوب'); ok = false;
@@ -81,12 +77,6 @@ export default function CustomerRegisterScreen() {
       setPassErr('كلمة المرور مطلوبة'); ok = false;
     } else if (password.length < 6) {
       setPassErr('6 أحرف على الأقل'); ok = false;
-    }
-
-    if (!confirmPassword) {
-      setConfirmErr('تأكيد كلمة المرور مطلوب'); ok = false;
-    } else if (confirmPassword !== password) {
-      setConfirmErr('كلمتا المرور غير متطابقتين'); ok = false;
     }
 
     if (!ok) shake();
@@ -216,7 +206,7 @@ export default function CustomerRegisterScreen() {
                   value={password}
                   onChangeText={(t) => { setPassword(t); setPassErr(''); }}
                   returnKeyType="next"
-                  onSubmitEditing={() => confirmRef.current?.focus()}
+                  onSubmitEditing={handleRegister}
                   blurOnSubmit={false}
                   autoCapitalize="none"
                 />
@@ -225,34 +215,6 @@ export default function CustomerRegisterScreen() {
               {!!passErr && <Text style={styles.errText}>{passErr}</Text>}
             </View>
 
-            {/* Confirm Password */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>تأكيد كلمة المرور</Text>
-              <View style={[styles.inputField, !!confirmErr && styles.inputError]}>
-                <TouchableOpacity
-                  onPress={() => setShowConfirm(!showConfirm)}
-                  style={styles.toggleIcon}
-                  activeOpacity={0.7}
-                >
-                  {showConfirm ? <EyeOff color="#8E8E93" size={20} /> : <Eye color="#8E8E93" size={20} />}
-                </TouchableOpacity>
-                <TextInput
-                  ref={confirmRef}
-                  placeholder="••••••••"
-                  placeholderTextColor="#ADB5BD"
-                  secureTextEntry={!showConfirm}
-                  style={styles.textInput}
-                  textAlign="right"
-                  value={confirmPassword}
-                  onChangeText={(t) => { setConfirmPassword(t); setConfirmErr(''); }}
-                  returnKeyType="done"
-                  onSubmitEditing={handleRegister}
-                  autoCapitalize="none"
-                />
-                <RefreshCw color={THEME_NAVY} size={22} style={styles.fieldIcon} />
-              </View>
-              {!!confirmErr && <Text style={styles.errText}>{confirmErr}</Text>}
-            </View>
 
             {/* Register Button */}
             <TouchableOpacity

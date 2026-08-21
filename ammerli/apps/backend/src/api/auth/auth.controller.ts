@@ -11,6 +11,8 @@ import { RegisterReqDto } from './dto/register.req.dto';
 import { RegisterResDto } from './dto/register.res.dto';
 import { ResetDriverPasswordDto } from './dto/reset-driver-password.req.dto';
 import { VerifyDriverPlateDto } from './dto/verify-driver-plate.req.dto';
+import { CheckClientPhoneDto } from './dto/check-client-phone.req.dto';
+import { ResetClientPasswordDto } from './dto/reset-client-password.req.dto';
 import { JwtPayloadType } from './types/jwt-payload.type';
 
 /**
@@ -141,6 +143,27 @@ export class AuthController {
   @Post('reset-password')
   async resetPassword() {
     return 'reset-password';
+  }
+
+  /**
+   * Checks if a client phone number is registered.
+   * Returns { exists: true } or throws 422 if not found.
+   */
+  @ApiPublic()
+  @Post('client/check-phone')
+  async checkClientPhone(@Body() dto: CheckClientPhoneDto) {
+    return await this.authService.checkClientPhone(dto);
+  }
+
+  /**
+   * Resets the client password after phone verification.
+   * Only condition: phone must be registered as CLIENT.
+   */
+  @ApiPublic()
+  @Post('client/reset-password')
+  async resetClientPassword(@Body() dto: ResetClientPasswordDto) {
+    await this.authService.resetClientPassword(dto);
+    return { success: true };
   }
 
   /**
