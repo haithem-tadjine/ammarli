@@ -11,7 +11,7 @@ import compression from 'compression';
 import helmet from 'helmet';
 import { i18nValidationErrorFactory } from 'nestjs-i18n';
 import { Logger } from 'nestjs-pino';
-import Redis from 'ioredis'; // 1. أضفنا استيراد ioredis هنا
+import Redis from 'ioredis';
 import { AuthService } from './api/auth/auth.service';
 import { RedisIoAdapter } from './api/tracking/redis-io.adapter';
 import { AppModule } from './app.module';
@@ -21,8 +21,13 @@ import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import setupSwagger from './utils/setup-swagger';
 
-// 2. السطر السحري لتجاوز حد المحاولات عالمياً ومنع الانهيار
-
+const originalCtor = Redis.prototype.constructor;
+(Redis.prototype as any).initialize = function (...args: any[]) {
+  if (this.options && this.options.maxRetriesPerRequest === undefined) {
+    this.options.maxRetriesPerRequest = null;
+  }
+  return originalCtor.apply(this, args);
+};
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
