@@ -11,6 +11,7 @@ import compression from 'compression';
 import helmet from 'helmet';
 import { i18nValidationErrorFactory } from 'nestjs-i18n';
 import { Logger } from 'nestjs-pino';
+import Redis from 'ioredis'; // 1. أضفنا استيراد ioredis هنا
 import { AuthService } from './api/auth/auth.service';
 import { RedisIoAdapter } from './api/tracking/redis-io.adapter';
 import { AppModule } from './app.module';
@@ -19,6 +20,9 @@ import { GlobalExceptionFilter } from './filters/global-exception.filter';
 import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import setupSwagger from './utils/setup-swagger';
+
+// 2. السطر السحري لتجاوز حد المحاولات عالمياً ومنع الانهيار
+(Redis.prototype as any).options.maxRetriesPerRequest = null;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -40,9 +44,6 @@ async function bootstrap() {
       },
     }),
   );
-
-  // For high-traffic websites in production, it is strongly recommended to offload compression from the application server - typically in a reverse proxy (e.g., Nginx). In that case, you should not use compression middleware.
-  // app.use(compression());
 
   const configService = app.get(ConfigService<AllConfigType>);
   const reflector = app.get(Reflector);
