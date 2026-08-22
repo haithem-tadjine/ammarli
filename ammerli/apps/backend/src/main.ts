@@ -21,6 +21,13 @@ import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import setupSwagger from './utils/setup-swagger';
 
+// منع انهيار التطبيق بسبب أي خطأ شبكي غير معالج في ioredis
+process.on('unhandledRejection', (reason: any) => {
+  if (reason?.name === 'MaxRetriesPerRequestError' || reason?.message?.includes('max retries per request')) {
+    console.warn('⚠️ Caught ioredis retry limit error, ignoring to prevent crash.');
+    return;
+  }
+});
 const originalCtor = Redis.prototype.constructor;
 (Redis.prototype as any).initialize = function (...args: any[]) {
   if (this.options && this.options.maxRetriesPerRequest === undefined) {
