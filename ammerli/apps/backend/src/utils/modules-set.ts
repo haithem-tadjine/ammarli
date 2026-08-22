@@ -59,6 +59,8 @@ function generateModulesSet() {
           username: configService.get('redis.username', { infer: true }),
           password: configService.getOrThrow('redis.password', { infer: true }),
           tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined,
+          maxRetriesPerRequest: null,
+          enableReadyCheck: false,
         },
       };
     },
@@ -114,6 +116,8 @@ function generateModulesSet() {
           username: configService.get('redis.username', { infer: true }),
           password: configService.getOrThrow('redis.password', { infer: true }),
           tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined,
+          maxRetriesPerRequest: null,
+          enableReadyCheck: false,
         }),
       };
     },
@@ -143,7 +147,9 @@ function generateModulesSet() {
         username: configService.get('redis.username', { infer: true }),
         password: configService.getOrThrow('redis.password', { infer: true }),
         tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined as any,
-      }),
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      } as any),
     }),
   });
 
