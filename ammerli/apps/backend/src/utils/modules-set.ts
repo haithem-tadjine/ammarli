@@ -54,16 +54,11 @@ function generateModulesSet() {
     useFactory: (configService: ConfigService<AllConfigType>) => {
       return {
         connection: {
-          host: configService.getOrThrow('redis.host', {
-            infer: true,
-          }),
-          port: configService.getOrThrow('redis.port', {
-            infer: true,
-          }),
-          password: configService.getOrThrow('redis.password', {
-            infer: true,
-          }),
-          tls: configService.get('redis.tlsEnabled', { infer: true }),
+          host: configService.getOrThrow('redis.host', { infer: true }),
+          port: configService.getOrThrow('redis.port', { infer: true }),
+          username: configService.get('redis.username', { infer: true }), // تمت إضافة اسم المستخدم
+          password: configService.getOrThrow('redis.password', { infer: true }),
+          tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined, // إصلاح التشفير
         },
       };
     },
@@ -114,16 +109,11 @@ function generateModulesSet() {
     useFactory: async (configService: ConfigService<AllConfigType>) => {
       return {
         store: await redisStore({
-          host: configService.getOrThrow('redis.host', {
-            infer: true,
-          }),
-          port: configService.getOrThrow('redis.port', {
-            infer: true,
-          }),
-          password: configService.getOrThrow('redis.password', {
-            infer: true,
-          }),
-          tls: configService.get('redis.tlsEnabled', { infer: true }),
+          host: configService.getOrThrow('redis.host', { infer: true }),
+          port: configService.getOrThrow('redis.port', { infer: true }),
+          username: configService.get('redis.username', { infer: true }), // تمت إضافة اسم المستخدم
+          password: configService.getOrThrow('redis.password', { infer: true }),
+          tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined, // إصلاح التشفير
         }),
       };
     },
@@ -150,8 +140,9 @@ function generateModulesSet() {
       storage: new ThrottlerStorageRedisService({
         host: configService.getOrThrow('redis.host', { infer: true }),
         port: configService.getOrThrow('redis.port', { infer: true }),
+        username: configService.get('redis.username', { infer: true }), // تمت إضافة اسم المستخدم
         password: configService.getOrThrow('redis.password', { infer: true }),
-        tls: configService.get('redis.tlsEnabled', { infer: true }) as any,
+        tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined as any, // إصلاح التشفير
       }),
     }),
   });
