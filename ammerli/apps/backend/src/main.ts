@@ -22,7 +22,7 @@ import { RolesGuard } from './guards/roles.guard';
 import setupSwagger from './utils/setup-swagger';
 
 // 2. السطر السحري لتجاوز حد المحاولات عالمياً ومنع الانهيار
-(Redis.prototype as any).options.maxRetriesPerRequest = null;
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
