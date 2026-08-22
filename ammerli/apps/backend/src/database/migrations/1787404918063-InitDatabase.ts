@@ -1,9 +1,26 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class InitDatabase1787403666027 implements MigrationInterface {
-    name = 'InitDatabase1787403666027'
+export class InitDatabase1787404918063 implements MigrationInterface {
+    name = 'InitDatabase1787404918063'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`
+            CREATE TYPE "public"."wallet_transactions_type_enum" AS ENUM('RECHARGE', 'COMMISSION')
+        `);
+        await queryRunner.query(`
+            CREATE TABLE "wallet_transactions" (
+                "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+                "amount" numeric(10, 2) NOT NULL,
+                "sender_id" uuid,
+                "receiver_id" uuid,
+                "type" "public"."wallet_transactions_type_enum" NOT NULL DEFAULT 'RECHARGE',
+                "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+                "created_by" character varying NOT NULL DEFAULT 'system',
+                "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+                "updated_by" character varying NOT NULL DEFAULT 'system',
+                CONSTRAINT "PK_5120f131bde2cda940ec1a621db" PRIMARY KEY ("id")
+            )
+        `);
         await queryRunner.query(`
             CREATE TABLE "wilayas" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -22,23 +39,6 @@ export class InitDatabase1787403666027 implements MigrationInterface {
         `);
         await queryRunner.query(`
             CREATE UNIQUE INDEX "UQ_wilaya_code" ON "wilayas" ("code")
-        `);
-        await queryRunner.query(`
-            CREATE TYPE "public"."wallet_transactions_type_enum" AS ENUM('RECHARGE', 'COMMISSION')
-        `);
-        await queryRunner.query(`
-            CREATE TABLE "wallet_transactions" (
-                "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-                "amount" numeric(10, 2) NOT NULL,
-                "sender_id" uuid,
-                "receiver_id" uuid,
-                "type" "public"."wallet_transactions_type_enum" NOT NULL DEFAULT 'RECHARGE',
-                "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-                "created_by" character varying NOT NULL DEFAULT 'system',
-                "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-                "updated_by" character varying NOT NULL DEFAULT 'system',
-                CONSTRAINT "PK_5120f131bde2cda940ec1a621db" PRIMARY KEY ("id")
-            )
         `);
         await queryRunner.query(`
             CREATE TABLE "session" (
@@ -409,16 +409,16 @@ export class InitDatabase1787403666027 implements MigrationInterface {
             DROP TABLE "session"
         `);
         await queryRunner.query(`
-            DROP TABLE "wallet_transactions"
-        `);
-        await queryRunner.query(`
-            DROP TYPE "public"."wallet_transactions_type_enum"
-        `);
-        await queryRunner.query(`
             DROP INDEX "public"."UQ_wilaya_code"
         `);
         await queryRunner.query(`
             DROP TABLE "wilayas"
+        `);
+        await queryRunner.query(`
+            DROP TABLE "wallet_transactions"
+        `);
+        await queryRunner.query(`
+            DROP TYPE "public"."wallet_transactions_type_enum"
         `);
     }
 
