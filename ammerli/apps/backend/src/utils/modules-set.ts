@@ -56,9 +56,9 @@ function generateModulesSet() {
         connection: {
           host: configService.getOrThrow('redis.host', { infer: true }),
           port: configService.getOrThrow('redis.port', { infer: true }),
-          username: configService.get('redis.username', { infer: true }), // تمت إضافة اسم المستخدم
+          username: configService.get('redis.username', { infer: true }),
           password: configService.getOrThrow('redis.password', { infer: true }),
-          tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined, // إصلاح التشفير
+          tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined,
         },
       };
     },
@@ -92,7 +92,7 @@ function generateModulesSet() {
           __dirname,
           '../../src/generated/i18n.generated.ts',
         ),
-        logging: isLocal || isDevelopment, // log info on missing keys
+        logging: isLocal || isDevelopment,
       };
     },
     inject: [ConfigService],
@@ -111,9 +111,9 @@ function generateModulesSet() {
         store: await redisStore({
           host: configService.getOrThrow('redis.host', { infer: true }),
           port: configService.getOrThrow('redis.port', { infer: true }),
-          username: configService.get('redis.username', { infer: true }), // تمت إضافة اسم المستخدم
+          username: configService.get('redis.username', { infer: true }),
           password: configService.getOrThrow('redis.password', { infer: true }),
-          tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined, // إصلاح التشفير
+          tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined,
         }),
       };
     },
@@ -129,20 +129,20 @@ function generateModulesSet() {
         {
           name: 'default',
           ttl: 60000,
-          limit: 20, // 20 requests per minute by default
+          limit: 20,
         },
         {
           name: 'auth',
           ttl: 60000,
-          limit: 3, // 3 requests per minute for auth endpoints
+          limit: 3,
         },
       ],
       storage: new ThrottlerStorageRedisService({
         host: configService.getOrThrow('redis.host', { infer: true }),
         port: configService.getOrThrow('redis.port', { infer: true }),
-        username: configService.get('redis.username', { infer: true }), // تمت إضافة اسم المستخدم
+        username: configService.get('redis.username', { infer: true }),
         password: configService.getOrThrow('redis.password', { infer: true }),
-        tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined as any, // إصلاح التشفير
+        tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined as any,
       }),
     }),
   });
