@@ -12,14 +12,22 @@ import { RedisScriptService } from './redis-script.service';
     RedisModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        config: {
-          host: configService.get('redis.host'),
-          port: configService.get('redis.port'),
-          password: configService.get('redis.password'),
-          retryStrategy: (times) => Math.min(times * 50, 2000),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        // نأخذ قيمة التشفير من الإعدادات
+        const tlsEnabled = configService.get<boolean>('redis.tlsEnabled');
+
+        return {
+          config: {
+            host: configService.get('redis.host'),
+            port: configService.get('redis.port'),
+            password: configService.get('redis.password'),
+            username: configService.get('redis.username'), // أضفنا اسم المستخدم أيضاً للأمان
+            // هذا هو السطر السحري الذي سيحل المشكلة 👇
+            tls: tlsEnabled ? {} : undefined,
+            retryStrategy: (times) => Math.min(times * 50, 2000),
+          },
+        };
+      },
     }),
   ],
   providers: [
@@ -62,4 +70,4 @@ import { RedisScriptService } from './redis-script.service';
     'REDIS_CLIENT', // Export the alias
   ],
 })
-export class RedisLibModule {}
+export class RedisLibModule { }

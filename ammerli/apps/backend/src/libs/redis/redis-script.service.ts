@@ -67,14 +67,28 @@ export class RedisScriptService implements OnModuleInit {
    * @throws Throws if reading the file or loading to Redis fails.
    */
   private async loadScript(name: RedisScriptName): Promise<string> {
-    // التعديل السحري: نأخذ النص مباشرة دون البحث عن ملفات
-    const content = RedisScripts[name].content;
+    const scriptConfig = RedisScripts[name];
+    const scriptPath = join(__dirname, 'scripts', scriptConfig.file);
 
     this.logger.debugStructured(LogConstants.SYSTEM.DEBUG_LOADING_SCRIPT, {
       scriptName: name,
+      path: scriptPath,
     });
 
+    let content: string;
     try {
+      content = await readFile(scriptPath, 'utf8');
+    } catch (err) {
+      const message = LogConstants.SYSTEM.ERROR_READ_SCRIPT_FAILED.replace(
+        '{file}',
+        scriptConfig.file,
+      );
+      this.logger.errorStructured(message, { scriptName: name, error: err });
+      throw new Error(message);
+    }
+
+    try {
+      // Timeout for Redis SCRIPT LOAD
       const sha = (await Promise.race([
         this.redis.script('LOAD', content),
         new Promise<string>((_, reject) =>
@@ -101,6 +115,7 @@ export class RedisScriptService implements OnModuleInit {
       throw new Error(message);
     }
   }
+
   /**
    * Executes a Redis script by SHA, automatically reloads if NOSCRIPT occurs.
    * @param name Name of the Redis script to execute.
