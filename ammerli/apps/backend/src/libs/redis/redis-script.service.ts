@@ -101,7 +101,6 @@ export class RedisScriptService implements OnModuleInit {
       throw new Error(message);
     }
   }
-
   /**
    * Executes a Redis script by SHA, automatically reloads if NOSCRIPT occurs.
    * @param name Name of the Redis script to execute.
