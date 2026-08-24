@@ -3,7 +3,7 @@ import { storage } from '../utils/storage';
 import { useAuthStore } from '../store/useAuthStore';
 
 // Use same base URL as api.ts — driven by EXPO_PUBLIC_API_URL
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://ammarli-backend.onrender.com';
 const SOCKET_URL = BASE_URL; // Socket.io connects to root, namespace is /tracking
 
 class SocketService {
@@ -15,7 +15,7 @@ class SocketService {
 
     const token = await storage.get<string>('AUTH_TOKEN');
     const userId = useAuthStore.getState().userProfile?.id;
-    
+
     if (!token || !userId) {
       console.warn('❌ Cannot connect socket: Missing token or userId');
       return;

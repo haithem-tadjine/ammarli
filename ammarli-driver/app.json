@@ -19,6 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "package": "com.ammarli.driver",
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
       "config": {
         "googleMaps": {
@@ -72,10 +73,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "316149fd-d009-4d25-a467-47237bf1fefe"
-      }
+      "router": {}
     },
     "owner": "nicoulas_tadjine"
   }
