@@ -25,8 +25,8 @@ import { RabbitMqExchange } from './domain-events';
           type: 'topic',
         },
       ],
-      uri: process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672',
-      connectionInitOptions: { wait: true, timeout: 5000 },
+      uri: process.env.RABBITMQ_URL || (() => { throw new Error('RABBITMQ_URL is missing!'); })(),
+      connectionInitOptions: { wait: true, timeout: 30000 },
       enableControllerDiscovery: true,
       channels: {
         default: {
