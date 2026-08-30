@@ -12,11 +12,26 @@ import { RedisScriptService } from './redis-script.service';
     RedisModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: () => {
+      useFactory: (configService: ConfigService) => {
+        const url = process.env.REDIS_URL;
+        if (url) {
+          return {
+            config: {
+              url,
+              tls: { rejectUnauthorized: false },
+              maxRetriesPerRequest: null,
+              enableReadyCheck: false,
+              retryStrategy: (times) => Math.min(times * 50, 2000),
+            },
+          };
+        }
+        
         return {
           config: {
-            url: process.env.REDIS_URL,
-            tls: { rejectUnauthorized: false },
+            host: configService.get('redis.host') || 'localhost',
+            port: configService.get('redis.port') || 6379,
+            password: configService.get('redis.password'),
+            username: configService.get('redis.username'),
             maxRetriesPerRequest: null,
             enableReadyCheck: false,
             retryStrategy: (times) => Math.min(times * 50, 2000),

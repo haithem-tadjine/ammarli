@@ -29,6 +29,23 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { DataSource, DataSourceOptions } from 'typeorm';
 import loggerFactory from './logger-factory';
 
+const getRedisConnection = (configService: ConfigService) => {
+  const url = process.env.REDIS_URL;
+  if (url) {
+    return new Redis(url, {
+      maxRetriesPerRequest: null,
+      tls: { rejectUnauthorized: false },
+    });
+  }
+  return new Redis({
+    host: configService.get('redis.host') || 'localhost',
+    port: configService.get('redis.port') || 6379,
+    password: configService.get('redis.password'),
+    username: configService.get('redis.username'),
+    maxRetriesPerRequest: null,
+  });
+};
+
 function generateModulesSet() {
   const imports: ModuleMetadata['imports'] = [
     ConfigModule.forRoot({
@@ -54,12 +71,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: (configService: ConfigService<AllConfigType>) => {
       return {
-        connection: new Redis(process.env.REDIS_URL, {
-          maxRetriesPerRequest: null,
-          tls: {
-            rejectUnauthorized: false,
-          },
-        }),
+        connection: getRedisConnection(configService),
         // ── Job Lifecycle: Prevent Redis Storage Bloat ─────────────────────────
         // Completed jobs are deleted immediately (count: 0) to prevent the
         // continuous-matching sweep (6/min) from accumulating 8,640 records/day.
@@ -116,9 +128,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: async (configService: ConfigService<AllConfigType>) => {
       return {
-        store: await redisStore(new Redis(process.env.REDIS_URL, {
-          tls: { rejectUnauthorized: false },
-        }) as any),
+        store: await redisStore(getRedisConnection(configService) as any),
       };
     },
     isGlobal: true,
@@ -141,9 +151,7 @@ function generateModulesSet() {
           limit: 3,
         },
       ],
-      storage: new ThrottlerStorageRedisService(new Redis(process.env.REDIS_URL, {
-        tls: { rejectUnauthorized: false },
-      })),
+      storage: new ThrottlerStorageRedisService(getRedisConnection(configService)),
     }),
   });
 
