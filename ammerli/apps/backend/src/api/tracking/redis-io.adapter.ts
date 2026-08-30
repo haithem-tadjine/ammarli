@@ -16,14 +16,36 @@ export class RedisIoAdapter extends IoAdapter {
   }
 
   async connectToRedis(): Promise<void> {
-    const redisHost = this.configService.get<string>('redis.host');
-    const redisPort = this.configService.get<number>('redis.port');
-    const redisPassword = this.configService.get<string>('redis.password');
+    const redisUrl =
+      this.configService.get<string>('redis.url') || process.env.REDIS_URL;
 
-    const pubClient = new Redis({
-      host: redisHost,
-      port: redisPort,
-      password: redisPassword,
+    let pubClient: Redis;
+
+    if (redisUrl) {
+      pubClient = new Redis(redisUrl, {
+        maxRetriesPerRequest: null,
+        tls: redisUrl.startsWith('rediss://')
+          ? { rejectUnauthorized: false }
+          : undefined,
+      });
+    } else {
+      const redisHost = this.configService.get<string>('redis.host') || 'localhost';
+      const redisPort = this.configService.get<number>('redis.port') || 6379;
+      const redisPassword = this.configService.get<string>('redis.password');
+
+      pubClient = new Redis({
+        host: redisHost,
+        port: redisPort,
+        password: redisPassword,
+        maxRetriesPerRequest: null,
+      });
+    }
+
+    pubClient.on('error', (err) => {
+      console.error('[Redis IO Adapter PubClient Error]', err.message);
+      if (pubClient.options) {
+        console.error(' -> Attempted to connect to:', pubClient.options.host + ':' + pubClient.options.port);
+      }
     });
 
     const subClient = pubClient.duplicate();

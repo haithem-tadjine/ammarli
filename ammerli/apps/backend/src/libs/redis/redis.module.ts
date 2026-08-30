@@ -12,7 +12,7 @@ export const createRedisClient = () => {
     throw new Error('REDIS_URL is not defined in process.env!');
   }
 
-  return new Redis(redisUrl, {
+  const client = new Redis(redisUrl, {
     maxRetriesPerRequest: null,
     tls: redisUrl.startsWith('rediss://')
       ? {
@@ -20,6 +20,15 @@ export const createRedisClient = () => {
       }
       : undefined,
   });
+
+  client.on('error', (err) => {
+    console.error('[Redis Client Error]', err.message);
+    if (client.options) {
+      console.error(' -> Attempted to connect to:', client.options.host + ':' + client.options.port);
+    }
+  });
+
+  return client;
 };
 
 export const redisProvider = {
