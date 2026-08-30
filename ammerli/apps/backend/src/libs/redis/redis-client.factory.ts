@@ -23,6 +23,7 @@ export const getRedisConnectionOptions = () => {
     username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
     maxRetriesPerRequest: null as null,
     enableReadyCheck: false,
+    family: 4, // Force IPv4 — prevents spurious ECONNREFUSED from IPv6 fallback attempts
     tls: parsed.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
     retryStrategy: (times: number) => Math.min(times * 200, 5000),
   };
