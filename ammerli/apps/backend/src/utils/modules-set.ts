@@ -31,16 +31,12 @@ import loggerFactory from './logger-factory';
 
 const getRedisConnection = () => {
   const url = process.env.REDIS_URL;
-  if (url) {
-    return new Redis(url, {
-      maxRetriesPerRequest: null,
-      tls: { rejectUnauthorized: false },
-    });
+  if (!url) {
+    throw new Error('REDIS_URL is missing in environment variables!');
   }
-  return new Redis({
-    host: 'localhost',
-    port: 6379,
+  return new Redis(url, {
     maxRetriesPerRequest: null,
+    tls: { rejectUnauthorized: false },
   });
 };
 

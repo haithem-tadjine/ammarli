@@ -14,22 +14,14 @@ import { RedisScriptService } from './redis-script.service';
       inject: [ConfigService],
       useFactory: () => {
         const url = process.env.REDIS_URL;
-        if (url) {
-          return {
-            config: {
-              url,
-              tls: { rejectUnauthorized: false },
-              maxRetriesPerRequest: null,
-              enableReadyCheck: false,
-              retryStrategy: (times) => Math.min(times * 50, 2000),
-            },
-          };
+        if (!url) {
+          throw new Error('REDIS_URL is missing in environment variables!');
         }
-        
+
         return {
           config: {
-            host: 'localhost',
-            port: 6379,
+            url,
+            tls: { rejectUnauthorized: false },
             maxRetriesPerRequest: null,
             enableReadyCheck: false,
             retryStrategy: (times) => Math.min(times * 50, 2000),

@@ -14,30 +14,8 @@ import { RedisConfig } from './redis-config.type';
 
 class EnvironmentVariablesValidator {
   @IsString()
-  @IsOptional()
-  REDIS_HOST?: string;
-
-  @IsInt()
-  @Min(0)
-  @Max(65535)
-  @IsOptional()
-  REDIS_PORT?: number;
-
-  @IsString()
-  @IsOptional()
-  REDIS_USERNAME?: string;
-
-  @IsString()
-  @IsOptional()
-  REDIS_PASSWORD?: string;
-
-  @IsBoolean()
-  @IsOptional()
-  REDIS_TLS_ENABLED?: boolean;
-
-  @IsString()
-  @IsOptional()
-  REDIS_URL?: string;
+  @IsNotEmpty()
+  REDIS_URL: string;
 }
 
 export default registerAs<RedisConfig>('redis', () => {
@@ -45,10 +23,6 @@ export default registerAs<RedisConfig>('redis', () => {
   validateConfig(process.env, EnvironmentVariablesValidator);
 
   return {
-    host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379,
-    password: process.env.REDIS_PASSWORD,
-    username: process.env.REDIS_USERNAME,
-    tlsEnabled: process.env.REDIS_TLS_ENABLED === 'true',
+    url: process.env.REDIS_URL,
   };
 });
