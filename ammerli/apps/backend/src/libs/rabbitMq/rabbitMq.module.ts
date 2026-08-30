@@ -26,7 +26,7 @@ import { RabbitMqExchange } from './domain-events';
         },
       ],
       uri: process.env.RABBITMQ_URL || (() => { throw new Error('RABBITMQ_URL is missing!'); })(),
-      connectionInitOptions: { wait: true, timeout: 30000 },
+      connectionInitOptions: { wait: false },
       enableControllerDiscovery: true,
       channels: {
         default: {
