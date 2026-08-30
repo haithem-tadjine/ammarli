@@ -58,7 +58,10 @@ function generateModulesSet() {
           port: configService.getOrThrow('redis.port', { infer: true }),
           username: configService.get('redis.username', { infer: true }),
           password: configService.getOrThrow('redis.password', { infer: true }),
-          tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined,
+          maxRetriesPerRequest: null,
+          tls: process.env.REDIS_URL?.startsWith('rediss://') || process.env.NODE_ENV === 'production' 
+                ? { rejectUnauthorized: false } 
+                : undefined,
         },
         // ── Job Lifecycle: Prevent Redis Storage Bloat ─────────────────────────
         // Completed jobs are deleted immediately (count: 0) to prevent the

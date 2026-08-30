@@ -115,10 +115,8 @@ async function bootstrap() {
     );
   }
 
-  await app.listen(
-    configService.getOrThrow('app.port', { infer: true }),
-    '0.0.0.0',
-  );
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
 
   console.info(`Server running on ${await app.getUrl()}`);
 

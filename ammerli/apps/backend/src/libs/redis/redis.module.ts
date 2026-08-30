@@ -23,7 +23,9 @@ import { RedisScriptService } from './redis-script.service';
             password: configService.get('redis.password'),
             username: configService.get('redis.username'), // أضفنا اسم المستخدم أيضاً للأمان
             // هذا هو السطر السحري الذي سيحل المشكلة 👇
-            tls: tlsEnabled ? {} : undefined,
+            tls: process.env.REDIS_URL?.startsWith('rediss://') || process.env.NODE_ENV === 'production' 
+                  ? { rejectUnauthorized: false } 
+                  : undefined,
             maxRetriesPerRequest: null,
             enableReadyCheck: false,
             retryStrategy: (times) => Math.min(times * 50, 2000),
