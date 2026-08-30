@@ -5,7 +5,7 @@ import { DispatchService } from '../dispatch.service';
 
 @Processor('continuous-matching', {
   stalledInterval: 0,
-  drainDelay: 300,
+  drainDelay: 5000,
   metrics: undefined,
 })
 @Injectable()
