@@ -41,6 +41,16 @@ export class TrackingGateway
   @WebSocketServer()
   server: Server;
 
+  /**
+   * In-memory throttle registry.
+   * Prevents expensive operations (DB queries, Nominatim HTTP, wilaya lookup)
+   * from running on every single location pulse.
+   * Key: driverId, Value: timestamp of last full evaluation (ms).
+   * Operations are skipped unless 60s have elapsed OR driver status changes.
+   */
+  private readonly _heavyOpsThrottle = new Map<string, number>();
+  private readonly HEAVY_OPS_INTERVAL_MS = 60_000; // 60 seconds
+
   constructor(
     private readonly trackingService: TrackingService,
     private readonly logger: AppLogger,
@@ -131,9 +141,6 @@ export class TrackingGateway
           isSuspended,
         );
         this.logger.log(`${LogConstants.TRACKING.DRIVER_CONNECTED}: ${driverId}`);
-        
-        // Opportunistically trigger matching for the new online driver
-        this.dispatchService.triggerMatchingForDriver(driverId);
       } else {
         // User Connection
         client.data.userId = userId;
@@ -152,6 +159,8 @@ export class TrackingGateway
     const driverId = client.data?.driverId as string | undefined;
     if (driverId) {
       void this.trackingService.setDriverOffline(driverId);
+      // Clean up throttle entry to prevent memory accumulation over long uptimes
+      this._heavyOpsThrottle.delete(driverId);
       this.logger.log(
         `${LogConstants.TRACKING.DRIVER_DISCONNECTED}: ${driverId}`,
       );
@@ -377,7 +386,7 @@ export class TrackingGateway
     }
 
     try {
-      // 1. Update location in Redis
+      // 1. Update geospatial index in Redis — runs on every pulse (cheap Lua script)
       if (!this.trackingService) {
         throw new Error(ErrorMessageConstants.TRACKING.SERVICE_NOT_INITIALIZED);
       }
@@ -394,8 +403,7 @@ export class TrackingGateway
         timestamp: Date.now(),
       });
 
-      // 2. Broadcast to users?
-      // Real-time tracking of assigned driver:
+      // 2. Forward driver position to the assigned customer — runs on every pulse (cheap socket emit)
       if (this.requestService) {
         const activeRequest = await this.requestService.findActiveRequestForDriver(driverId);
         if (activeRequest && activeRequest.user?.id) {
@@ -407,40 +415,52 @@ export class TrackingGateway
         }
       }
 
-      // 3. Dynamic Wilaya Debt Ceiling check (Bypass UI Block)
-      const geoResult = await this.geocodingService.reverseGeocode(lat, lng);
-      if (geoResult?.wilaya) {
-        const geoalgeria = require('geoalgeria');
-        const reqWilayaLower = geoResult.wilaya.trim().toLowerCase();
-        const matchedGeoWilaya = geoalgeria.wilayas.find((w: any) => 
-          w.name_fr.toLowerCase() === reqWilayaLower ||
-          w.name_ar === reqWilayaLower ||
-          reqWilayaLower.includes(w.name_fr.toLowerCase()) ||
-          reqWilayaLower.includes(w.name_ar) ||
-          String(w.code) === reqWilayaLower ||
-          String(w.code).padStart(2, '0') === reqWilayaLower
-        );
-        const searchCode = matchedGeoWilaya ? String(matchedGeoWilaya.code).padStart(2, '0') : geoResult.wilaya;
+      // 3. Heavy ops: Nominatim geocoding + wilaya DB lookup + suspension sync.
+      //    Throttled to once per 60 seconds per driver to prevent Redis/DB/HTTP exhaustion.
+      //    Matching is handled exclusively by the BullMQ sweep (every 10s) — no per-pulse trigger.
+      const now = Date.now();
+      const lastHeavyOps = this._heavyOpsThrottle.get(driverId) ?? 0;
+      const shouldRunHeavyOps = (now - lastHeavyOps) >= this.HEAVY_OPS_INTERVAL_MS;
 
-        const wilayaRecord = await this.wilayaRepo.createQueryBuilder('w')
-          .where(':reqWilaya ILIKE \'%\' || w.name || \'%\'', { reqWilaya: geoResult.wilaya })
-          .orWhere('w.code = :searchCode', { searchCode })
-          .getOne();
-          
-        if (wilayaRecord && wilayaRecord.isDebtCeilingEnabled === false) {
-          // Tell the driver app to ignore the suspension temporarily
-          client.emit('sync_suspension', { isSuspended: false });
-        } else {
-          // Revert to true suspension status if they are actually suspended in DB
-          const driver = await this.driverService.findByUserId(driverId as Uuid);
-          if (driver && driver.isSuspended) {
-            client.emit('sync_suspension', { isSuspended: true });
+      if (shouldRunHeavyOps) {
+        this._heavyOpsThrottle.set(driverId, now);
+
+        const geoResult = await this.geocodingService.reverseGeocode(lat, lng);
+        if (geoResult?.wilaya) {
+          const geoalgeria = require('geoalgeria');
+          const reqWilayaLower = geoResult.wilaya.trim().toLowerCase();
+          const matchedGeoWilaya = geoalgeria.wilayas.find((w: any) =>
+            w.name_fr.toLowerCase() === reqWilayaLower ||
+            w.name_ar === reqWilayaLower ||
+            reqWilayaLower.includes(w.name_fr.toLowerCase()) ||
+            reqWilayaLower.includes(w.name_ar) ||
+            String(w.code) === reqWilayaLower ||
+            String(w.code).padStart(2, '0') === reqWilayaLower
+          );
+          const searchCode = matchedGeoWilaya
+            ? String(matchedGeoWilaya.code).padStart(2, '0')
+            : geoResult.wilaya;
+
+          const wilayaRecord = await this.wilayaRepo
+            .createQueryBuilder('w')
+            .where(':reqWilaya ILIKE \'%\' || w.name || \'%\'', { reqWilaya: geoResult.wilaya })
+            .orWhere('w.code = :searchCode', { searchCode })
+            .getOne();
+
+          if (wilayaRecord && wilayaRecord.isDebtCeilingEnabled === false) {
+            client.emit('sync_suspension', { isSuspended: false });
+          } else {
+            const driver = await this.driverService.findByUserId(driverId as Uuid);
+            if (driver && driver.isSuspended) {
+              client.emit('sync_suspension', { isSuspended: true });
+            }
           }
         }
       }
-
-      // Opportunistically trigger matching with updated location
-      this.dispatchService.triggerMatchingForDriver(driverId);
+      // NOTE: triggerMatchingForDriver deliberately removed.
+      // Matching is handled exclusively by the BullMQ continuous-matching sweep (every 10s).
+      // Running a full SCAN-based matching sweep on every location pulse was the
+      // primary cause of Redis memory exhaustion.
     } catch (error) {
       if (this.logger) {
         this.logger.error(
