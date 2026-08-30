@@ -29,34 +29,50 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { DataSource, DataSourceOptions } from 'typeorm';
 import loggerFactory from './logger-factory';
 
-export const createRedisClient = () => {
+// Singleton Redis client — shared across ALL modules to prevent duplicate connections
+let _redisClientInstance: Redis | null = null;
+
+export const getRedisClient = (): Redis => {
+  if (_redisClientInstance) {
+    return _redisClientInstance;
+  }
+
   const redisUrl = process.env.REDIS_URL;
 
   if (!redisUrl) {
-    throw new Error('REDIS_URL is not defined in process.env!');
+    throw new Error('FATAL: REDIS_URL is not defined in process.env!');
   }
 
   const parsed = new URL(redisUrl);
   const options = {
     host: parsed.hostname,
-    port: parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'rediss:' ? 6379 : 6379),
+    port: parsed.port ? parseInt(parsed.port, 10) : 6379,
     password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
     username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
     maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    lazyConnect: false,
     tls: parsed.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
   };
 
+  console.log('[Redis] Creating singleton client for:', parsed.hostname + ':' + (parsed.port || 6379));
+
   const client = new Redis(options);
 
-  client.on('error', (err) => {
-    console.error('[Redis Client Error]', err.message);
-    if (client.options) {
-      console.error(' -> Attempted to connect to:', client.options.host + ':' + client.options.port);
-    }
+  client.on('connect', () => {
+    console.log('[Redis] Connected successfully to:', parsed.hostname + ':' + (parsed.port || 6379));
   });
 
+  client.on('error', (err) => {
+    console.error('[Redis Singleton Error]', err.message, '| host:', parsed.hostname, 'port:', parsed.port || 6379);
+  });
+
+  _redisClientInstance = client;
   return client;
 };
+
+// Keep createRedisClient as alias for backward compatibility
+export const createRedisClient = getRedisClient;
 
 function generateModulesSet() {
   const imports: ModuleMetadata['imports'] = [
@@ -83,7 +99,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: (configService: ConfigService<AllConfigType>) => {
       return {
-        connection: createRedisClient(),
+        connection: getRedisClient(),
         defaultJobOptions: {
           removeOnComplete: { count: 0 },
           removeOnFail: { count: 100 },
@@ -136,7 +152,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: async (configService: ConfigService<AllConfigType>) => {
       return {
-        store: await redisStore(createRedisClient() as any),
+        store: await redisStore(getRedisClient() as any),
       };
     },
     isGlobal: true,
@@ -159,7 +175,7 @@ function generateModulesSet() {
           limit: 3,
         },
       ],
-      storage: new ThrottlerStorageRedisService(createRedisClient()),
+      storage: new ThrottlerStorageRedisService(getRedisClient()),
     }),
   });
 

@@ -4,40 +4,12 @@ import Redlock from 'redlock';
 import { DistributedLockService } from './distributed-lock.service';
 import { RedisLibsService } from './redis-libs.service';
 import { RedisScriptService } from './redis-script.service';
-
-export const createRedisClient = () => {
-  const redisUrl = process.env.REDIS_URL;
-
-  if (!redisUrl) {
-    throw new Error('REDIS_URL is not defined in process.env!');
-  }
-
-  const parsed = new URL(redisUrl);
-  const options = {
-    host: parsed.hostname,
-    port: parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'rediss:' ? 6379 : 6379),
-    password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
-    username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
-    maxRetriesPerRequest: null,
-    tls: parsed.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
-  };
-
-  const client = new Redis(options);
-
-  client.on('error', (err) => {
-    console.error('[Redis Client Error]', err.message);
-    if (client.options) {
-      console.error(' -> Attempted to connect to:', client.options.host + ':' + client.options.port);
-    }
-  });
-
-  return client;
-};
+import { getRedisClient } from '../../utils/modules-set';
 
 export const redisProvider = {
   provide: 'REDIS_CLIENT',
   useFactory: () => {
-    return createRedisClient();
+    return getRedisClient();
   },
 };
 
