@@ -23,58 +23,16 @@ import {
 } from 'nestjs-i18n';
 import { LoggerModule } from 'nestjs-pino';
 import path from 'path';
-import Redis from 'ioredis';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import loggerFactory from './logger-factory';
+import {
+  getRedisClient,
+  getRedisConnectionOptions,
+  createRedisClient,
+} from '../libs/redis/redis-client.factory';
 
-// Singleton Redis client — shared across Cache, Throttler, and RedisLib modules
-let _redisClientInstance: Redis | null = null;
-
-// Returns plain connection options (not an ioredis instance)
-// Used by BullMQ which requires RedisOptions, not an ioredis instance
-export const getRedisConnectionOptions = () => {
-  const redisUrl = process.env.REDIS_URL;
-  if (!redisUrl) throw new Error('FATAL: REDIS_URL is not defined in process.env!');
-  const parsed = new URL(redisUrl);
-  return {
-    host: parsed.hostname,
-    port: parsed.port ? parseInt(parsed.port, 10) : 6379,
-    password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
-    username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
-    maxRetriesPerRequest: null as null,
-    enableReadyCheck: false,
-    tls: parsed.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
-    retryStrategy: (times: number) => Math.min(times * 200, 5000),
-  };
-};
-
-export const getRedisClient = (): Redis => {
-  if (_redisClientInstance) return _redisClientInstance;
-
-  const opts = getRedisConnectionOptions();
-  const redisUrl = process.env.REDIS_URL!;
-  const parsed = new URL(redisUrl);
-
-  console.log('[Redis] Creating singleton client for:', parsed.hostname + ':' + (parsed.port || 6379));
-
-  const client = new Redis(opts);
-
-  client.on('connect', () => {
-    console.log('[Redis] Connected successfully to:', parsed.hostname + ':' + (parsed.port || 6379));
-  });
-
-  client.on('error', (err) => {
-    console.error('[Redis Singleton Error]', err.message, '| host:', parsed.hostname);
-  });
-
-  _redisClientInstance = client;
-  return client;
-};
-
-// Keep createRedisClient as alias for backward compatibility
-export const createRedisClient = getRedisClient;
 
 function generateModulesSet() {
   const imports: ModuleMetadata['imports'] = [

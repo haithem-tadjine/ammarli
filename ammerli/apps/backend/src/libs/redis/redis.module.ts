@@ -4,7 +4,7 @@ import Redlock from 'redlock';
 import { DistributedLockService } from './distributed-lock.service';
 import { RedisLibsService } from './redis-libs.service';
 import { RedisScriptService } from './redis-script.service';
-import { getRedisClient } from '../../utils/modules-set';
+import { getRedisClient } from './redis-client.factory';
 
 export const redisProvider = {
   provide: 'REDIS_CLIENT',

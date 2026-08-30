@@ -4,7 +4,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { Redis } from 'ioredis';
 import { ServerOptions } from 'socket.io';
-import { getRedisConnectionOptions } from '../../utils/modules-set';
+import { getRedisConnectionOptions } from '../../libs/redis/redis-client.factory';
 
 export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter>;
