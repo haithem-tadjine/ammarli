@@ -3,7 +3,11 @@ import { Job } from 'bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { DispatchService } from '../dispatch.service';
 
-@Processor('dispatch-timeout')
+@Processor('dispatch-timeout', {
+  stalledInterval: 0,
+  drainDelay: 300,
+  metrics: undefined,
+})
 @Injectable()
 export class DispatchTimeoutProcessor extends WorkerHost {
   private readonly logger = new Logger(DispatchTimeoutProcessor.name);

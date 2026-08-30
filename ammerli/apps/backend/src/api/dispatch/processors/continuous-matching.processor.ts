@@ -3,7 +3,11 @@ import { Job } from 'bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { DispatchService } from '../dispatch.service';
 
-@Processor('continuous-matching')
+@Processor('continuous-matching', {
+  stalledInterval: 0,
+  drainDelay: 300,
+  metrics: undefined,
+})
 @Injectable()
 export class ContinuousMatchingProcessor extends WorkerHost {
   private readonly logger = new Logger(ContinuousMatchingProcessor.name);
