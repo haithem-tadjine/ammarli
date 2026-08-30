@@ -377,15 +377,17 @@ export class DispatchService {
     const driverId = driver.id;
 
     const requestKey = `${RedisConstants.KEYS.REQUESTS_INDEX}:${requestId}`;
+    const driverActiveRequestKey = `requests:driver:${driverId}`;
 
     const result = await this.redisScriptService.eval(
       'ACCEPT_REQUEST',
-      [requestKey],
+      [requestKey, driverActiveRequestKey],
       [
         driverId,
         RequestStatusEnum.LOCKED,
         RequestStatusEnum.SEARCHING,
         RequestStatusEnum.DISPATCHED,
+        '7200', // TTL: 2-hour safety window for the driver→request reverse index
       ],
     );
 
@@ -505,12 +507,17 @@ export class DispatchService {
 
   /**
    * Sweeps active requests and re-runs the matching algorithm.
+   * Early-exits immediately when there are no active requests, avoiding
+   * unnecessary Redis reads and CPU during idle periods.
    */
   async performContinuousMatching() {
     const keys = await this.redisLibsService.keys(`${RedisConstants.KEYS.REQUESTS_INDEX}:*`);
     const requestIds = keys
       .filter((k) => !k.includes(':user:'))
       .map((k) => k.replace(`${RedisConstants.KEYS.REQUESTS_INDEX}:`, ''));
+
+    // ── Early-exit guard: no requests in cache → nothing to do ──────────────
+    if (requestIds.length === 0) return;
 
     for (const reqId of requestIds) {
       try {

@@ -29,6 +29,7 @@ import { GeocodingService } from '@/libs/geocoding/geocoding.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WilayaEntity } from '../wilaya/entities/wilaya.entity';
+import { RedisLibsService } from '@/libs/redis/redis-libs.service';
 
 /**
  * WebSocket Gateway for driver location updates and alerts.
@@ -67,6 +68,7 @@ export class TrackingGateway
     private readonly wilayaRepo: Repository<WilayaEntity>,
     @Inject(CACHE_MANAGER) 
     private readonly cacheManager: Cache,
+    private readonly redisLibsService: RedisLibsService,
   ) {
     if (this.logger) {
       this.logger.setContext(TrackingGateway.name);
@@ -403,15 +405,22 @@ export class TrackingGateway
         timestamp: Date.now(),
       });
 
-      // 2. Forward driver position to the assigned customer — runs on every pulse (cheap socket emit)
+      // 2. Forward driver position to the assigned customer.
+      //    Uses the driver→request reverse index (written by accept_request.lua) for O(1) Redis lookup.
+      //    No PostgreSQL query is made here — zero DB cost per GPS pulse.
       if (this.requestService) {
-        const activeRequest = await this.requestService.findActiveRequestForDriver(driverId);
-        if (activeRequest && activeRequest.user?.id) {
-          this.server.to(`user_${activeRequest.user.id}`).emit('location_update', {
-            lat,
-            lng,
-            bearing: parsedData?.bearing || 0,
-          });
+        const fullRequestKey = await this.redisLibsService.get(`requests:driver:${driverId}`);
+        if (fullRequestKey) {
+          // fullRequestKey = 'requests:{requestId}' — strip prefix to get the bare ID
+          const requestId = fullRequestKey.replace(/^requests:/, '');
+          const activeRequest = await this.requestService.getRequestFromCache(requestId);
+          if (activeRequest?.user?.id) {
+            this.server.to(`user_${activeRequest.user.id}`).emit('location_update', {
+              lat,
+              lng,
+              bearing: parsedData?.bearing || 0,
+            });
+          }
         }
       }
 

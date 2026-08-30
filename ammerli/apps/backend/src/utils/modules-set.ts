@@ -60,6 +60,14 @@ function generateModulesSet() {
           password: configService.getOrThrow('redis.password', { infer: true }),
           tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined,
         },
+        // ── Job Lifecycle: Prevent Redis Storage Bloat ─────────────────────────
+        // Completed jobs are deleted immediately (count: 0) to prevent the
+        // continuous-matching sweep (6/min) from accumulating 8,640 records/day.
+        // Failed jobs are capped at 100 to allow post-mortem diagnostics.
+        defaultJobOptions: {
+          removeOnComplete: { count: 0 },
+          removeOnFail: { count: 100 },
+        },
       };
     },
     inject: [ConfigService],

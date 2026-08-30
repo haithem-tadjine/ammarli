@@ -11,6 +11,7 @@ import {
   RabbitMqRoutingKey,
 } from '@/libs/rabbitMq/domain-events';
 import { RedisScriptService } from '@/libs/redis/redis-script.service';
+import { RedisLibsService } from '@/libs/redis/redis-libs.service';
 import { paginate } from '@/utils/offset-pagination';
 import { applyFiltersToQueryBuilder } from '@/utils/query-filter.util';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
@@ -54,6 +55,7 @@ export class RequestService {
     private readonly geocodingService: GeocodingService,
     private readonly dataSource: DataSource,
     private readonly settingService: SettingService,
+    private readonly redisLibsService: RedisLibsService,
   ) {
     this.logger.setContext(RequestService.name);
   }
@@ -472,6 +474,15 @@ export class RequestService {
           await this.driverMetadataService.updateMetadata(targetMetadataId as string, {
             status: 'AVAILABLE',
           });
+
+          // ── Delete driver→request reverse index so Gateway stops forwarding ──────
+          // This key is written atomically by accept_request.lua when a driver accepts.
+          // It MUST be removed here to prevent stale GPS forwarding after trip ends.
+          await this.redisLibsService.del(`requests:driver:${targetMetadataId}`);
+          // Also clear by driverId PK in case it differs from userId
+          if (request.driverId !== targetMetadataId) {
+            await this.redisLibsService.del(`requests:driver:${request.driverId}`);
+          }
         } catch (error: any) {
           this.logger.error(`Failed to update driver status: ${error.message}`);
         }
