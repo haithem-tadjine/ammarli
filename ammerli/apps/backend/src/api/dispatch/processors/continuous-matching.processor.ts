@@ -4,7 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DispatchService } from '../dispatch.service';
 
 @Processor('continuous-matching', {
-  stalledInterval: 0,
+  stalledInterval: 30000, // BullMQ v5.66+ requires stalledInterval > 0
   drainDelay: 5000,
   metrics: undefined,
 })
