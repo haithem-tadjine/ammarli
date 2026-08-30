@@ -14,26 +14,30 @@ import { RedisConfig } from './redis-config.type';
 
 class EnvironmentVariablesValidator {
   @IsString()
-  @IsNotEmpty()
-  REDIS_HOST: string;
+  @IsOptional()
+  REDIS_HOST?: string;
 
   @IsInt()
   @Min(0)
   @Max(65535)
   @IsOptional()
-  REDIS_PORT: number;
+  REDIS_PORT?: number;
 
   @IsString()
   @IsOptional()
-  REDIS_USERNAME: string;
+  REDIS_USERNAME?: string;
 
   @IsString()
   @IsOptional()
-  REDIS_PASSWORD: string;
+  REDIS_PASSWORD?: string;
 
   @IsBoolean()
   @IsOptional()
-  REDIS_TLS_ENABLED: boolean;
+  REDIS_TLS_ENABLED?: boolean;
+
+  @IsString()
+  @IsOptional()
+  REDIS_URL?: string;
 }
 
 export default registerAs<RedisConfig>('redis', () => {
