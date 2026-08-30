@@ -213,7 +213,7 @@ export class DispatchService {
     radius: number = 15,
   ): Promise<[string, string][]> {
     try {
-      return await this.redisLibsService.geoRadius(
+      return await this.redisLibsService.geoSearch(
         RedisConstants.KEYS.DRIVERS_GEO_INDEX,
         request.pickupLng,
         request.pickupLat,

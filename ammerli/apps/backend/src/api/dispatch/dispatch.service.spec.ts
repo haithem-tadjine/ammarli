@@ -29,7 +29,7 @@ describe('DispatchService', () => {
 
   beforeEach(async () => {
     const redisLibsServiceMock = {
-      geoRadius: jest.fn(),
+      geoSearch: jest.fn(),
       manyExists: jest.fn(),
       zrem: jest.fn(),
     };
@@ -96,7 +96,7 @@ describe('DispatchService', () => {
     });
 
     it('should return empty and warn if no nearby drivers found', async () => {
-      redisLibsService.geoRadius.mockResolvedValue([]);
+      redisLibsService.geoSearch.mockResolvedValue([]);
 
       const result = await service.dispatchRequest(requestDto);
 
@@ -109,7 +109,7 @@ describe('DispatchService', () => {
 
     it('should return empty if MatchingService filters all candidates', async () => {
       // Found nearby drivers
-      redisLibsService.geoRadius.mockResolvedValue([['d1', '0.5']]);
+      redisLibsService.geoSearch.mockResolvedValue([['d1', '0.5']]);
       // But matching service returns empty (e.g. all busy)
       matchingService.findBestDrivers.mockResolvedValue([]);
 
@@ -123,9 +123,9 @@ describe('DispatchService', () => {
     });
 
     it('should dispatch to the BEST driver selected by MatchingService', async () => {
-      redisLibsService.geoRadius.mockResolvedValue([
+      redisLibsService.geoSearch.mockResolvedValue([
         ['d1', '0.5'],
-        ['d2', '1.0'],
+        ['d2', '1.2'],
       ]);
 
       // MatchingService returns d2 as best (e.g. better rating/idle time)

@@ -33,7 +33,7 @@ export class DriverMetadataCacheRepository {
     lng: number,
     radiusKm: number,
   ): Promise<{ driverId: string; distance: number }[]> {
-    const results = await this.redisLibsService.geoRadius(
+    const results = await this.redisLibsService.geoSearch(
       RedisConstants.KEYS.DRIVERS_GEO_INDEX,
       lng,
       lat,

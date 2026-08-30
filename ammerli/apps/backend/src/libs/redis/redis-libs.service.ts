@@ -64,17 +64,19 @@ export class RedisLibsService {
    * @param unit - Distance unit (e.g., 'km').
    * @returns Array of [member, distance] tuples.
    */
-  async geoRadius(
+  async geoSearch(
     key: string,
     lng: number,
     lat: number,
     radius: number,
     unit: 'm' | 'km' | 'mi' | 'ft',
   ): Promise<[string, string][]> {
-    return (await this.client.georadius(
+    return (await this.client.geosearch(
       key,
+      'FROMLONLAT',
       lng,
       lat,
+      'BYRADIUS',
       radius,
       unit,
       'WITHDIST',
