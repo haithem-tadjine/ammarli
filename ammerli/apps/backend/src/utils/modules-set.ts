@@ -29,18 +29,20 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { DataSource, DataSourceOptions } from 'typeorm';
 import loggerFactory from './logger-factory';
 
-const redisUrl = process.env.REDIS_URL;
-
 export const createRedisClient = () => {
+  const redisUrl = process.env.REDIS_URL;
+
   if (!redisUrl) {
     throw new Error('REDIS_URL is not defined in process.env!');
   }
-  
+
   return new Redis(redisUrl, {
     maxRetriesPerRequest: null,
-    tls: {
-      rejectUnauthorized: false,
-    },
+    tls: redisUrl.startsWith('rediss://')
+      ? {
+        rejectUnauthorized: false,
+      }
+      : undefined,
   });
 };
 
@@ -70,10 +72,6 @@ function generateModulesSet() {
     useFactory: (configService: ConfigService<AllConfigType>) => {
       return {
         connection: createRedisClient(),
-        // ── Job Lifecycle: Prevent Redis Storage Bloat ─────────────────────────
-        // Completed jobs are deleted immediately (count: 0) to prevent the
-        // continuous-matching sweep (6/min) from accumulating 8,640 records/day.
-        // Failed jobs are capped at 100 to allow post-mortem diagnostics.
         defaultJobOptions: {
           removeOnComplete: { count: 0 },
           removeOnFail: { count: 100 },
