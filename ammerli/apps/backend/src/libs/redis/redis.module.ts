@@ -12,20 +12,11 @@ import { RedisScriptService } from './redis-script.service';
     RedisModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        // نأخذ قيمة التشفير من الإعدادات
-        const tlsEnabled = configService.get<boolean>('redis.tlsEnabled');
-
+      useFactory: () => {
         return {
           config: {
-            host: configService.get('redis.host'),
-            port: configService.get('redis.port'),
-            password: configService.get('redis.password'),
-            username: configService.get('redis.username'), // أضفنا اسم المستخدم أيضاً للأمان
-            // هذا هو السطر السحري الذي سيحل المشكلة 👇
-            tls: process.env.REDIS_URL?.startsWith('rediss://') || process.env.NODE_ENV === 'production' 
-                  ? { rejectUnauthorized: false } 
-                  : undefined,
+            url: process.env.REDIS_URL,
+            tls: { rejectUnauthorized: false },
             maxRetriesPerRequest: null,
             enableReadyCheck: false,
             retryStrategy: (times) => Math.min(times * 50, 2000),

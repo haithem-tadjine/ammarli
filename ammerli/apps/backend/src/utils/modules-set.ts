@@ -23,6 +23,7 @@ import {
 } from 'nestjs-i18n';
 import { LoggerModule } from 'nestjs-pino';
 import path from 'path';
+import { Redis } from 'ioredis';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { DataSource, DataSourceOptions } from 'typeorm';
@@ -53,16 +54,12 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: (configService: ConfigService<AllConfigType>) => {
       return {
-        connection: {
-          host: configService.getOrThrow('redis.host', { infer: true }),
-          port: configService.getOrThrow('redis.port', { infer: true }),
-          username: configService.get('redis.username', { infer: true }),
-          password: configService.getOrThrow('redis.password', { infer: true }),
+        connection: new Redis(process.env.REDIS_URL, {
           maxRetriesPerRequest: null,
-          tls: process.env.REDIS_URL?.startsWith('rediss://') || process.env.NODE_ENV === 'production' 
-                ? { rejectUnauthorized: false } 
-                : undefined,
-        },
+          tls: {
+            rejectUnauthorized: false,
+          },
+        }),
         // ── Job Lifecycle: Prevent Redis Storage Bloat ─────────────────────────
         // Completed jobs are deleted immediately (count: 0) to prevent the
         // continuous-matching sweep (6/min) from accumulating 8,640 records/day.
@@ -119,13 +116,9 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: async (configService: ConfigService<AllConfigType>) => {
       return {
-        store: await redisStore({
-          host: configService.getOrThrow('redis.host', { infer: true }),
-          port: configService.getOrThrow('redis.port', { infer: true }),
-          username: configService.get('redis.username', { infer: true }),
-          password: configService.getOrThrow('redis.password', { infer: true }),
-          tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined,
-        }),
+        store: await redisStore(new Redis(process.env.REDIS_URL, {
+          tls: { rejectUnauthorized: false },
+        }) as any),
       };
     },
     isGlobal: true,
@@ -148,13 +141,9 @@ function generateModulesSet() {
           limit: 3,
         },
       ],
-      storage: new ThrottlerStorageRedisService({
-        host: configService.getOrThrow('redis.host', { infer: true }),
-        port: configService.getOrThrow('redis.port', { infer: true }),
-        username: configService.get('redis.username', { infer: true }),
-        password: configService.getOrThrow('redis.password', { infer: true }),
-        tls: configService.get('redis.tlsEnabled', { infer: true }) ? {} : undefined as any,
-      }),
+      storage: new ThrottlerStorageRedisService(new Redis(process.env.REDIS_URL, {
+        tls: { rejectUnauthorized: false },
+      })),
     }),
   });
 
