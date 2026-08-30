@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -66,6 +66,14 @@ export default function CustomerRatingScreen() {
 
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const isOnline = useDriverStore((s: any) => s.isOnline);
 
@@ -139,7 +147,7 @@ export default function CustomerRatingScreen() {
       console.warn('Failed to submit rating', e);
     } finally {
       setIsLoading(false);
-      setTimeout(finishProcess, 1500);
+      timeoutRef.current = setTimeout(finishProcess, 1500);
     }
   };
 

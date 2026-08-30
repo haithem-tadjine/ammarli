@@ -29,12 +29,33 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (!error.response && error.message === 'Network Error') {
-      Alert.alert('خطأ في الاتصال', 'انقطع الاتصال بالإنترنت، يرجى التحقق من الشبكة وإعادة المحاولة.');
-    } else if (error.response?.status === 401 && error.config?.url !== '/auth/logout') {
+    const config = error.config;
+
+    // Handle 401 for all routes
+    if (error.response?.status === 401 && config?.url !== '/auth/logout') {
       const { useAuthStore } = require('../store/useAuthStore');
       useAuthStore.getState().logout();
+      return Promise.reject(error);
     }
+
+    // Exponential Backoff Setup
+    if (config && (!error.response || error.response.status >= 500)) {
+      config.retryCount = config.retryCount || 0;
+      
+      if (config.retryCount < 3) {
+        config.retryCount += 1;
+        const delay = Math.pow(2, config.retryCount) * 1000;
+        console.log(`[API] Retrying ${config.url} (Attempt ${config.retryCount}) after ${delay}ms`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return api(config);
+      }
+    }
+
+    if (!error.response && error.message === 'Network Error') {
+      Alert.alert('خطأ في الاتصال', 'انقطع الاتصال بالإنترنت، يرجى التحقق من الشبكة وإعادة المحاولة.');
+    }
+
     return Promise.reject(error);
   }
 );

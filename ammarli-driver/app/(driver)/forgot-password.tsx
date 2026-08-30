@@ -1,5 +1,5 @@
 import ScreenContainer from '../../components/ScreenContainer';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Animated, StatusBar, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Phone, Lock, Eye, EyeOff, Truck } from 'lucide-react-native';
@@ -22,6 +22,14 @@ const ForgotPasswordScreen = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
@@ -84,7 +92,7 @@ const ForgotPasswordScreen = () => {
       setAuth({ user, accessToken, refreshToken });
       
       setSuccessMsg('تم التغيير وتسجيل الدخول بنجاح!');
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         router.replace('/(driver)/(tabs)' as any); // Navigate directly to tabs
       }, 1000);
     } catch (e: any) {

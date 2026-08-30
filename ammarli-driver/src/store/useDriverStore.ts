@@ -380,10 +380,9 @@ export const useDriverStore = create<DriverState>((set, get) => ({
           subtotal:    raw.subtotal || raw.totalPrice || 0,
           deliveryFee: raw.appCommission || 0,
           total:       raw.totalPrice || 0,
-          status_raw:  raw.status,
           createdAt:   raw.createdAt || new Date().toISOString(),
           tankerDetails: raw.tankerDetails,
-        };
+        } as unknown as ActiveDriverOrder;
         set((state) => {
           const alreadyExists = state.activeDriverOrders.some(o => o.orderId === restoredOrder.orderId);
           if (alreadyExists) return state;
@@ -817,8 +816,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     const subscription = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.Balanced,
-        timeInterval: 5000,   // emit every 5 s
-        distanceInterval: 10, // or when moved 10 m
+        timeInterval: 15000,   // emit every 15 s
+        distanceInterval: 50,  // or when moved 50 m
       },
       async (loc) => {
         const { lat, lng } = { lat: loc.coords.latitude, lng: loc.coords.longitude };
@@ -840,6 +839,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         socketService.off('dispatch_offer');
         socketService.off('request_cancelled');
         socketService.off('request_locked');
+        socketService.off('sync_suspension');
         socketService.disconnect();
       }
 
@@ -904,7 +904,7 @@ export const useDriverStore = create<DriverState>((set, get) => ({
         socketService.emitLocationUpdate(driver.location.lat, driver.location.lng);
         console.log('[Heartbeat] Sent keepalive location to server');
       }
-    }, 30000); // Every 30 seconds
+    }, 60000); // Every 60 seconds
 
     useDriverStore.setState({ _heartbeatTimer: heartbeatTimer });
   },

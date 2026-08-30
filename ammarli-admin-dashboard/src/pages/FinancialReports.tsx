@@ -46,7 +46,7 @@ export default function FinancialReports() {
             onChange={(e) => setSelectedWilaya(e.target.value)}
           >
             <option value="all">جميع الولايات (الوطن)</option>
-            {geoData.wilayas.map((w: any) => (
+            {geoData.map((w: any) => (
               <option key={w.code} value={w.name_ar}>{w.code} - {w.name_ar}</option>
             ))}
           </select>

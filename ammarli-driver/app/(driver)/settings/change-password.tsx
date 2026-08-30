@@ -1,5 +1,5 @@
 import ScreenContainer from '../../../components/ScreenContainer';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,15 @@ export default function ChangePasswordScreen() {
   const [oldPass,     setOldPass]     = useState('');
   const [newPass,     setNewPass]     = useState('');
   const [confirmPass, setConfirmPass] = useState('');
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
   const [errors,      setErrors]      = useState<Record<string, string>>({});
   const [success,     setSuccess]     = useState(false);
 
@@ -85,7 +94,7 @@ export default function ChangePasswordScreen() {
       setNewPass('');
       setConfirmPass('');
 
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         router.back();
       }, 1800);
     } catch (error: any) {
