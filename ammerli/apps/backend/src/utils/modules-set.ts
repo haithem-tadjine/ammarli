@@ -29,42 +29,44 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { DataSource, DataSourceOptions } from 'typeorm';
 import loggerFactory from './logger-factory';
 
-// Singleton Redis client — shared across ALL modules to prevent duplicate connections
+// Singleton Redis client — shared across Cache, Throttler, and RedisLib modules
 let _redisClientInstance: Redis | null = null;
 
-export const getRedisClient = (): Redis => {
-  if (_redisClientInstance) {
-    return _redisClientInstance;
-  }
-
+// Returns plain connection options (not an ioredis instance)
+// Used by BullMQ which requires RedisOptions, not an ioredis instance
+export const getRedisConnectionOptions = () => {
   const redisUrl = process.env.REDIS_URL;
-
-  if (!redisUrl) {
-    throw new Error('FATAL: REDIS_URL is not defined in process.env!');
-  }
-
+  if (!redisUrl) throw new Error('FATAL: REDIS_URL is not defined in process.env!');
   const parsed = new URL(redisUrl);
-  const options = {
+  return {
     host: parsed.hostname,
     port: parsed.port ? parseInt(parsed.port, 10) : 6379,
     password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
     username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
-    maxRetriesPerRequest: null,
+    maxRetriesPerRequest: null as null,
     enableReadyCheck: false,
-    lazyConnect: false,
     tls: parsed.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
+    retryStrategy: (times: number) => Math.min(times * 200, 5000),
   };
+};
+
+export const getRedisClient = (): Redis => {
+  if (_redisClientInstance) return _redisClientInstance;
+
+  const opts = getRedisConnectionOptions();
+  const redisUrl = process.env.REDIS_URL!;
+  const parsed = new URL(redisUrl);
 
   console.log('[Redis] Creating singleton client for:', parsed.hostname + ':' + (parsed.port || 6379));
 
-  const client = new Redis(options);
+  const client = new Redis(opts);
 
   client.on('connect', () => {
     console.log('[Redis] Connected successfully to:', parsed.hostname + ':' + (parsed.port || 6379));
   });
 
   client.on('error', (err) => {
-    console.error('[Redis Singleton Error]', err.message, '| host:', parsed.hostname, 'port:', parsed.port || 6379);
+    console.error('[Redis Singleton Error]', err.message, '| host:', parsed.hostname);
   });
 
   _redisClientInstance = client;
@@ -96,17 +98,17 @@ function generateModulesSet() {
   });
 
   const bullModule = BullModule.forRootAsync({
-    imports: [ConfigModule],
-    useFactory: (configService: ConfigService<AllConfigType>) => {
+    useFactory: () => {
+      // BullMQ v5 requires raw RedisOptions, NOT an ioredis instance.
+      // Passing an instance causes BullMQ to create unmanaged connections to localhost.
       return {
-        connection: getRedisClient(),
+        connection: getRedisConnectionOptions(),
         defaultJobOptions: {
           removeOnComplete: { count: 0 },
           removeOnFail: { count: 100 },
         },
       };
     },
-    inject: [ConfigService],
   });
 
   const i18nModule = I18nModule.forRootAsync({
