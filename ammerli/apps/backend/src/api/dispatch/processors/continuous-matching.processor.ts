@@ -12,11 +12,17 @@ export class ContinuousMatchingProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job): Promise<void> {
+  async process(job: Job<{ requestId?: string }>): Promise<void> {
+    const requestId = job.data?.requestId;
+    if (!requestId) return;
+
     try {
-      await this.dispatchService.performContinuousMatching();
+      await this.dispatchService.processSingleRequestMatching(requestId);
     } catch (e) {
-      this.logger.error(`Error in continuous matching sweep: ${e.message}`, e.stack);
+      this.logger.error(
+        `Error processing matching for request ${requestId}: ${e.message}`,
+        e.stack,
+      );
     }
   }
 }

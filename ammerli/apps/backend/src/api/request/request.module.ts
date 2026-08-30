@@ -16,10 +16,18 @@ import { DispatchModule } from '../dispatch/dispatch.module';
 import { GeocodingModule } from '@/libs/geocoding/geocoding.module';
 import { SettingModule } from '../setting/setting.module';
 
+import { BullModule } from '@nestjs/bullmq';
+
 @Module({
   imports: [
     RedisLibModule,
     RabbitMqLibModule,
+    BullModule.registerQueue({
+      name: 'continuous-matching',
+    }),
+    BullModule.registerQueue({
+      name: 'dispatch-timeout',
+    }),
     TypeOrmModule.forFeature([RequestEntity]),
     OrderModule,
     UserModule,

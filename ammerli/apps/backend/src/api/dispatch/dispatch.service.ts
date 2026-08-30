@@ -51,18 +51,18 @@ export class DispatchService {
   }
 
   async onModuleInit() {
-    // Setup the repeatable sweeping job every 10 seconds
-    await this.continuousMatchingQueue.add(
-      'sweep',
-      {},
-      {
-        repeat: {
-          every: 10000,
-        },
-        jobId: 'continuous-matching-sweep',
-      },
-    );
-    this.logger.log('Continuous matching sweep initialized (every 10s)');
+    // ── Clean up any legacy repeatable jobs from Redis ─────────────────────
+    // Ensures Upstash Redis is purged of old polling crons upon boot.
+    try {
+      const repeatableJobs = await this.continuousMatchingQueue.getRepeatableJobs();
+      for (const job of repeatableJobs) {
+        await this.continuousMatchingQueue.removeRepeatableByKey(job.key);
+        this.logger.log(`[DispatchService] Removed legacy repeatable job: ${job.name} (${job.key})`);
+      }
+    } catch (e) {
+      this.logger.warn(`[DispatchService] Could not clean legacy repeatable jobs: ${e?.message}`);
+    }
+    this.logger.log('🚀 Event-Driven Dispatch Service initialized (0 polling, 100% on-demand)');
   }
 
   /**
@@ -318,6 +318,13 @@ export class DispatchService {
       this.logger.warn(`Failed to set driver ${driverId} back to AVAILABLE: ${e?.message}`);
     }
 
+    // Re-trigger on-demand matching immediately for this request
+    await this.continuousMatchingQueue.add(
+      'match-request',
+      { requestId },
+      { delay: 0, jobId: `match-request-${requestId}-${Date.now()}` },
+    );
+
     try {
       await this.amqpConnection.publish(
         RabbitMqExchange.REQUESTS,
@@ -506,56 +513,85 @@ export class DispatchService {
   }
 
   /**
-   * Sweeps active requests and re-runs the matching algorithm.
-   * Early-exits immediately when there are no active requests, avoiding
-   * unnecessary Redis reads and CPU during idle periods.
+   * Processes matching specifically for a single request on-demand (Event-Driven).
+   * If no driver is currently available and request is still SEARCHING, re-enqueues
+   * itself with a 10s delay.
+   */
+  async processSingleRequestMatching(requestId: string): Promise<void> {
+    const request = await this.requestService.getRequestFromCache(requestId);
+
+    // ── Early Exit / Stop Condition ──────────────────────────────────────────
+    // If request does not exist or is not in SEARCHING status (e.g. ACCEPTED,
+    // CANCELLED, EXPIRED, DELIVERED, or currently DISPATCHED to a driver),
+    // immediately exit without scheduling any new jobs.
+    if (!request || request.status !== RequestStatusEnum.SEARCHING) {
+      return;
+    }
+
+    // Check overall request expiration TTL (3 minutes = 180,000 ms)
+    const createdAt = new Date(request.createdAt).getTime();
+    const elapsed = Date.now() - createdAt;
+    if (elapsed >= 180000) {
+      this.logger.warnStructured(LogConstants.REQUEST.NO_DRIVERS, {
+        requestId: request.id,
+        reason: 'TTL_EXPIRED',
+      });
+      await this.markRequestUnfulfilled(request.id);
+      return;
+    }
+
+    // Search for nearby drivers using progressive ring expansion
+    const candidates = await this.findNearbyDrivers(request);
+    let matched = false;
+
+    if (candidates.length > 0) {
+      const scoredCandidates = await this.matchingService.findBestDrivers(
+        request,
+        candidates,
+      );
+      if (scoredCandidates.length > 0) {
+        const dispatched = await this.reserveAndDispatchBestDriver(
+          request,
+          scoredCandidates,
+        );
+        if (dispatched.length > 0) {
+          matched = true;
+        }
+      }
+    }
+
+    // ── Smart Internal Retry ────────────────────────────────────────────────
+    // If no driver was reserved/dispatched, re-enqueue a delayed job (10s)
+    // exclusively for this specific request.
+    if (!matched) {
+      this.logger.debug(
+        `[DispatchService] No driver available for request ${requestId}. Retrying in 10s...`,
+      );
+      await this.continuousMatchingQueue.add(
+        'match-request',
+        { requestId },
+        {
+          delay: 10000,
+          jobId: `match-request-${requestId}-${Date.now()}`,
+        },
+      );
+    }
+  }
+
+  /**
+   * Sweeps active requests on-demand (fallback helper).
    */
   async performContinuousMatching() {
     const activeSetKey = `${RedisConstants.KEYS.REQUESTS_INDEX}:active_set`;
-    
-    // ── 1. O(1) Early-Exit Guard (SCARD) ────────────────────────────────────
-    // Checks if there are any active requests in less than 1ms.
-    // This entirely avoids blocking the Redis thread with the KEYS command.
     const activeCount = await this.redisLibsService.scard(activeSetKey);
     if (activeCount === 0) return;
 
-    // ── 2. Fetch Active Request IDs (SMEMBERS) ──────────────────────────────
-    // Only runs if there are active requests. Fetches only the exact IDs.
     const requestIds = await this.redisLibsService.smembers(activeSetKey);
-
     for (const reqId of requestIds) {
       try {
-        const request = await this.requestService.getRequestFromCache(reqId);
-        if (!request) continue;
-
-        if (request.status === RequestStatusEnum.SEARCHING) {
-          // Check expiration TTL (5 minutes = 300000 ms)
-          const createdAt = new Date(request.createdAt).getTime();
-          const elapsed = Date.now() - createdAt;
-
-          if (elapsed >= 300000) {
-            this.logger.warnStructured(LogConstants.REQUEST.NO_DRIVERS, {
-              requestId: request.id,
-              reason: 'TTL_EXPIRED',
-            });
-            await this.markRequestUnfulfilled(request.id);
-            continue;
-          }
-
-          // Otherwise, try to find drivers again (uses atomic reservation)
-          const candidates = await this.findNearbyDrivers(request);
-          if (candidates.length > 0) {
-            const scoredCandidates = await this.matchingService.findBestDrivers(
-              request,
-              candidates,
-            );
-            if (scoredCandidates.length > 0) {
-              await this.reserveAndDispatchBestDriver(request, scoredCandidates);
-            }
-          }
-        }
+        await this.processSingleRequestMatching(reqId);
       } catch (e) {
-        this.logger.warn(`Failed to process continuous matching for request ${reqId}: ${e.message}`);
+        this.logger.warn(`Failed to process matching for request ${reqId}: ${e?.message}`);
       }
     }
   }
@@ -564,7 +600,6 @@ export class DispatchService {
    * Triggers an immediate matching evaluation when a specific driver comes online.
    */
   async triggerMatchingForDriver(driverId: string) {
-    // This runs asynchronously so we don't block the caller
     setTimeout(async () => {
       try {
         await this.performContinuousMatching();

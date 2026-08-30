@@ -23,6 +23,8 @@ import { ListRequestReqDto } from './dto/list-request.req.dto';
 import { RequestResDto } from './dto/request.res.dto';
 import { RequestStatusEnum } from './enums/request-status.enum';
 import { RequestCacheRepository } from './request-cache.repository';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository, DataSource } from 'typeorm';
@@ -56,6 +58,10 @@ export class RequestService {
     private readonly dataSource: DataSource,
     private readonly settingService: SettingService,
     private readonly redisLibsService: RedisLibsService,
+    @InjectQueue('continuous-matching')
+    private readonly continuousMatchingQueue: Queue,
+    @InjectQueue('dispatch-timeout')
+    private readonly dispatchTimeoutQueue: Queue,
   ) {
     this.logger.setContext(RequestService.name);
   }
@@ -116,6 +122,22 @@ export class RequestService {
     }
 
     this.logger.log(`${LogConstants.REQUEST.RECEIVED}: ${finalPayload.id}`);
+
+    // ── 1. Event-Driven: Trigger On-Demand Matching for this specific request ─
+    await this.continuousMatchingQueue.add(
+      'match-request',
+      { requestId: finalPayload.id },
+      { delay: 0, jobId: `match-request-${finalPayload.id}-${Date.now()}` },
+    );
+
+    // ── 2. Request Expiration: Single 3-Minute Delayed Job ──────────────────
+    // Replaces random timeout polling. Automatically marks request UNFULFILLED
+    // after 3 minutes if no driver accepted it.
+    await this.dispatchTimeoutQueue.add(
+      'request-expiration-job',
+      { requestId: finalPayload.id },
+      { delay: 180000, jobId: `request-expiration-${finalPayload.id}` },
+    );
 
     await this.amqpConnection.publish(
       RabbitMqExchange.REQUESTS,
@@ -843,6 +865,15 @@ export class RequestService {
       alertMessage,
       action: isRequeued ? 'RE_ROUTING' : 'GO_HOME',
     };
+
+    if (isRequeued) {
+      // Re-trigger matching for the requeued request
+      await this.continuousMatchingQueue.add(
+        'match-request',
+        { requestId },
+        { delay: 0, jobId: `match-request-${requestId}-${Date.now()}` },
+      );
+    }
 
     try {
       await this.amqpConnection.publish(
