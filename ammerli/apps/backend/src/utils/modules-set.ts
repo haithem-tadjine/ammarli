@@ -57,10 +57,11 @@ function generateModulesSet() {
 
   const bullModule = BullModule.forRootAsync({
     useFactory: () => {
-      // BullMQ v5 requires raw RedisOptions, NOT an ioredis instance.
-      // Passing an instance causes BullMQ to create unmanaged connections to localhost.
+      // Now that the circular dependency is fixed (redis-client.factory.ts),
+      // we pass the singleton ioredis instance. BullMQ v5 calls .duplicate() on it
+      // which correctly copies host + tls options to all internal connections.
       return {
-        connection: getRedisConnectionOptions(),
+        connection: getRedisClient(),
         defaultJobOptions: {
           removeOnComplete: { count: 0 },
           removeOnFail: { count: 100 },

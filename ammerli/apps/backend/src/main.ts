@@ -23,10 +23,20 @@ import setupSwagger from './utils/setup-swagger';
 
 // منع انهيار التطبيق بسبب أي خطأ شبكي غير معالج في ioredis
 process.on('unhandledRejection', (reason: any) => {
-  if (reason?.name === 'MaxRetriesPerRequestError' || reason?.message?.includes('max retries per request')) {
-    console.warn('⚠️ Caught ioredis retry limit error, ignoring to prevent crash.');
+  const msg = reason?.message || '';
+  const code = reason?.code || '';
+  if (
+    reason?.name === 'MaxRetriesPerRequestError' ||
+    msg.includes('max retries per request') ||
+    code === 'ECONNREFUSED' ||
+    msg.includes('ECONNREFUSED') ||
+    code === 'ETIMEDOUT' ||
+    msg.includes('ETIMEDOUT')
+  ) {
+    console.warn('⚠️ Caught Redis/connection unhandledRejection, ignoring:', msg || code);
     return;
   }
+  console.error('💥 Unhandled Rejection:', reason);
 });
 const originalCtor = Redis.prototype.constructor;
 (Redis.prototype as any).initialize = function (...args: any[]) {
@@ -116,8 +126,9 @@ async function bootstrap() {
   }
 
   const port = process.env.PORT || 3000;
+  console.log('[Bootstrap] Listening on port:', port);
   await app.listen(port, '0.0.0.0');
-
+  console.log('[Bootstrap] Server started successfully!');
   console.info(`Server running on ${await app.getUrl()}`);
 
   return app;
