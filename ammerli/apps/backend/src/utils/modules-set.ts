@@ -23,13 +23,13 @@ import {
 } from 'nestjs-i18n';
 import { LoggerModule } from 'nestjs-pino';
 import path from 'path';
-import { Redis } from 'ioredis';
+import Redis from 'ioredis';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import loggerFactory from './logger-factory';
 
-const getRedisConnection = (configService: ConfigService) => {
+const getRedisConnection = () => {
   const url = process.env.REDIS_URL;
   if (url) {
     return new Redis(url, {
@@ -38,10 +38,8 @@ const getRedisConnection = (configService: ConfigService) => {
     });
   }
   return new Redis({
-    host: configService.get('redis.host') || 'localhost',
-    port: configService.get('redis.port') || 6379,
-    password: configService.get('redis.password'),
-    username: configService.get('redis.username'),
+    host: 'localhost',
+    port: 6379,
     maxRetriesPerRequest: null,
   });
 };
@@ -71,7 +69,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: (configService: ConfigService<AllConfigType>) => {
       return {
-        connection: getRedisConnection(configService),
+        connection: getRedisConnection(),
         // ── Job Lifecycle: Prevent Redis Storage Bloat ─────────────────────────
         // Completed jobs are deleted immediately (count: 0) to prevent the
         // continuous-matching sweep (6/min) from accumulating 8,640 records/day.
@@ -128,7 +126,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: async (configService: ConfigService<AllConfigType>) => {
       return {
-        store: await redisStore(getRedisConnection(configService) as any),
+        store: await redisStore(getRedisConnection() as any),
       };
     },
     isGlobal: true,
@@ -151,7 +149,7 @@ function generateModulesSet() {
           limit: 3,
         },
       ],
-      storage: new ThrottlerStorageRedisService(getRedisConnection(configService)),
+      storage: new ThrottlerStorageRedisService(getRedisConnection()),
     }),
   });
 
