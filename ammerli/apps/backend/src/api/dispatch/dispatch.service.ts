@@ -511,13 +511,17 @@ export class DispatchService {
    * unnecessary Redis reads and CPU during idle periods.
    */
   async performContinuousMatching() {
-    const keys = await this.redisLibsService.keys(`${RedisConstants.KEYS.REQUESTS_INDEX}:*`);
-    const requestIds = keys
-      .filter((k) => !k.includes(':user:'))
-      .map((k) => k.replace(`${RedisConstants.KEYS.REQUESTS_INDEX}:`, ''));
+    const activeSetKey = `${RedisConstants.KEYS.REQUESTS_INDEX}:active_set`;
+    
+    // ── 1. O(1) Early-Exit Guard (SCARD) ────────────────────────────────────
+    // Checks if there are any active requests in less than 1ms.
+    // This entirely avoids blocking the Redis thread with the KEYS command.
+    const activeCount = await this.redisLibsService.scard(activeSetKey);
+    if (activeCount === 0) return;
 
-    // ── Early-exit guard: no requests in cache → nothing to do ──────────────
-    if (requestIds.length === 0) return;
+    // ── 2. Fetch Active Request IDs (SMEMBERS) ──────────────────────────────
+    // Only runs if there are active requests. Fetches only the exact IDs.
+    const requestIds = await this.redisLibsService.smembers(activeSetKey);
 
     for (const reqId of requestIds) {
       try {

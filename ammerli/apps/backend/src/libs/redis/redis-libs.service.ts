@@ -117,6 +117,38 @@ export class RedisLibsService {
   }
 
   /**
+   * Returns the number of members in a set.
+   *
+   * @param key - Redis key of the set.
+   * @returns Number of members in the set.
+   */
+  async scard(key: string): Promise<number> {
+    return this.client.scard(key);
+  }
+
+  /**
+   * Returns all members of a set.
+   *
+   * @param key - Redis key of the set.
+   * @returns Array of string members.
+   */
+  async smembers(key: string): Promise<string[]> {
+    return this.client.smembers(key);
+  }
+
+  /**
+   * Removes one or more members from a set.
+   *
+   * @param key - Redis key of the set.
+   * @param members - Members to remove.
+   */
+  async srem(key: string, ...members: string[]): Promise<void> {
+    if (members.length > 0) {
+      await this.client.srem(key, ...members);
+    }
+  }
+
+  /**
    * Checks existence of multiple keys using a pipeline.
    *
    * @param keys - Array of Redis keys to check.

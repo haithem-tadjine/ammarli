@@ -101,6 +101,7 @@ export class RequestService {
       [
         this.cacheRepo['getKey'](requestId), // Accessing private for demo or move getKey to public
         `${RedisConstants.KEYS.REQUESTS_INDEX}:user:${userId}`,
+        `${RedisConstants.KEYS.REQUESTS_INDEX}:active_set`, // KEYS[3]
       ],
       [requestId, JSON.stringify(payload), 60, userId], // 1 minute
     );
@@ -463,6 +464,8 @@ export class RequestService {
           } else {
             this.logger.warn(`removeUserActiveRequest method missing on cacheRepo for user ${uId}`);
           }
+          // Remove from SCARD sweep tracking set
+          await this.redisLibsService.srem(`${RedisConstants.KEYS.REQUESTS_INDEX}:active_set`, request.id);
         } catch (error: any) {
           this.logger.error(`Failed to clean up active request for user ${uId}: ${error.message}`);
         }
@@ -803,6 +806,7 @@ export class RequestService {
         [
           this.cacheRepo['getKey'](requestId),
           `${RedisConstants.KEYS.REQUESTS_INDEX}:user:${requestEntity.userId}`,
+          `${RedisConstants.KEYS.REQUESTS_INDEX}:active_set`, // KEYS[3]
         ],
         [requestId, JSON.stringify(payloadDto), 60, requestEntity.userId],
       );
