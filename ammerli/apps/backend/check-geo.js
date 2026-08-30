@@ -1,9 +1,14 @@
 const Redis = require('ioredis');
 
-const redis = new Redis({
+const redisUrl = process.env.REDIS_URL;
+
+const redis = new Redis(redisUrl || {
   host: 'localhost',
   port: 6379,
   password: 'redispass'
+}, {
+  maxRetriesPerRequest: null,
+  tls: redisUrl && redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined
 });
 
 async function run() {
