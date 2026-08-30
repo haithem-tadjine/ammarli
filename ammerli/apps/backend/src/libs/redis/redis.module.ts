@@ -5,13 +5,13 @@ import { DistributedLockService } from './distributed-lock.service';
 import { RedisLibsService } from './redis-libs.service';
 import { RedisScriptService } from './redis-script.service';
 
-const getRedisClient = () => {
-  const redisUrl = process.env.REDIS_URL;
-  
-  if (!redisUrl) {
-    throw new Error('FATAL: REDIS_URL environment variable is missing!');
-  }
+const redisUrl = process.env.REDIS_URL;
 
+export const createRedisClient = () => {
+  if (!redisUrl) {
+    throw new Error('REDIS_URL is not defined in process.env!');
+  }
+  
   return new Redis(redisUrl, {
     maxRetriesPerRequest: null,
     tls: {
@@ -23,7 +23,7 @@ const getRedisClient = () => {
 export const redisProvider = {
   provide: 'REDIS_CLIENT',
   useFactory: () => {
-    return getRedisClient();
+    return createRedisClient();
   },
 };
 

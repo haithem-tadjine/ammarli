@@ -29,13 +29,13 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
 import { DataSource, DataSourceOptions } from 'typeorm';
 import loggerFactory from './logger-factory';
 
-const getRedisClient = () => {
-  const redisUrl = process.env.REDIS_URL;
-  
-  if (!redisUrl) {
-    throw new Error('FATAL: REDIS_URL environment variable is missing!');
-  }
+const redisUrl = process.env.REDIS_URL;
 
+export const createRedisClient = () => {
+  if (!redisUrl) {
+    throw new Error('REDIS_URL is not defined in process.env!');
+  }
+  
   return new Redis(redisUrl, {
     maxRetriesPerRequest: null,
     tls: {
@@ -69,7 +69,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: (configService: ConfigService<AllConfigType>) => {
       return {
-        connection: getRedisClient(),
+        connection: createRedisClient(),
         // ── Job Lifecycle: Prevent Redis Storage Bloat ─────────────────────────
         // Completed jobs are deleted immediately (count: 0) to prevent the
         // continuous-matching sweep (6/min) from accumulating 8,640 records/day.
@@ -126,7 +126,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: async (configService: ConfigService<AllConfigType>) => {
       return {
-        store: await redisStore(getRedisClient() as any),
+        store: await redisStore(createRedisClient() as any),
       };
     },
     isGlobal: true,
@@ -149,7 +149,7 @@ function generateModulesSet() {
           limit: 3,
         },
       ],
-      storage: new ThrottlerStorageRedisService(getRedisClient()),
+      storage: new ThrottlerStorageRedisService(createRedisClient()),
     }),
   });
 
