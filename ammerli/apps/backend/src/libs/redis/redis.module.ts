@@ -5,18 +5,20 @@ import { DistributedLockService } from './distributed-lock.service';
 import { RedisLibsService } from './redis-libs.service';
 import { RedisScriptService } from './redis-script.service';
 
-const redisUrl = process.env.REDIS_URL;
-
 export const createRedisClient = () => {
+  const redisUrl = process.env.REDIS_URL;
+
   if (!redisUrl) {
     throw new Error('REDIS_URL is not defined in process.env!');
   }
-  
+
   return new Redis(redisUrl, {
     maxRetriesPerRequest: null,
-    tls: {
-      rejectUnauthorized: false,
-    },
+    tls: redisUrl.startsWith('rediss://')
+      ? {
+        rejectUnauthorized: false,
+      }
+      : undefined,
   });
 };
 
