@@ -22,12 +22,16 @@ export class RedisIoAdapter extends IoAdapter {
     let pubClient: Redis;
 
     if (redisUrl) {
-      pubClient = new Redis(redisUrl, {
+      const parsed = new URL(redisUrl);
+      const options = {
+        host: parsed.hostname,
+        port: parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'rediss:' ? 6379 : 6379),
+        password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
+        username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
         maxRetriesPerRequest: null,
-        tls: redisUrl.startsWith('rediss://')
-          ? { rejectUnauthorized: false }
-          : undefined,
-      });
+        tls: parsed.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
+      };
+      pubClient = new Redis(options);
     } else {
       const redisHost = this.configService.get<string>('redis.host') || 'localhost';
       const redisPort = this.configService.get<number>('redis.port') || 6379;
