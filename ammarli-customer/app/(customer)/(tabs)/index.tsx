@@ -267,12 +267,11 @@ const AmmerliHomeScreen = () => {
                 <LinearGradient colors={['rgba(1, 32, 71, 0.95)', 'rgba(1, 32, 71, 0.75)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
                 
                 <View style={styles.bannerTextContent}>
-                  <Text style={styles.bannerTitle}>المياه التي تثق بها</Text>
-                  <Text style={[styles.bannerTitle, { color: '#FFCC00' }]}>تصلك حتى باب بيتك</Text>
-                  <Text style={styles.bannerSubtitle}>اطلب مياه الشرب الآن بضغطة زر وتصلك فوراً.</Text>
+                  <Text style={styles.bannerTitle}>كل أنواع المياه النقية متوفرة</Text>
+                  <Text style={[styles.bannerTitle, { color: '#FFCC00' }]}>لأجل راحتك</Text>
+                  <Text style={styles.bannerSubtitle}>اختر النوع الذي تفضله وسيتكفل سائقونا بتوصيله فوراً.</Text>
                   <View style={[styles.bannerButtonDecoration, { alignSelf: 'flex-start' }]}>
                     <Text style={styles.bannerButtonText}>اطلب الآن</Text>
-                    <Ionicons name="arrow-back" size={16} color="#012047" style={{ marginLeft: 6 }} />
                   </View>
                 </View>
                 

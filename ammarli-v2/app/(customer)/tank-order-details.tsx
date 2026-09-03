@@ -68,6 +68,7 @@ export default function TankDeliveryDetailsScreen() {
   const isAshghal = type === 'Ashghal';
   const MAX_QTY = isSpring ? 3000 : (isWell ? 6000 : (isAshghal ? 80000 : 20000));
   const MIN_QTY = isSpring ? 40 : (isWell ? 1500 : (isAshghal ? 6000 : 0));
+  const STEP_QTY = isSpring ? 10 : (isWell ? 1500 : (isAshghal ? 2000 : 500));
 
   const [tankLocation, setTankLocation] = useState(isAshghal ? 'فلاحة' : 'أرضي');
   const [floor,        setFloor]        = useState(1);
@@ -310,7 +311,7 @@ export default function TankDeliveryDetailsScreen() {
             <View style={styles.qtyDisplayRow}>
               <TouchableOpacity
                 style={[styles.qtyCircleBtn, quantity <= MIN_QTY && { backgroundColor: '#E2E8F0' }]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuantity(p => Math.max(MIN_QTY, p - 500)); }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuantity(p => Math.max(MIN_QTY, p - STEP_QTY)); }}
                 disabled={quantity <= MIN_QTY}
               >
                 <Ionicons name="remove" size={24} color={quantity <= MIN_QTY ? '#94A3B8' : WHITE} />
@@ -339,7 +340,7 @@ export default function TankDeliveryDetailsScreen() {
 
               <TouchableOpacity
                 style={[styles.qtyCircleBtn, { backgroundColor: NAVY }, quantity >= MAX_QTY && { backgroundColor: '#E2E8F0' }]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuantity(p => Math.min(MAX_QTY, Math.max(MIN_QTY, p + 500))); }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setQuantity(p => Math.min(MAX_QTY, Math.max(MIN_QTY, p + STEP_QTY))); }}
                 disabled={quantity >= MAX_QTY}
               >
                 <Ionicons name="add" size={24} color={quantity >= MAX_QTY ? '#94A3B8' : WHITE} />
@@ -361,7 +362,7 @@ export default function TankDeliveryDetailsScreen() {
               ))}
             </View>
 
-            <Text style={styles.qtyHint}>+500 لتر لكل ضغطة · الحد الأقصى {MAX_QTY.toLocaleString('en-US')} لتر</Text>
+            <Text style={styles.qtyHint}>+{STEP_QTY} لتر لكل ضغطة · الحد الأقصى {MAX_QTY.toLocaleString('en-US')} لتر</Text>
           </View>
 
         </ScrollView>

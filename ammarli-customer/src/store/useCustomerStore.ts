@@ -218,6 +218,25 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     try {
       const { data } = await api.get('/requests/active');
       if (data) {
+        const existingOrder = get().activeOrder;
+        
+        // ── Safe Merge for Driver Info ──
+        // Ensure we don't wipe out the driver's info (name/phone) if the backend returns a partial driver entity
+        let driverInfo = existingOrder?.driverInfo;
+        if (data.driver) {
+          const fetchedName = `${data.driver.user?.firstName ?? ''} ${data.driver.user?.lastName ?? ''}`.trim() || data.driver.name;
+          const fetchedPhone = data.driver.user?.phone ?? data.driver.phone;
+          
+          driverInfo = {
+            id: data.driver.id ?? existingOrder?.driverInfo?.id,
+            name: fetchedName || existingOrder?.driverInfo?.name || 'السائق',
+            phone: fetchedPhone || existingOrder?.driverInfo?.phone || '',
+            plate: data.driver.truckPlate ?? data.driver.plate ?? existingOrder?.driverInfo?.plate,
+            rating: data.driver.rating?.toString() ?? existingOrder?.driverInfo?.rating,
+            avatarUrl: data.driver.avatarUrl ?? existingOrder?.driverInfo?.avatarUrl,
+          };
+        }
+
         const mappedOrder: Order = {
           id: data.id,
           type: data.type === 'TANKER' ? 'Tanker' : 'Bottled',
@@ -231,14 +250,7 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
           location: { latitude: data.pickupLat, longitude: data.pickupLng },
           waterType: data.tankerDetails?.waterType,
           items: data.bottledItems,
-          driverInfo: data.driver ? {
-            id: data.driver.id,
-            name: `${data.driver.user?.firstName ?? ''} ${data.driver.user?.lastName ?? ''}`.trim() || data.driver.name || 'السائق',
-            phone: data.driver.user?.phone ?? data.driver.phone ?? '',
-            plate: data.driver.truckPlate ?? data.driver.plate,
-            rating: data.driver.rating?.toString(),
-            avatarUrl: data.driver.avatarUrl,
-          } : undefined,
+          driverInfo,
         };
         set({ activeOrder: mappedOrder });
       } else {
@@ -380,9 +392,21 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
         isScheduled: false,
       };
       const res = await api.post('/requests', payload);
+      
+      const activeNow = get().activeOrder;
+      if (!activeNow) {
+        // User cancelled locally while we were waiting for creation
+        try {
+          await api.post(`/requests/${res.data.id}/cancel`);
+        } catch (e) {
+          console.error('Failed to cancel on backend post-creation:', e);
+        }
+        return;
+      }
+
       // Update with real ID from backend, but preserve current state in case it updated via socket
       set((s) => ({ 
-        activeOrder: s.activeOrder ? { ...s.activeOrder, id: res.data.id } : { ...order, id: res.data.id } 
+        activeOrder: s.activeOrder ? { ...s.activeOrder, id: res.data.id } : null 
       }));
     } catch (error: any) {
       console.error('Failed to create order on backend:', error?.response?.data || error);
@@ -397,19 +421,29 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   cancelOrder: async (reason) => {
     const activeId = get().activeOrder?.id;
-    if (activeId && typeof activeId === 'string') {
+    if (activeId && typeof activeId === 'string' && !activeId.startsWith('local-')) {
       try {
         await api.post(`/requests/${activeId}/cancel`);
+        // Successfully cancelled on backend, clear local state
+        set((s) => ({
+          pastOrders: s.activeOrder
+            ? [{ ...s.activeOrder, status: 'cancelled', cancelReason: reason }, ...s.pastOrders]
+            : s.pastOrders,
+          activeOrder: null,
+        }));
       } catch (e) {
         console.error('Failed to cancel on backend:', e);
+        throw e; // Propagate error to the UI (cancel-order.tsx) to stop spinner & show Toast
       }
+    } else {
+      // Local/draft cancellation (no backend call needed)
+      set((s) => ({
+        pastOrders: s.activeOrder
+          ? [{ ...s.activeOrder, status: 'cancelled', cancelReason: reason }, ...s.pastOrders]
+          : s.pastOrders,
+        activeOrder: null,
+      }));
     }
-    set((s) => ({
-      pastOrders: s.activeOrder
-        ? [{ ...s.activeOrder, status: 'cancelled', cancelReason: reason }, ...s.pastOrders]
-        : s.pastOrders,
-      activeOrder: null,
-    }));
   },
 
   completeOrder: async () => {

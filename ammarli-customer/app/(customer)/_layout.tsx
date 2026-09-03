@@ -14,6 +14,13 @@ import * as Notifications from 'expo-notifications';
 import { socketService } from '../../src/services/socket';
 import OfflineBar from '../../components/OfflineBar';
 
+let NetInfo: any = null;
+try {
+  NetInfo = require('@react-native-community/netinfo').default;
+} catch {
+  // Ignore if not installed
+}
+
 export default function CustomerLayout() {
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const notifFired = useRef(false);
@@ -47,6 +54,27 @@ export default function CustomerLayout() {
     return () => {
       subscription.remove();
     };
+  }, []);
+
+  // ── Auto Re-synchronization on Network Restore ──
+  useEffect(() => {
+    if (!NetInfo) return;
+    
+    let wasOffline = false;
+    const unsubscribeNet = NetInfo.addEventListener((state: any) => {
+      const isConnected = state.isConnected && state.isInternetReachable !== false;
+      
+      if (!isConnected) {
+        wasOffline = true;
+      } else if (isConnected && wasOffline) {
+        // Network just came back! Silently sync state.
+        console.log('🌐 Network restored. Syncing active order...');
+        useCustomerStore.getState().fetchActiveOrder();
+        wasOffline = false;
+      }
+    });
+
+    return () => unsubscribeNet();
   }, []);
 
   useEffect(() => {
@@ -103,6 +131,14 @@ export default function CustomerLayout() {
 
         handleCancelled = (data: any) => {
           console.log('✅ SOCKET RECEIVED (request_cancelled):', data);
+          
+          const currentUserId = useAuthStore.getState().userProfile?.id;
+          if (data.canceledBy && data.canceledBy === currentUserId) {
+            console.log('Order cancelled by customer. Ignoring false alert.');
+            useCustomerStore.getState().clearActiveOrderStore();
+            return;
+          }
+
           useCustomerStore.getState().handleSocketOrderUpdate(data);
 
           const title = data.alertTitle || 'تنبيه';

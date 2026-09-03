@@ -249,6 +249,7 @@ export async function setupNotifeeOrderChannel() {
 // fullScreenAction opens the app's main Activity, expo-router then routes
 // to /(driver)/incoming-order via the notification data.
 export async function triggerFullScreenOrderNotification(params?: {
+  orderId?: string;
   customerName?: string;
   price?: string;
   address?: string;
@@ -260,6 +261,7 @@ export async function triggerFullScreenOrderNotification(params?: {
   
   // Package the entire order payload into a string so the UI can parse it easily
   const orderPayload = {
+    orderId:      p.orderId      ?? '',
     customerName: p.customerName ?? 'زبون جديد',
     price:        p.price        ?? '2500',
     address:      p.address      ?? 'الجزائر العاصمة',

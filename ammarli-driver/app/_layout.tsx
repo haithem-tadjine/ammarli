@@ -52,24 +52,9 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 
 // Initialize i18n side-effect (must be imported before any screen renders)
 import '../src/shared/localization/i18n';
-
-// ─── Notifee Global Background Handler ──────────────────────────────────────
-// 🚨 CRITICAL: This MUST live at module scope (outside any component/hook).
-//    When the app is fully killed, React components don't exist — only this
-//    top-level registration survives and allows Notifee to wake the JS engine.
 import notifee, { EventType, Event as NotifeeEvent } from '@notifee/react-native';
 
-notifee.onBackgroundEvent(async ({ type, detail }: NotifeeEvent) => {
-  if (type === EventType.ACTION_PRESS) {
-    // Always cancel the notification immediately, regardless of action
-    if (detail.notification?.id) {
-      await notifee.cancelNotification(detail.notification.id);
-    }
-    // 'accept' and 'decline' navigation is handled by incoming-order.tsx itself
-    // when it mounts via fullScreenAction. No router call needed here.
-  }
-});
-// ────────────────────────────────────────────────────────────────────────────
+// (Removed redundant notifee.onBackgroundEvent here. The Headless Task must ONLY live in index.js)
 
 // Prevent native splash from hiding until fonts are loaded
 SplashScreen.preventAutoHideAsync();
@@ -112,7 +97,7 @@ export default function RootLayout() {
     }
     checkInitialWakeup();
 
-    const unsubscribeForeground = notifee.onForegroundEvent(async ({ type, detail }) => {
+    const unsubscribeForeground = notifee.onForegroundEvent(async ({ type, detail }: NotifeeEvent) => {
       if (type === EventType.DELIVERED && detail.notification?.data?.type === 'INCOMING_ORDER_FULLSCREEN') {
         const payloadStr = detail.notification.data.payload as string;
         useDriverStore.getState().handleSocketDispatch(JSON.parse(payloadStr));
@@ -132,6 +117,26 @@ export default function RootLayout() {
 
     // إعداد قنوات الإشعارات والصلاحيات
     setupPushNotifications();
+
+    // ── Android 14+ Runtime Check: USE_FULL_SCREEN_INTENT ────────────────────
+    // On API 34+, this permission is NOT auto-granted — the user must enable it
+    // manually in Settings. We check and prompt them once at app start.
+    if (Platform.OS === 'android') {
+      (async () => {
+        try {
+          const notifeeModule = require('@notifee/react-native').default;
+          // notifee.canUseFullScreenIntent is available from @notifee/react-native >= 7.8.0
+          const canUse = await notifeeModule.canUseFullScreenIntent?.();
+          if (canUse === false) {
+            // Opens the system settings page where the user can grant the permission
+            await notifeeModule.openFullScreenIntentSettings?.();
+          }
+        } catch (e) {
+          // Silently ignore if method is not available on this Notifee version
+        }
+      })();
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ── Hydrate auth state from storage before any routing ─────────────────
     if (!hydratedRef.current) {

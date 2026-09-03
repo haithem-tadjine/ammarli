@@ -183,7 +183,7 @@ export default function MyActivitiesScreen() {
           style={[styles.tabBtn, activeTab === 'upcoming' && styles.tabBtnActive]} 
           onPress={() => { Haptics.selectionAsync(); setActiveTab('upcoming'); }}
         >
-          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>الطلبات الحالية</Text>
+          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>الطلبات المجدولة</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 

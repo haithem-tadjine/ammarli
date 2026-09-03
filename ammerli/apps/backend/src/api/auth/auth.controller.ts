@@ -1,6 +1,7 @@
 import { CurrentUser } from '@/decorators/current-user.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import { Body, Controller, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginReqDto } from './dto/login.req.dto';
@@ -40,6 +41,7 @@ export class AuthController {
     type: LoginResDto,
     summary: 'Sign in',
   })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('phone/login')
   async signIn(@Body() userLogin: LoginReqDto): Promise<LoginResDto> {
     return await this.authService.signIn(userLogin);
@@ -53,6 +55,7 @@ export class AuthController {
    * @returns Detailed registration confirmation
    */
   @ApiPublic()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('phone/register')
   @ApiBody({
     type: RegisterReqDto,

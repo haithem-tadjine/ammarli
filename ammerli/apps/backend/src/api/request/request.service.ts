@@ -542,7 +542,7 @@ export class RequestService {
         userId,
         status: In(activeStatus),
       },
-      relations: ['driver', 'user'],
+      relations: ['driver', 'driver.user', 'user'],
     });
 
     if (!request) return null;
@@ -730,13 +730,17 @@ export class RequestService {
     }
 
     const terminalStatuses = [
-      RequestStatusEnum.CANCELLED,
       RequestStatusEnum.DELIVERED,
       RequestStatusEnum.EXPIRED,
     ];
 
     if (terminalStatuses.includes(requestEntity.status)) {
       throw new BadRequestException('Request is already finalized.');
+    }
+
+    if (requestEntity.status === RequestStatusEnum.CANCELLED) {
+      this.logger.log(`[Idempotency] Request ${requestId} is already cancelled. Returning silently.`);
+      return { id: requestId, status: RequestStatusEnum.CANCELLED, message: 'Request already cancelled' };
     }
 
     // Since the database does not have driverId populated until terminal state,

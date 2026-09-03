@@ -99,12 +99,16 @@ export default function CustomerRegisterScreen() {
       // الدخول التلقائي تم، نقوم بالتوجيه مباشرة للتطبيق
       router.replace('/(customer)/(tabs)' as any);
     } catch (e: any) {
+      const status = e?.response?.status;
       const errCode = e?.response?.data?.response?.errorCode;
       const msg = Array.isArray(e?.response?.data?.message)
         ? e.response.data.message[0]
         : e?.response?.data?.message;
       if (errCode === 'user.error.phone_exists') {
-        setPhoneErr('رقم الهاتف مسجّل مسبقاً. يرجى تسجيل الدخول.');
+        setPhoneErr('PHONE_EXISTS');
+        Alert.alert('تنبيه', 'عذراً، هذا الرقم مرتبط بحساب آخر. يرجى استخدام رقم مختلف أو تسجيل الدخول.');
+      } else if (status >= 500) {
+        Alert.alert('خطأ في النظام', 'عذراً، حدث خطأ في النظام. يرجى المحاولة لاحقاً.');
       } else {
         Alert.alert('خطأ', msg || 'حدث خطأ. حاول مجدداً.');
       }
@@ -182,7 +186,15 @@ export default function CustomerRegisterScreen() {
                 />
                 <Phone color={THEME_NAVY} size={22} style={styles.fieldIcon} />
               </View>
-              {!!phoneErr && <Text style={styles.errText}>{phoneErr}</Text>}
+              {!!phoneErr && (
+                phoneErr === 'PHONE_EXISTS' ? (
+                  <Text style={styles.errText}>
+                    رقم الهاتف المدخل مستخدم بالفعل. هل تريد <Text style={[styles.errText, {fontWeight: 'bold', textDecorationLine: 'underline'}]} onPress={() => router.replace('/(customer)/login' as any)}>تسجيل الدخول</Text> بدلاً من ذلك؟
+                  </Text>
+                ) : (
+                  <Text style={styles.errText}>{phoneErr}</Text>
+                )
+              )}
             </View>
 
             {/* Password */}

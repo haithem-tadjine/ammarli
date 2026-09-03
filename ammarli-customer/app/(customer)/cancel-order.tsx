@@ -59,7 +59,6 @@ export default function CancelOrderScreen() {
     setIsCancelling(true);
     try {
       await cancelOrder(finalReason);
-      useCustomerStore.getState().clearActiveOrderStore(); // Clear state instantly to avoid ghost banner
       router.replace('/(customer)/(tabs)');
     } catch (error) {
       Alert.alert('خطأ', 'تعذر إلغاء الطلب، يرجى المحاولة مرة أخرى.');

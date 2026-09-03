@@ -99,7 +99,16 @@ export default function DriverLoginScreen() {
       await useAuthStore.getState().login(phone, password, 'DRIVER');
       router.replace('/(driver)/(tabs)' as any);
     } catch (e: any) {
-      setPassError(e?.response?.data?.message || 'فشل تسجيل الدخول. تحقق من بياناتك.');
+      const status = e?.response?.status;
+      if (status === 401) {
+        setPassError('رقم الهاتف أو كلمة المرور غير صحيحة.');
+      } else if (status >= 500) {
+        setPassError('عذراً، حدث خطأ في النظام. يرجى المحاولة لاحقاً.');
+      } else {
+        let msg = e?.response?.data?.message || 'فشل تسجيل الدخول. تحقق من بياناتك.';
+        if (Array.isArray(msg)) msg = msg[0];
+        setPassError(msg);
+      }
       shake();
     } finally {
       setLoading(false);

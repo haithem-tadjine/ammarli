@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { storage, STORAGE_KEYS } from '../utils/storage';
+import { storage } from '../utils/storage';
+import { Alert } from 'react-native';
 
-// Use EXPO_PUBLIC_API_URL from .env — fallback to localhost for web/dev
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 const API_URL = `${BASE_URL}/api/v1`;
 

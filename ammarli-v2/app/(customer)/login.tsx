@@ -102,8 +102,12 @@ export default function CustomerLoginScreen() {
       const status = e?.response?.status;
       if (status === 401) {
         setPassError('رقم الهاتف أو كلمة المرور غير صحيحة.');
+      } else if (status >= 500) {
+        setPassError('عذراً، حدث خطأ في النظام. يرجى المحاولة لاحقاً.');
       } else {
-        setPassError(e?.response?.data?.message || 'فشل تسجيل الدخول. تحقق من بياناتك.');
+        let msg = e?.response?.data?.message || 'فشل تسجيل الدخول. تحقق من بياناتك.';
+        if (Array.isArray(msg)) msg = msg[0];
+        setPassError(msg);
       }
       shake();
     } finally {

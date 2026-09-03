@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ScreenContainer from '../../../components/ScreenContainer';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, StatusBar, Dimensions, Switch, Modal, Animated, ActivityIndicator, AppState, Vibration, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, StatusBar, Dimensions, Switch, Modal, Animated, ActivityIndicator, AppState, Vibration, Alert, TextInput, Linking } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -334,12 +334,33 @@ export default function DriverDashboardScreen() {
   const requestLocationPermission = async () => {
     setIsFetchingLocation(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        await fetchDriverLocation();
+        // Option to timeout location fetch if GPS is freezing
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Location request timed out')), 10000)
+        );
+        const fetchPromise = fetchDriverLocation();
+        await Promise.race([fetchPromise, timeoutPromise]);
+      } else {
+        if (!canAskAgain) {
+           Alert.alert(
+             "صلاحية الموقع",
+             "لقد قمت برفض صلاحية الموقع بشكل دائم. الرجاء تفعيلها من إعدادات الهاتف لتتمكن من استخدام الخدمة.",
+             [
+               { text: "إلغاء", style: "cancel" },
+               { text: "فتح الإعدادات", onPress: () => Linking.openSettings() }
+             ]
+           );
+        }
       }
-    } catch (_) {}
-    finally {
+    } catch (e) {
+      console.log('Location error:', e);
+      Alert.alert(
+        "خطأ في الموقع",
+        "تعذر تحديد موقعك الحالي. يرجى التحقق من تفعيل الـ GPS في جهازك."
+      );
+    } finally {
       setIsFetchingLocation(false);
       setShowLocationModal(false);
     }

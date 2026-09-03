@@ -2,7 +2,7 @@ import ScreenContainer from '../../components/ScreenContainer';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity,
-  Dimensions, Platform, Animated, Image, Alert, Modal
+  Dimensions, Platform, Animated, Image, Alert, Modal, PanResponder
 } from 'react-native';
 import MapView, { Marker } from '../../components/Map';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -63,28 +63,46 @@ export default function SearchingDriverScreen() {
   const [endModalType, setEndModalType] = useState<'expired' | 'cancelled'>('expired');
 
   // ── Animations – ALL use useNativeDriver: true ─────────────────────────────
-  const pulse1  = useRef(new Animated.Value(0)).current;
-  const pulse2  = useRef(new Animated.Value(0)).current;
-  const pulse3  = useRef(new Animated.Value(0)).current;
   const fadeIn  = useRef(new Animated.Value(0)).current;
   const dotAnim = useRef(new Animated.Value(0)).current;
+
+  // Bottom Sheet PanResponder State
+  const HIDDEN_HEIGHT = 180;
+  const translateY = useRef(new Animated.Value(HIDDEN_HEIGHT)).current;
+  const isExpandedRef = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const newValue = isExpandedRef.current ? gestureState.dy : HIDDEN_HEIGHT + gestureState.dy;
+        if (newValue >= 0 && newValue <= HIDDEN_HEIGHT) {
+          translateY.setValue(newValue);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy < -30) {
+          // Swipe up
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+          isExpandedRef.current = true;
+        } else if (gestureState.dy > 30) {
+          // Swipe down
+          Animated.spring(translateY, { toValue: HIDDEN_HEIGHT, useNativeDriver: true }).start();
+          isExpandedRef.current = false;
+        } else {
+          // Snap back
+          Animated.spring(translateY, { toValue: isExpandedRef.current ? 0 : HIDDEN_HEIGHT, useNativeDriver: true }).start();
+        }
+      }
+    })
+  ).current;
 
   useEffect(() => {
     // Initial entrance
     Animated.timing(fadeIn, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-
-    // Radar pulse rings – useNativeDriver: true (only opacity+scale)
-    const makePulse = (anim: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(anim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 0,    useNativeDriver: true }),
-        ])
-      );
-    makePulse(pulse1, 0).start();
-    makePulse(pulse2, 600).start();
-    makePulse(pulse3, 1200).start();
 
     // Dots bounce – useNativeDriver: true (opacity + translateY only)
     Animated.loop(
@@ -157,16 +175,6 @@ export default function SearchingDriverScreen() {
     router.replace('/(customer)/(tabs)');
   };
 
-  // Pulse ring style factory
-  const pulseRingStyle = (anim: Animated.Value, size: number) => ({
-    width: size, height: size, borderRadius: size / 2,
-    position: 'absolute' as const,
-    borderWidth: 2,
-    borderColor: NAVY,
-    opacity: anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.4, 0.15, 0] }),
-    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.8] }) }],
-  });
-
   return (
     <ScreenContainer style={styles.root}>
 
@@ -198,29 +206,17 @@ export default function SearchingDriverScreen() {
         </View>
       </Animated.View>
 
-      {/* ── Bottom Sheet (static position, no translateY) ─────────────── */}
+      {/* ── Bottom Sheet (Draggable) ─────────────── */}
       <Animated.View
-        style={[styles.sheet, { paddingBottom: insets.bottom + 20, opacity: fadeIn }]}
+        style={[styles.sheet, { paddingBottom: insets.bottom + 20, opacity: fadeIn, transform: [{ translateY }] }]}
+        {...panResponder.panHandlers}
       >
 
         {/* Drag handle */}
         <View style={styles.handle} />
 
-        {/* Radar + Status */}
-        <View style={styles.radarSection}>
-          {/* Pulse rings */}
-          <Animated.View style={pulseRingStyle(pulse1, 140)} />
-          <Animated.View style={pulseRingStyle(pulse2, 140)} />
-          <Animated.View style={pulseRingStyle(pulse3, 140)} />
-
-          {/* Center icon */}
-          <View style={styles.radarCenter}>
-            <MaterialCommunityIcons name={typeCfg.icon as any} size={34} color={NAVY} />
-          </View>
-        </View>
-
         {/* Title */}
-        <Text style={styles.searchTitle}>جاري البحث عن أقرب سائق</Text>
+        <Text style={[styles.searchTitle, { marginTop: 16 }]}>جاري البحث عن أقرب سائق</Text>
         <View style={styles.dotsRow}>
           {[0, 1, 2].map(i => (
             <Animated.View
@@ -246,31 +242,34 @@ export default function SearchingDriverScreen() {
           ))}
         </View>
 
-        {/* Order Info Card */}
-        <View style={styles.orderCard}>
-          <View style={[styles.orderIconWrap, { backgroundColor: typeCfg.color + '18' }]}>
-            <MaterialCommunityIcons name={typeCfg.icon as any} size={24} color={typeCfg.color} />
+        {/* Hidden Details Content */}
+        <Animated.View style={{ opacity: translateY.interpolate({ inputRange: [0, HIDDEN_HEIGHT], outputRange: [1, 0] }) }}>
+          {/* Order Info Card */}
+          <View style={styles.orderCard}>
+            <View style={[styles.orderIconWrap, { backgroundColor: typeCfg.color + '18' }]}>
+              <MaterialCommunityIcons name={typeCfg.icon as any} size={24} color={typeCfg.color} />
+            </View>
+            <View style={styles.orderInfo}>
+              <Text style={styles.orderType}>{typeCfg.label}</Text>
+              {!!quantity && <Text style={styles.orderQty}>{quantity}</Text>}
+            </View>
+            <View style={styles.orderStatusBadge}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusBadgeText}>قيد البحث</Text>
+            </View>
           </View>
-          <View style={styles.orderInfo}>
-            <Text style={styles.orderType}>{typeCfg.label}</Text>
-            {!!quantity && <Text style={styles.orderQty}>{quantity}</Text>}
-          </View>
-          <View style={styles.orderStatusBadge}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusBadgeText}>قيد البحث</Text>
-          </View>
-        </View>
 
-        {/* Tips row */}
-        <View style={styles.tipRow}>
-          <Ionicons name="time-outline" size={14} color="#64748B" />
-          <Text style={styles.tipText}>عادةً ما يستغرق البحث من 1 إلى 3 دقائق</Text>
-        </View>
+          {/* Tips row */}
+          <View style={styles.tipRow}>
+            <Ionicons name="time-outline" size={14} color="#64748B" />
+            <Text style={styles.tipText}>عادةً ما يستغرق البحث من 1 إلى 3 دقائق</Text>
+          </View>
 
-        {/* Cancel Button */}
-        <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={handleCancel}>
-          <Text style={styles.cancelBtnText}>إلغاء الطلب</Text>
-        </TouchableOpacity>
+          {/* Cancel Button */}
+          <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={handleCancel}>
+            <Text style={styles.cancelBtnText}>إلغاء الطلب</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
       </Animated.View>
 

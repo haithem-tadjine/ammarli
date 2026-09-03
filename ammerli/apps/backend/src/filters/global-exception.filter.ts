@@ -248,7 +248,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       statusCode,
       error: STATUS_CODES[statusCode],
-      message: error?.message || 'An unexpected error occurred',
+      message: this.debug ? (error?.message || 'An unexpected error occurred') : this.i18n?.t('common.error.internal_server_error' as any) || 'حدث خطأ داخلي في الخادم',
     };
 
     this.logger.error(error);

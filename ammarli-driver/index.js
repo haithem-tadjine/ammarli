@@ -7,6 +7,16 @@ import { triggerFullScreenOrderNotification } from './src/services/notificationS
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
 
+let notifee = null;
+let EventType = null;
+try {
+  const NotifeeModule = require('@notifee/react-native');
+  notifee = NotifeeModule.default;
+  EventType = NotifeeModule.EventType;
+} catch (e) {
+  console.warn('Notifee not available in background');
+}
+
 // ── Background Notification Handler (FCM Data Messages) ───────────
 const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND-NOTIFICATION-TASK';
 
@@ -23,6 +33,7 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => 
       try {
         const orderData = JSON.parse(notificationPayload.payload || '{}');
         await triggerFullScreenOrderNotification({
+          orderId: orderData.id || orderData._id || orderData.orderId || '',
           customerName: orderData.user?.firstName || 'زبون جديد',
           price: String(orderData.total || '2500'),
           address: orderData.pickupAddress || 'الجزائر العاصمة',
@@ -38,6 +49,52 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => 
 });
 
 Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
+
+// ── Notifee Background Action Handler ──────────────────────────────────────
+if (notifee && EventType) {
+  notifee.onBackgroundEvent(async ({ type, detail }) => {
+    const { notification, pressAction } = detail;
+    if (type === EventType.ACTION_PRESS && pressAction?.id) {
+      
+      let orderPayload = {};
+      try {
+         orderPayload = JSON.parse(notification?.data?.payload || '{}');
+      } catch(e) {}
+      
+      const orderId = orderPayload.orderId || notification?.data?.orderId;
+      
+      if (pressAction.id === 'accept') {
+        console.log('[Notifee Background] Accept pressed for order:', orderId);
+        if (orderId) {
+          const { api } = require('./src/services/api');
+          try {
+            await api.post(`/requests/${orderId}/lock`);
+            console.log('[Notifee Background] Successfully accepted order');
+          } catch (e) {
+            console.error('[Notifee Background] Failed to accept order:', e);
+          }
+        }
+        if (notification?.id) {
+           await notifee.cancelNotification(notification.id);
+        }
+      } else if (pressAction.id === 'decline') {
+        console.log('[Notifee Background] Decline pressed for order:', orderId);
+        if (orderId) {
+          const { api } = require('./src/services/api');
+          try {
+            await api.post(`/requests/${orderId}/reject`);
+            console.log('[Notifee Background] Successfully rejected order');
+          } catch (e) {
+            console.error('[Notifee Background] Failed to reject order:', e);
+          }
+        }
+        if (notification?.id) {
+           await notifee.cancelNotification(notification.id);
+        }
+      }
+    }
+  });
+}
 
 // Continue with standard Expo Router initialization
 import 'expo-router/entry';

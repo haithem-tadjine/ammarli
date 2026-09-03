@@ -82,13 +82,11 @@ const EditProfileAlgerian = () => {
         {/* قسم الصورة الشخصية */}
         <View style={styles.photoContainer}>
           <View style={styles.avatarWrapper}>
-            <Image
-              source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }}
-              style={styles.avatarImage}
-            />
-            <TouchableOpacity style={styles.cameraIcon}>
-              <Camera color="#FFF" size={18} />
-            </TouchableOpacity>
+            <View style={styles.avatarImage}>
+              <Text style={styles.avatarLetter}>
+                {(firstName || userProfile?.firstName || 'ز').charAt(0)}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -200,19 +198,14 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-  },
-  cameraIcon: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: THEME_NAVY,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    backgroundColor: '#E0E7FF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFF',
+  },
+  avatarLetter: {
+    fontSize: 50,
+    fontFamily: 'Cairo-Black',
+    color: '#4F46E5',
   },
   form: {
     width: '100%',

@@ -111,6 +111,7 @@ const DriverRegistrationScreen = () => {
 
   const [fullName,  setFullName]  = useState('');
   const [phone,     setPhone]     = useState('');
+  const [phoneErr,  setPhoneErr]  = useState('');
   const [password,  setPassword]  = useState('');
   const [license,   setLicense]   = useState('');
 
@@ -158,13 +159,26 @@ const DriverRegistrationScreen = () => {
       // نقوم بتوجيه السائق مباشرة إلى التطبيق
       router.replace('/(driver)/(tabs)' as any);
     } catch (e: any) {
-      let errMsg = 'فشل التسجيل. تأكد من البيانات.';
-      if (e?.response?.data?.message) {
-        errMsg = Array.isArray(e.response.data.message)
-          ? e.response.data.message[0]
-          : e.response.data.message;
+      const status = e?.response?.status;
+      const errCode = e?.response?.data?.response?.errorCode;
+      if (errCode === 'user.error.phone_exists') {
+        setPhoneErr('PHONE_EXISTS');
+        Alert.alert('تنبيه', 'عذراً، هذا الرقم مرتبط بحساب آخر. يرجى استخدام رقم مختلف أو تسجيل الدخول.');
+        shake();
+        return;
       }
-      Alert.alert('خطأ في التسجيل', errMsg);
+      
+      if (status >= 500) {
+        Alert.alert('خطأ في النظام', 'عذراً، حدث خطأ في النظام. يرجى المحاولة لاحقاً.');
+      } else {
+        let errMsg = 'فشل التسجيل. تأكد من البيانات.';
+        if (e?.response?.data?.message) {
+          errMsg = Array.isArray(e.response.data.message)
+            ? e.response.data.message[0]
+            : e.response.data.message;
+        }
+        Alert.alert('خطأ في التسجيل', errMsg);
+      }
       shake();
     } finally {
       setLoading(false);
@@ -177,7 +191,12 @@ const DriverRegistrationScreen = () => {
       {/* المعلومات الأساسية */}
       <View style={styles.formSection}>
         <AmmarliInput label="الاسم الكامل"        placeholder="أدخل اسمك الكامل"            iconName="person-outline"      value={fullName}  onChangeText={setFullName} />
-        <AmmarliInput label="رقم الهاتف"          placeholder="05XX XXX XXX"                iconName="call-outline"        value={phone}     onChangeText={setPhone}    keyboardType="phone-pad" />
+        <AmmarliInput label="رقم الهاتف"          placeholder="05XX XXX XXX"                iconName="call-outline"        value={phone}     onChangeText={(t) => { setPhone(t); setPhoneErr(''); }}    keyboardType="phone-pad" error={phoneErr !== 'PHONE_EXISTS' && phoneErr !== '' ? phoneErr : undefined} />
+        {phoneErr === 'PHONE_EXISTS' && (
+          <Text style={{ fontFamily: 'Cairo-Regular', fontSize: 12, color: '#E53935', marginTop: -15, marginBottom: 15, textAlign: 'right' }}>
+            رقم الهاتف المدخل مستخدم بالفعل. هل تريد <Text style={{fontWeight: 'bold', textDecorationLine: 'underline'}} onPress={() => router.replace('/(driver)/login' as any)}>تسجيل الدخول</Text> بدلاً من ذلك؟
+          </Text>
+        )}
         <AmmarliInput label="كلمة المرور"         placeholder="أدخل كلمة المرور"            iconName="lock-closed-outline" value={password}  onChangeText={setPassword} secureTextEntry isPassword />
         <AmmarliInput label="رقم لوحة الترخيص"   placeholder="رقم اللوحة (مثلاً: 12345-120-05)" iconName="card-outline"   value={license}   onChangeText={setLicense} />
       </View>

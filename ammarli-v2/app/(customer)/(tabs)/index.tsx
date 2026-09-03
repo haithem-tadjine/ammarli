@@ -10,7 +10,9 @@ import {
   Modal,
   ActivityIndicator,
   AppState,
-  ImageBackground
+  ImageBackground,
+  Alert,
+  Linking
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -95,9 +97,20 @@ const AmmerliHomeScreen = () => {
   const requestLocationPermission = async () => {
     setIsFetchingLocation(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+      
       if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
+        // Fallback timeout for getting position
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Location request timed out')), 10000)
+        );
+        
+        // Try getting last known position first for speed, then fall back to current position
+        const locationPromise = Location.getLastKnownPositionAsync({}).then(
+          (lastKnown) => lastKnown || Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+        );
+
+        const location = (await Promise.race([locationPromise, timeoutPromise])) as Location.LocationObject;
         
         if (isMounted.current) {
           // Immediately unblock the UI and set the location coordinates
@@ -131,6 +144,16 @@ const AmmerliHomeScreen = () => {
         });
 
       } else {
+        if (!canAskAgain) {
+           Alert.alert(
+             "صلاحية الموقع",
+             "لقد قمت برفض صلاحية الموقع بشكل دائم. الرجاء تفعيلها من إعدادات الهاتف لتتمكن من استخدام الخدمة.",
+             [
+               { text: "إلغاء", style: "cancel" },
+               { text: "فتح الإعدادات", onPress: () => Linking.openSettings() }
+             ]
+           );
+        }
         if (isMounted.current) {
           setIsFetchingLocation(false);
           setShowPermissionModal(false);
@@ -138,6 +161,17 @@ const AmmerliHomeScreen = () => {
       }
     } catch (e) {
       console.log('Location error:', e);
+      Alert.alert(
+        "خطأ في الموقع",
+        "تعذر تحديد موقعك الحالي. يرجى التحقق من تفعيل الـ GPS في جهازك أو تحديد الموقع يدوياً.",
+        [
+          { text: "موافق", onPress: () => {
+             setShowPermissionModal(false);
+             // Optionally navigate to location picker fallback
+             router.push('/(customer)/location-picker' as any);
+          }}
+        ]
+      );
       if (isMounted.current) {
         setIsFetchingLocation(false);
         setShowPermissionModal(false);
@@ -267,12 +301,11 @@ const AmmerliHomeScreen = () => {
                 <LinearGradient colors={['rgba(1, 32, 71, 0.95)', 'rgba(1, 32, 71, 0.75)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
                 
                 <View style={styles.bannerTextContent}>
-                  <Text style={styles.bannerTitle}>المياه التي تثق بها</Text>
-                  <Text style={[styles.bannerTitle, { color: '#FFCC00' }]}>تصلك حتى باب بيتك</Text>
-                  <Text style={styles.bannerSubtitle}>اطلب مياه الشرب الآن بضغطة زر وتصلك فوراً.</Text>
+                  <Text style={styles.bannerTitle}>كل أنواع المياه النقية متوفرة</Text>
+                  <Text style={[styles.bannerTitle, { color: '#FFCC00' }]}>لأجل راحتك</Text>
+                  <Text style={styles.bannerSubtitle}>اختر النوع الذي تفضله وسيتكفل سائقونا بتوصيله فوراً.</Text>
                   <View style={[styles.bannerButtonDecoration, { alignSelf: 'flex-start' }]}>
                     <Text style={styles.bannerButtonText}>اطلب الآن</Text>
-                    <Ionicons name="arrow-back" size={16} color="#012047" style={{ marginLeft: 6 }} />
                   </View>
                 </View>
                 

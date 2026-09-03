@@ -14,7 +14,8 @@ import {
   FlatList,
   Keyboard,
   ActivityIndicator,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  Linking
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -116,11 +117,19 @@ export default function InteractiveLocationPicker() {
   React.useEffect(() => {
     (async () => {
       try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
+        let { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          let location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High
-          });
+          // Add timeout to prevent freezing if GPS is off
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Location request timed out')), 10000)
+          );
+          
+          const locationPromise = Location.getLastKnownPositionAsync({}).then(
+            (lastKnown) => lastKnown || Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+          );
+          
+          let location = (await Promise.race([locationPromise, timeoutPromise])) as Location.LocationObject;
+          
           const lat = location.coords.latitude;
           const lon = location.coords.longitude;
           
@@ -153,6 +162,17 @@ export default function InteractiveLocationPicker() {
           } catch (e) {
              console.log("Geocode error", e);
           }
+        } else {
+           if (!canAskAgain) {
+             Alert.alert(
+               "صلاحية الموقع",
+               "لقد قمت برفض صلاحية الموقع بشكل دائم. الرجاء تفعيلها من إعدادات الهاتف.",
+               [
+                 { text: "إلغاء", style: "cancel" },
+                 { text: "فتح الإعدادات", onPress: () => Linking.openSettings() }
+               ]
+             );
+           }
         }
       } catch (error) {
         console.log("Fresh fetch failed", error);

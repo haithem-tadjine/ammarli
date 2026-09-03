@@ -2,7 +2,7 @@ import ScreenContainer from '../../components/ScreenContainer';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity,
-  Dimensions, Platform, Animated, Image, Alert, Modal
+  Dimensions, Platform, Animated, Image, Alert, Modal, PanResponder
 } from 'react-native';
 import MapView, { Marker } from '../../components/Map';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -60,31 +60,47 @@ export default function SearchingDriverScreen() {
 
   const [showEndModal, setShowEndModal] = useState(false);
   const [endModalMsg,  setEndModalMsg]  = useState('');
-  const [endModalType, setEndModalType] = useState<'expired' | 'cancelled'>('expired');
+  const [endModalType, setEndModalType] = useState<'expired' | 'cancelled' | 'timeout'>('expired');
 
   // ── Animations – ALL use useNativeDriver: true ─────────────────────────────
-  const pulse1  = useRef(new Animated.Value(0)).current;
-  const pulse2  = useRef(new Animated.Value(0)).current;
-  const pulse3  = useRef(new Animated.Value(0)).current;
   const fadeIn  = useRef(new Animated.Value(0)).current;
   const dotAnim = useRef(new Animated.Value(0)).current;
+
+  // Bottom Sheet PanResponder State
+  const HIDDEN_HEIGHT = 180;
+  const translateY = useRef(new Animated.Value(HIDDEN_HEIGHT)).current;
+  const isExpandedRef = useRef(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        const newValue = isExpandedRef.current ? gestureState.dy : HIDDEN_HEIGHT + gestureState.dy;
+        if (newValue >= 0 && newValue <= HIDDEN_HEIGHT) {
+          translateY.setValue(newValue);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy < -30) {
+          // Swipe up
+          Animated.spring(translateY, { toValue: 0, useNativeDriver: true }).start();
+          isExpandedRef.current = true;
+        } else if (gestureState.dy > 30) {
+          // Swipe down
+          Animated.spring(translateY, { toValue: HIDDEN_HEIGHT, useNativeDriver: true }).start();
+          isExpandedRef.current = false;
+        } else {
+          // Snap back
+          Animated.spring(translateY, { toValue: isExpandedRef.current ? 0 : HIDDEN_HEIGHT, useNativeDriver: true }).start();
+        }
+      }
+    })
+  ).current;
 
   useEffect(() => {
     // Initial entrance
     Animated.timing(fadeIn, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-
-    // Radar pulse rings – useNativeDriver: true (only opacity+scale)
-    const makePulse = (anim: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(anim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 0,    useNativeDriver: true }),
-        ])
-      );
-    makePulse(pulse1, 0).start();
-    makePulse(pulse2, 600).start();
-    makePulse(pulse3, 1200).start();
 
     // Dots bounce – useNativeDriver: true (opacity + translateY only)
     Animated.loop(
@@ -103,10 +119,28 @@ export default function SearchingDriverScreen() {
     // Polling nearby drivers
     fetchNearbyDrivers(coordinates.latitude, coordinates.longitude, 15);
     const intervalId = setInterval(() => {
+      // Stop polling if timeout reached
+      if (useCustomerStore.getState().activeOrder?.status === 'timeout') return;
       fetchNearbyDrivers(coordinates.latitude, coordinates.longitude, 15);
     }, 7000);
 
-    return () => clearInterval(intervalId);
+    // 120s Timeout Timer
+    const timeoutId = setTimeout(() => {
+      const order = useCustomerStore.getState().activeOrder;
+      if (order && (order.status === 'searching' || order.status === 'created')) {
+        // Emit/Send to backend to cancel the active request and update local state to timeout
+        if (typeof order.id !== 'string' || !order.id.startsWith('local-')) {
+           useCustomerStore.getState().timeoutOrder();
+        } else {
+           useCustomerStore.getState().updateOrder({ status: 'timeout' });
+        }
+      }
+    }, 120000); // 120 seconds
+
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Map Auto-Zoom
@@ -143,29 +177,36 @@ export default function SearchingDriverScreen() {
         Alert.alert('خطأ', 'تعذر إرسال الطلب: ' + (e?.response?.data?.message || e.message || 'خطأ غير معروف'),
           [{ text: 'حسناً', onPress: () => router.back() }]);
       });
-    } else if (activeOrder?.status === 'cancelled' || activeOrder?.status === 'expired') {
-      const isExpired = activeOrder.status === 'expired';
-      setEndModalType(isExpired ? 'expired' : 'cancelled');
-      setEndModalMsg(isExpired ? 'عذراً، لم نعثر على سائق متاح حالياً.\nيرجى المحاولة مرة أخرى لاحقاً.' : 'تم إلغاء الطلب بنجاح.');
-      useCustomerStore.getState().clearActiveOrderStore();
-      setShowEndModal(true);
+    } else if (activeOrder?.status === 'cancelled' || activeOrder?.status === 'expired' || activeOrder?.status === 'timeout') {
+      const status = activeOrder.status;
+      setEndModalType(status as any);
+      if (status === 'timeout') {
+        setEndModalMsg('نعتذر، جميع السائقين مشغولون حالياً بتوصيل الطلبات.');
+        setShowEndModal(true);
+      } else {
+        const isExpired = status === 'expired';
+        setEndModalMsg(isExpired ? 'عذراً، لم نعثر على سائق متاح حالياً.\nيرجى المحاولة مرة أخرى لاحقاً.' : 'تم إلغاء الطلب بنجاح.');
+        useCustomerStore.getState().clearActiveOrderStore();
+        setShowEndModal(true);
+      }
     }
   }, [activeOrder, createOrder, router]);
 
   const handleCancel = () => {
     cancelOrder();
+    useCustomerStore.getState().clearActiveOrderStore();
     router.replace('/(customer)/(tabs)');
   };
 
-  // Pulse ring style factory
-  const pulseRingStyle = (anim: Animated.Value, size: number) => ({
-    width: size, height: size, borderRadius: size / 2,
-    position: 'absolute' as const,
-    borderWidth: 2,
-    borderColor: NAVY,
-    opacity: anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.4, 0.15, 0] }),
-    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.8] }) }],
-  });
+  const handleTryAgain = () => {
+    setShowEndModal(false);
+    if (activeOrder) {
+      // Re-trigger the order creation flow using the retained payload
+      const orderPayload = { ...activeOrder, id: `local-${Date.now()}`, status: 'created' as any };
+      useCustomerStore.setState({ activeOrder: orderPayload });
+      // The useEffect will automatically pick this up and call createOrder(activeOrder)
+    }
+  };
 
   return (
     <ScreenContainer style={styles.root}>
@@ -198,29 +239,17 @@ export default function SearchingDriverScreen() {
         </View>
       </Animated.View>
 
-      {/* ── Bottom Sheet (static position, no translateY) ─────────────── */}
+      {/* ── Bottom Sheet (Draggable) ─────────────── */}
       <Animated.View
-        style={[styles.sheet, { paddingBottom: insets.bottom + 20, opacity: fadeIn }]}
+        style={[styles.sheet, { paddingBottom: insets.bottom + 20, opacity: fadeIn, transform: [{ translateY }] }]}
+        {...panResponder.panHandlers}
       >
 
         {/* Drag handle */}
         <View style={styles.handle} />
 
-        {/* Radar + Status */}
-        <View style={styles.radarSection}>
-          {/* Pulse rings */}
-          <Animated.View style={pulseRingStyle(pulse1, 140)} />
-          <Animated.View style={pulseRingStyle(pulse2, 140)} />
-          <Animated.View style={pulseRingStyle(pulse3, 140)} />
-
-          {/* Center icon */}
-          <View style={styles.radarCenter}>
-            <MaterialCommunityIcons name={typeCfg.icon as any} size={34} color={NAVY} />
-          </View>
-        </View>
-
         {/* Title */}
-        <Text style={styles.searchTitle}>جاري البحث عن أقرب سائق</Text>
+        <Text style={[styles.searchTitle, { marginTop: 16 }]}>جاري البحث عن أقرب سائق</Text>
         <View style={styles.dotsRow}>
           {[0, 1, 2].map(i => (
             <Animated.View
@@ -246,57 +275,93 @@ export default function SearchingDriverScreen() {
           ))}
         </View>
 
-        {/* Order Info Card */}
-        <View style={styles.orderCard}>
-          <View style={[styles.orderIconWrap, { backgroundColor: typeCfg.color + '18' }]}>
-            <MaterialCommunityIcons name={typeCfg.icon as any} size={24} color={typeCfg.color} />
+        {/* Hidden Details Content */}
+        <Animated.View style={{ opacity: translateY.interpolate({ inputRange: [0, HIDDEN_HEIGHT], outputRange: [1, 0] }) }}>
+          {/* Order Info Card */}
+          <View style={styles.orderCard}>
+            <View style={[styles.orderIconWrap, { backgroundColor: typeCfg.color + '18' }]}>
+              <MaterialCommunityIcons name={typeCfg.icon as any} size={24} color={typeCfg.color} />
+            </View>
+            <View style={styles.orderInfo}>
+              <Text style={styles.orderType}>{typeCfg.label}</Text>
+              {!!quantity && <Text style={styles.orderQty}>{quantity}</Text>}
+            </View>
+            <View style={styles.orderStatusBadge}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusBadgeText}>قيد البحث</Text>
+            </View>
           </View>
-          <View style={styles.orderInfo}>
-            <Text style={styles.orderType}>{typeCfg.label}</Text>
-            {!!quantity && <Text style={styles.orderQty}>{quantity}</Text>}
-          </View>
-          <View style={styles.orderStatusBadge}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusBadgeText}>قيد البحث</Text>
-          </View>
-        </View>
 
-        {/* Tips row */}
-        <View style={styles.tipRow}>
-          <Ionicons name="time-outline" size={14} color="#64748B" />
-          <Text style={styles.tipText}>عادةً ما يستغرق البحث من 1 إلى 3 دقائق</Text>
-        </View>
+          {/* Tips row */}
+          <View style={styles.tipRow}>
+            <Ionicons name="time-outline" size={14} color="#64748B" />
+            <Text style={styles.tipText}>عادةً ما يستغرق البحث من 1 إلى 3 دقائق</Text>
+          </View>
 
-        {/* Cancel Button */}
-        <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={handleCancel}>
-          <Text style={styles.cancelBtnText}>إلغاء الطلب</Text>
-        </TouchableOpacity>
+          {/* Cancel Button */}
+          <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={handleCancel}>
+            <Text style={styles.cancelBtnText}>إلغاء الطلب</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
       </Animated.View>
 
-      {/* ── End Modal (Expired or Cancelled) ────────────────────────────── */}
+      {/* ── End Modal (Expired, Cancelled, or Timeout) ──────────────────────── */}
       <Modal visible={showEndModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <View style={[styles.modalIconWrap, { backgroundColor: endModalType === 'expired' ? '#F59E0B' : '#10B981' }]}>
-              <Ionicons
-                name={endModalType === 'expired' ? 'sad-outline' : 'checkmark-circle'}
-                size={44}
-                color={WHITE}
-              />
-            </View>
-            <Text style={styles.modalTitle}>{endModalType === 'expired' ? 'عذراً!' : 'تم الإلغاء'}</Text>
-            <Text style={styles.modalMessage}>{endModalMsg}</Text>
-            <TouchableOpacity
-              style={styles.modalButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                setShowEndModal(false);
-                router.replace('/(customer)/(tabs)' as any);
-              }}
-            >
-              <Text style={styles.modalButtonText}>العودة للرئيسية</Text>
-            </TouchableOpacity>
+            
+            {endModalType === 'timeout' ? (
+              // ── Timeout UI ──
+              <>
+                <View style={[styles.modalIconWrap, { backgroundColor: '#F3CD0D20' }]}>
+                  <Ionicons name="timer-outline" size={44} color="#D97706" />
+                </View>
+                <Text style={styles.modalTitle}>عذراً!</Text>
+                <Text style={styles.modalMessage}>{endModalMsg}</Text>
+                
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: YELLOW, marginBottom: 12 }]}
+                  activeOpacity={0.85}
+                  onPress={handleTryAgain}
+                >
+                  <Text style={[styles.modalButtonText, { color: NAVY }]}>المحاولة مرة أخرى</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, { backgroundColor: '#F1F5F9', elevation: 0 }]}
+                  activeOpacity={0.85}
+                  onPress={handleCancel}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#64748B' }]}>إلغاء الطلب</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              // ── Cancelled / Expired UI ──
+              <>
+                <View style={[styles.modalIconWrap, { backgroundColor: endModalType === 'expired' ? '#F59E0B' : '#10B981' }]}>
+                  <Ionicons
+                    name={endModalType === 'expired' ? 'sad-outline' : 'checkmark-circle'}
+                    size={44}
+                    color={WHITE}
+                  />
+                </View>
+                <Text style={styles.modalTitle}>{endModalType === 'expired' ? 'عذراً!' : 'تم الإلغاء'}</Text>
+                <Text style={styles.modalMessage}>{endModalMsg}</Text>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setShowEndModal(false);
+                    useCustomerStore.getState().clearActiveOrderStore();
+                    router.replace('/(customer)/(tabs)' as any);
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>العودة للرئيسية</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
           </View>
         </View>
       </Modal>

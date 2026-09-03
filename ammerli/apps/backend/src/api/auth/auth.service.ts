@@ -251,7 +251,7 @@ export class AuthService {
    * @throws {UnauthorizedException} If token is expired or session is invalid
    */
   async refreshToken(dto: RefreshReqDto): Promise<RefreshResDto> {
-    const { sessionId, hash } = this.verifyRefreshToken(dto.refreshToken);
+    const { sessionId, hash } = await this.verifyRefreshToken(dto.refreshToken);
     const session = await SessionEntity.findOneBy({ id: sessionId });
 
     if (!session || session.hash !== hash) {
@@ -287,8 +287,9 @@ export class AuthService {
   async verifyAccessToken(token: string): Promise<JwtPayloadType> {
     let payload: JwtPayloadType;
     try {
-      payload = this.jwtService.verify(token, {
+      payload = await this.jwtService.verifyAsync(token, {
         secret: this.configService.getOrThrow('auth.secret', { infer: true }),
+        algorithms: ['HS256'],
       });
     } catch {
       throw new UnauthorizedException();
@@ -302,6 +303,16 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
+    // Strict validation: Verify user still exists in the database
+    const userExists = await this.userRepository.findOne({
+      where: { id: payload.id as Uuid },
+      select: ['id'], // Only select ID for performance
+    });
+
+    if (!userExists) {
+      throw new UnauthorizedException();
+    }
+
     return payload;
   }
 
@@ -309,12 +320,13 @@ export class AuthService {
    * Internal helper to verify refresh token integrity.
    * @private
    */
-  private verifyRefreshToken(token: string): JwtRefreshPayloadType {
+  private async verifyRefreshToken(token: string): Promise<JwtRefreshPayloadType> {
     try {
-      return this.jwtService.verify(token, {
+      return await this.jwtService.verifyAsync(token, {
         secret: this.configService.getOrThrow('auth.refreshSecret', {
           infer: true,
         }),
+        algorithms: ['HS256'],
       });
     } catch {
       throw new UnauthorizedException();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ScreenContainer from '../../../components/ScreenContainer';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, StatusBar, Dimensions, Switch, Modal, Animated, ActivityIndicator, AppState, Vibration, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, StatusBar, Dimensions, Switch, Modal, Animated, ActivityIndicator, AppState, Vibration, Alert, TextInput, Platform, Linking } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -180,6 +180,12 @@ export default function DriverDashboardScreen() {
         return;
       }
 
+      // Check Overlay Permission (only block once per session if not confirmed)
+      if (Platform.OS === 'android' && !hasConfirmedOverlay) {
+        setShowOverlayModal(true);
+        return; // intercept the toggle
+      }
+
       setIsOnline(true);
       useDriverStore.getState().setDriverStatus('AVAILABLE');
       await useDriverStore.getState().startLocationTracking();
@@ -224,6 +230,8 @@ export default function DriverDashboardScreen() {
 
   // ── موقع السائق ────────────────────────────────────────────────
   const [showLocationModal,  setShowLocationModal]  = useState(false);
+  const [showOverlayModal,   setShowOverlayModal]   = useState(false);
+  const [hasConfirmedOverlay, setHasConfirmedOverlay] = useState(false);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [driverAddress,      setDriverAddress]      = useState<string | null>(null);
   const updateDriverLocation = useDriverStore(s => s.updateDriverLocation);
@@ -512,6 +520,12 @@ export default function DriverDashboardScreen() {
             </Text>
             <TouchableOpacity style={styles.disclosureBtn} onPress={async () => {
               setShowProminentDisclosure(false);
+              
+              if (Platform.OS === 'android' && !hasConfirmedOverlay) {
+                setShowOverlayModal(true);
+                return;
+              }
+
               setIsOnline(true);
               useDriverStore.getState().setDriverStatus('AVAILABLE');
               await useDriverStore.getState().startLocationTracking();
@@ -522,64 +536,55 @@ export default function DriverDashboardScreen() {
         </View>
       </Modal>
 
-      {/* ── البطاقة المنبثقة للطلب الجديد ── */}
-      {showOrder && (
-        <Modal transparent animationType="none" statusBarTranslucent>
-          <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={dismissOrder} />
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.orderPopup,
-              { paddingBottom: insets.bottom + 16, transform: [{ translateY: slideAnim }] },
-            ]}
-            pointerEvents="box-none"
-          >
-            {(() => {
-              // ── حساب السعر المعروض في البطاقة قبل القبول ──
-              const dTypeRaw  = registeredDriver?.driverType?.toLowerCase() || '';
-              const wTypeRaw  = registeredDriver?.waterType?.toLowerCase()  || '';
-              const _isSpring = dTypeRaw === 'tanker' && (wTypeRaw === 'spring' || wTypeRaw.includes('ينابيع'));
-              const _isBottled = dTypeRaw === 'bottled';
-              const _isWell   = dTypeRaw === 'tanker' && (wTypeRaw === 'well' || wTypeRaw.includes('آبار'));
-              const _isCons   = dTypeRaw === 'tanker' && (wTypeRaw === 'construction' || wTypeRaw.includes('أشغال'));
+      {/* ── مودال إذن الظهور فوق التطبيقات (Overlay Permission) ── */}
+      <Modal visible={showOverlayModal} transparent animationType="fade">
+        <View style={styles.locationOverlay}>
+          <View style={styles.locationCard}>
+            <View style={styles.locationIconWrap}>
+              <Ionicons name="layers" size={36} color={COLORS.primary} />
+            </View>
+            <Text style={styles.locationTitle}>صلاحية هامة للعمل</Text>
+            <Text style={styles.locationBody}>
+              {'لكي تتلقى إشعارات الطلبات في شاشة كاملة وتسمع الرنين عند غلق التطبيق، يجب تفعيل صلاحية (الظهور فوق التطبيقات الأخرى).\n\nاضغط "تفعيل الإعدادات" وقم بتفعيلها لتطبيق أمرلي السائق.'}
+            </Text>
+            
+            <TouchableOpacity
+              style={styles.locationAllowBtn}
+              onPress={() => {
+                if (Platform.OS === 'android') {
+                  Linking.sendIntent('android.settings.action.MANAGE_OVERLAY_PERMISSION');
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="settings-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+              <Text style={styles.locationAllowText}>فتح الإعدادات</Text>
+            </TouchableOpacity>
 
-              let previewPrice = 0;
+            <TouchableOpacity 
+              style={[styles.locationAllowBtn, { backgroundColor: COLORS.primary, marginTop: 10 }]} 
+              onPress={async () => {
+                setHasConfirmedOverlay(true);
+                setShowOverlayModal(false);
+                
+                // Now allow them to go online
+                setIsOnline(true);
+                useDriverStore.getState().setDriverStatus('AVAILABLE');
+                await useDriverStore.getState().startLocationTracking();
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={18} color="#FFF" style={{ marginRight: 8 }} />
+              <Text style={[styles.locationAllowText, { color: '#FFF' }]}>تم التفعيل (متابعة)</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.locationDenyBtn} onPress={() => setShowOverlayModal(false)}>
+              <Text style={styles.locationDenyText}>إلغاء</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
-              if (_isSpring && (registeredDriver?.defaultPrice ?? 0) > 0) {
-                const liters = parseFloat(currentOffer?.items?.[0]?.detail?.replace(/\D/g, '') || '1000') || 1000;
-                previewPrice = Math.round((liters / 20) * (registeredDriver?.defaultPrice ?? 0));
-              } else if (_isBottled && registeredDriver?.bottledPrices) {
-                const offerItems = currentOffer?.items || [];
-                previewPrice = offerItems.reduce((sum: number, item: any) => {
-                  const unitPrice = (registeredDriver.bottledPrices as any)[item.detail] ?? 0;
-                  return sum + ((item.qty || 1) * unitPrice);
-                }, 0);
-              } else if ((_isWell || _isCons) && Number(registeredDriver?.pricePerUnit) > 0) {
-                const liters   = Number(currentOffer?.tankerDetails?.volume || currentOffer?.items?.[0]?.detail?.replace(/\D/g, '') || 1500);
-                const floor    = Number(currentOffer?.tankerDetails?.floor || currentOffer?.items?.[0]?.floor || 0);
-                const units    = Math.ceil(liters / 1500);
-                previewPrice   = Math.round(units * Number(registeredDriver?.pricePerUnit) + floor * Number(registeredDriver?.floorPrice || 0));
-              }
 
-              return (
-                <NewOrderCard
-                  orderType={resolveOrderType()}
-                  customerName={currentOffer?.customer?.name || 'الزبون'}
-                  price={previewPrice > 0 ? previewPrice : Number(currentOffer?.total || 0)}
-                  address={currentOffer?.deliveryAddress?.label || ''}
-                  distance={currentOffer?.deliveryAddress?.distance || '---'}
-                  quantity={currentOffer?.items?.map((i: any) => i.detail).join(' + ') || ''}
-                  rating={5.0}
-                  totalSeconds={30}
-                  onAccept={handleAccept}
-                  onDecline={handleDecline}
-                />
-              );
-            })()}
-          </Animated.View>
-        </Modal>
-      )}
 
       
       {/* 1. Top Floating Header */}

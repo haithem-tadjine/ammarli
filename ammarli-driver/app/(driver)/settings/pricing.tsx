@@ -5,6 +5,7 @@ import {
   TextInput, ActivityIndicator, Alert, ScrollView, StatusBar,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -87,6 +88,18 @@ export default function PricingSettingsScreen() {
   );
 
   const [isSaving, setIsSaving] = useState(false);
+  const scrollViewRef = React.useRef<ScrollView>(null);
+
+  React.useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const sub = Keyboard.addListener(showEvent, () => {
+      // Scroll down slightly so inputs are visible
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+    return () => sub.remove();
+  }, []);
 
   // ── حفظ ─────────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -187,7 +200,7 @@ export default function PricingSettingsScreen() {
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* أيقونة + وصف */}
         <View style={styles.heroSection}>
@@ -294,7 +307,7 @@ export default function PricingSettingsScreen() {
           )}
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 250 }} />
       </ScrollView>
       </KeyboardAvoidingView>
     </View>

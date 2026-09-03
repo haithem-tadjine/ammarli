@@ -33,6 +33,14 @@ const COLORS = {
   successLight: '#ECFDF5'
 };
 
+// Water type config
+const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+  Bottled:  { label: 'مياه معبأة',    icon: 'bottle-soda-classic', color: '#0EA5E9' },
+  Spring:   { label: 'مياه ينابيع',   icon: 'water',               color: '#0EA5E9' },
+  Well:     { label: 'مياه آبار',     icon: 'water-pump',          color: '#7C3AED' },
+  Ashghal:  { label: 'مياه أشغال',   icon: 'dump-truck',          color: '#EA580C' },
+};
+
 export default function OrderTrackingScreen() {
   const router = useRouter();
   const userLocation = useCustomerStore(state => state.userLocation);
@@ -40,33 +48,23 @@ export default function OrderTrackingScreen() {
   const setDriverLocation = useCustomerStore(state => state.setDriverLocation);
   const activeOrder = useCustomerStore(state => state.activeOrder);
 
-  // Animation values
-  const pulseAnim = React.useRef(new Animated.Value(1)).current;
-  const truckDriveAnim = React.useRef(new Animated.Value(0)).current;
-
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
-      ])
-    ).start();
-
-    Animated.loop(
-      Animated.timing(truckDriveAnim, {
-        toValue: 1,
-        duration: 3500,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, [pulseAnim, truckDriveAnim]);
-
   // Real driver info
   const driverInfo  = activeOrder?.driverInfo;
   const driverName  = driverInfo?.name  ?? 'جاري البحث عن سائق...';
   const phoneNumber = driverInfo?.phone  ?? '';
   const truckPlate  = driverInfo?.plate  ?? '---';
   const driverRating = driverInfo?.rating ?? '5.0';
+
+  const getWaterTypeKey = () => {
+    const wt = (activeOrder?.waterType || activeOrder?.type || '').toLowerCase();
+    if (wt.includes('spring') || wt.includes('ينابيع')) return 'Spring';
+    if (wt.includes('well') || wt.includes('آبار')) return 'Well';
+    if (wt.includes('construction') || wt.includes('ashghal') || wt.includes('بناء')) return 'Ashghal';
+    if (wt.includes('tanker')) return 'Spring';
+    return 'Bottled';
+  };
+  const typeCfg = TYPE_CONFIG[getWaterTypeKey()] || TYPE_CONFIG['Bottled'];
+  const quantity = activeOrder?.quantity ? `${activeOrder.quantity} لتر` : '';
 
   const handleCallPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -143,55 +141,6 @@ export default function OrderTrackingScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Map/Animation Card ─────────────────────────────────────────────── */}
-        <View style={styles.mapContainer}>
-          <View style={styles.animationWrapper}>
-            {/* The Road */}
-            <View style={styles.roadLine} />
-            
-            {/* Destination Pin */}
-            <View style={styles.destinationWrap}>
-              <Animated.View style={[styles.destinationPulse, { transform: [{ scale: pulseAnim }] }]} />
-              <View style={styles.destinationPin}>
-                <Ionicons name="home" size={20} color={COLORS.white} />
-              </View>
-            </View>
-
-            {/* The Truck */}
-            <Animated.View 
-              style={[
-                styles.animatedTruckWrap,
-                {
-                  transform: [
-                    {
-                      translateX: truckDriveAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [180, -120] // moving right to left
-                      })
-                    }, 
-                    {
-                      translateY: pulseAnim.interpolate({
-                        inputRange: [1, 1.05],
-                        outputRange: [15, 12] // align with road + slight bounce effect
-                      })
-                    }
-                  ]
-                }
-              ]}
-            >
-              <MaterialCommunityIcons name="truck-fast" size={54} color={COLORS.primary} />
-            </Animated.View>
-          </View>
-
-          {/* ETA Floating Badge */}
-          <View style={styles.etaBadge}>
-            <View style={styles.etaDot} />
-            <Text style={styles.etaText}>
-              {isSearching ? 'جاري البحث...' : '12 دقيقة للوصول'}
-            </Text>
-          </View>
-        </View>
-
         {/* ── Status Text ────────────────────────────────────────────────────── */}
         <View style={styles.statusSection}>
           <Text style={styles.mainStatusText}>
@@ -204,27 +153,11 @@ export default function OrderTrackingScreen() {
           </Text>
         </View>
 
-        {/* ── Driver Card ────────────────────────────────────────────────────── */}
+        {/* ── Top Card: Driver & Order Details ──────────────────────────────── */}
         {!isSearching && (
-          <View style={styles.driverCard}>
-            
-            {/* Top Row: Avatar & Details */}
+          <View style={styles.topCard}>
+            {/* Top Row: Avatar & Driver Details */}
             <View style={styles.driverTopRow}>
-              <View style={styles.driverInfoLeft}>
-                <Text style={styles.driverName}>{driverName}</Text>
-                
-                <View style={styles.badgesRow}>
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color={COLORS.secondary} style={{ marginLeft: 4 }} />
-                    <Text style={styles.ratingText}>{driverRating}</Text>
-                  </View>
-                  <View style={styles.plateBadge}>
-                    <Text style={styles.plateText}>{truckPlate}</Text>
-                  </View>
-                </View>
-
-              </View>
-
               <View style={styles.avatarWrapper}>
                 {driverInfo?.avatarUrl ? (
                   <Image source={{ uri: driverInfo.avatarUrl }} style={styles.driverAvatar} />
@@ -235,35 +168,72 @@ export default function OrderTrackingScreen() {
                 )}
                 <View style={styles.onlineDot} />
               </View>
-            </View>
-
-            {/* Bottom Row: Actions */}
-            <View style={styles.driverBottomRow}>
-              {activeOrder?.price ? (
-                <View style={styles.priceContainer}>
-                  <Text style={styles.priceLabel}>الإجمالي</Text>
-                  <Text style={styles.priceValue}>{activeOrder.price.toLocaleString('ar-DZ')} د.ج</Text>
+              <View style={styles.driverInfoRight}>
+                <Text style={styles.driverName}>{driverName}</Text>
+                <View style={styles.badgesRow}>
+                  <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={12} color={COLORS.secondary} style={{ marginLeft: 4 }} />
+                    <Text style={styles.ratingText}>{driverRating}</Text>
+                  </View>
+                  <View style={styles.plateBadge}>
+                    <Text style={styles.plateText}>{truckPlate}</Text>
+                  </View>
                 </View>
-              ) : <View style={{ flex: 1 }} />}
-
-              <View style={styles.actionButtonsRow}>
-                <TouchableOpacity style={styles.actionIconBtn} onPress={() => {}}>
-                  <Ionicons name="chatbubble-ellipses" size={20} color={COLORS.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.callBtn} onPress={handleCallPress}>
-                  <Ionicons name="call" size={20} color={COLORS.white} />
-                  <Text style={styles.callBtnText}>اتصال</Text>
-                </TouchableOpacity>
               </View>
             </View>
 
+            {/* Divider */}
+            <View style={styles.divider} />
+
+            {/* Middle Row: Order Details */}
+            <View style={styles.orderDetailsRow}>
+              <View style={styles.orderDetailItem}>
+                <View style={[styles.orderIconWrap, { backgroundColor: typeCfg.color + '18' }]}>
+                  <MaterialCommunityIcons name={typeCfg.icon as any} size={22} color={typeCfg.color} />
+                </View>
+                <View style={styles.orderTextWrapper}>
+                  <Text style={styles.orderLabel}>النوع</Text>
+                  <Text style={styles.orderValue}>{typeCfg.label}</Text>
+                </View>
+              </View>
+
+              {!!quantity && (
+                <View style={styles.orderDetailItem}>
+                  <View style={[styles.orderIconWrap, { backgroundColor: COLORS.primary + '18' }]}>
+                    <MaterialCommunityIcons name="water-percent" size={22} color={COLORS.primary} />
+                  </View>
+                  <View style={styles.orderTextWrapper}>
+                    <Text style={styles.orderLabel}>الكمية</Text>
+                    <Text style={styles.orderValue}>{quantity}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Bottom Row: Call Action */}
+            <View style={styles.callActionWrapper}>
+              <Text style={styles.etaCallText}>الموزع في طريقه لك، اتصل به</Text>
+              <TouchableOpacity style={styles.callBtnPrimary} onPress={handleCallPress}>
+                <Ionicons name="call" size={20} color={COLORS.white} />
+                <Text style={styles.callBtnPrimaryText}>اتصال</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
-        {/* ── Cancel Button ──────────────────────────────────────────────────── */}
-        <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelOrder}>
-          <Text style={styles.cancelBtnText}>إلغاء الطلبية</Text>
-        </TouchableOpacity>
+        {/* ── Bottom Section: Price & Cancel ─────────────────────────────────── */}
+        <View style={styles.bottomSection}>
+          <View style={styles.priceCard}>
+            <Text style={styles.priceLabel}>الإجمالي المستحق</Text>
+            <Text style={styles.priceValue}>
+               {activeOrder?.price ? `${activeOrder.price.toLocaleString('ar-DZ')} د.ج` : '---'}
+            </Text>
+          </View>
+
+          <TouchableOpacity style={styles.cancelBtnPrimary} onPress={handleCancelOrder}>
+            <Text style={styles.cancelBtnPrimaryText}>إلغاء الطلبية</Text>
+          </TouchableOpacity>
+        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -302,86 +272,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
   },
   
-  mapContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    height: 320,
-    borderRadius: 32,
-    backgroundColor: COLORS.white,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08, shadowRadius: 20, elevation: 5,
-    position: 'relative',
-  },
-  animationWrapper: {
-    flex: 1,
-    borderRadius: 32,
-    backgroundColor: '#E8EEF5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  roadLine: {
-    position: 'absolute',
-    left: 40, right: 40,
-    height: 1,
-    borderBottomWidth: 3,
-    borderBottomColor: '#CBD5E1',
-    borderStyle: 'dashed',
-    bottom: '40%',
-  },
-  destinationWrap: {
-    position: 'absolute',
-    left: 40,
-    bottom: '40%',
-    transform: [{ translateY: 20 }],
-    zIndex: 2,
-  },
-  destinationPulse: {
-    position: 'absolute',
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    top: -10, left: -10,
-  },
-  destinationPin: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: COLORS.success,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 3, borderColor: COLORS.white,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8,
-  },
-  animatedTruckWrap: {
-    position: 'absolute',
-    bottom: '40%',
-    zIndex: 1,
-  },
-  
-  etaBadge: {
-    position: 'absolute',
-    bottom: -20,
-    alignSelf: 'center',
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
-  },
-  etaDot: {
-    width: 8, height: 8, borderRadius: 4,
-    backgroundColor: COLORS.secondary,
-    marginLeft: 10,
-  },
-  etaText: {
-    fontSize: 14,
-    fontFamily: 'Cairo-Bold',
-    color: COLORS.white,
-  },
-
   statusSection: {
     alignItems: 'center',
-    marginTop: 45,
+    marginTop: 20,
     paddingHorizontal: 24,
   },
   mainStatusText: {
@@ -398,25 +291,26 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  driverCard: {
+  topCard: {
+    backgroundColor: COLORS.white,
     marginHorizontal: 16,
     marginTop: 24,
-    backgroundColor: COLORS.white,
-    borderRadius: 28,
+    borderRadius: 24,
     padding: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05, shadowRadius: 16, elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 5,
   },
   driverTopRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
   },
-  driverInfoLeft: {
-    flex: 1,
-    alignItems: 'flex-end',
+  driverInfoRight: {
     marginRight: 16,
+    alignItems: 'flex-end',
+    flex: 1,
   },
   driverName: {
     fontSize: 18,
@@ -486,70 +380,119 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.white,
   },
-
-  driverBottomRow: {
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 20,
+  },
+  orderDetailsRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  orderDetailItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    flex: 1,
+  },
+  orderTextWrapper: {
+    alignItems: 'flex-end',
+    marginRight: 12,
+  },
+  orderIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  orderLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    fontFamily: 'Cairo-SemiBold',
+    marginBottom: 2,
+  },
+  orderValue: {
+    fontSize: 15,
+    color: COLORS.primary,
+    fontFamily: 'Cairo-Bold',
+  },
+  callActionWrapper: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 16,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    marginTop: 20,
   },
-  priceContainer: {
-    alignItems: 'flex-end',
-  },
-  priceLabel: {
-    fontSize: 12,
-    fontFamily: 'Cairo-Regular',
-    color: COLORS.textSecondary,
-  },
-  priceValue: {
-    fontSize: 16,
+  etaCallText: {
+    fontSize: 13,
     fontFamily: 'Cairo-Bold',
     color: COLORS.success,
+    flex: 1,
+    marginLeft: 12,
+    textAlign: 'right',
   },
-  actionButtonsRow: {
+  callBtnPrimary: {
+    backgroundColor: COLORS.success,
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 12,
-  },
-  actionIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  callBtn: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
-    height: 44,
-    borderRadius: 22,
-    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: COLORS.success,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  callBtnText: {
-    fontSize: 14,
-    fontFamily: 'Cairo-Bold',
+  callBtnPrimaryText: {
     color: COLORS.white,
+    fontFamily: 'Cairo-Bold',
+    fontSize: 14,
+    marginRight: 8,
   },
 
-  cancelBtn: {
+  bottomSection: {
     marginHorizontal: 16,
-    marginTop: 20,
-    height: 56,
+    marginTop: 24,
+  },
+  priceCard: {
+    backgroundColor: COLORS.white,
     borderRadius: 20,
+    padding: 24,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  priceLabel: {
+    fontSize: 16,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.primary,
+  },
+  priceValue: {
+    fontSize: 22,
+    fontFamily: 'Cairo-Black',
+    color: COLORS.success,
+  },
+  cancelBtnPrimary: {
     backgroundColor: COLORS.dangerLight,
-    justifyContent: 'center',
+    borderRadius: 20,
+    paddingVertical: 18,
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: '#FECACA',
   },
-  cancelBtnText: {
-    fontSize: 16,
-    fontFamily: 'Cairo-Bold',
+  cancelBtnPrimaryText: {
     color: COLORS.danger,
+    fontFamily: 'Cairo-Bold',
+    fontSize: 16,
   },
 });

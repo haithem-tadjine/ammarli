@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../../../src/services/api';
+import { useAuthStore } from '../../../src/store/useAuthStore';
 
 const COLORS = {
   primary:       '#002147',
@@ -55,6 +57,34 @@ const AppSettingsScreen = () => {
   const [twoFactor,   setTwoFactor]   = useState(true);
   const [orderNotifs, setOrderNotifs] = useState(true);
   const [alertSounds, setAlertSounds] = useState(false);
+  
+  const userProfile = useAuthStore(s => s.userProfile);
+  const logout = useAuthStore(s => s.logout);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'حذف الحساب بشكل نهائي',
+      'هل أنت متأكد أنك تريد حذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه وسيتم مسح جميع بياناتك.',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'نعم، احذف حسابي',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (userProfile?.id) {
+                await api.delete(`/users/${userProfile.id}`);
+              }
+              await logout();
+              router.replace('/(driver)/login' as any);
+            } catch (err) {
+              Alert.alert('خطأ', 'حدث خطأ أثناء محاولة حذف الحساب.');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -147,7 +177,7 @@ const AppSettingsScreen = () => {
         </View>
 
         {/* الخصوصية */}
-        <Text style={styles.sectionTitle}>الخصوصية</Text>
+        <Text style={styles.sectionTitle}>الخصوصية والحساب</Text>
         <View style={styles.card}>
           <SettingItem
             icon="location-outline"
@@ -156,6 +186,16 @@ const AppSettingsScreen = () => {
             showArrow
             onPress={openDeviceSettings}
           />
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.itemRow} activeOpacity={0.7} onPress={handleDeleteAccount}>
+            <View style={[styles.iconContainer, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
+              <MaterialCommunityIcons name="delete-outline" size={22} color="#EF4444" />
+            </View>
+            <View style={styles.labelContainer}>
+              <Text style={[styles.itemLabel, { color: '#EF4444' }]}>حذف الحساب نهائياً</Text>
+            </View>
+            <Ionicons name='chevron-back' size={18} color="#CBD5E1" />
+          </TouchableOpacity>
         </View>
 
       </ScrollView>

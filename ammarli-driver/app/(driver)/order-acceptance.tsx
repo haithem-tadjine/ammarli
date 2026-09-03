@@ -13,6 +13,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -91,6 +92,15 @@ export default function OrderAcceptanceScreen() {
   const [timeLeft, setTimeLeft] = useState(60);
 
   const BUCKET_CAPACITY = 20;
+  
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   // Animation values
   const pulseAnim = useSharedValue(1);
@@ -393,36 +403,38 @@ export default function OrderAcceptanceScreen() {
             </Animated.View>
           )}
 
-          <View style={{ height: 120 }} />
+          <View style={{ height: 250 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* ── شريط الإجراءات السفلي (Floating Footer) ── */}
-      <Animated.View entering={FadeInUp.delay(500).springify()} style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 15, 25) }]}>
-        <View style={styles.footerGlow} />
-        <TouchableOpacity 
-          style={[styles.confirmButton, confirmed && styles.confirmButtonDisabled]} 
-          activeOpacity={0.85} 
-          onPress={handleConfirm} 
-          disabled={confirmed}
-        >
-          <LinearGradient
-            colors={confirmed ? ['#E2E8F0', '#CBD5E1'] : [COLORS.secondary, '#EAB308']}
-            style={styles.confirmGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+      {!isKeyboardVisible && (
+        <Animated.View entering={FadeInUp.delay(500).springify()} style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 15, 25) }]}>
+          <View style={styles.footerGlow} />
+          <TouchableOpacity 
+            style={[styles.confirmButton, confirmed && styles.confirmButtonDisabled]} 
+            activeOpacity={0.85} 
+            onPress={handleConfirm} 
+            disabled={confirmed}
           >
-            <Text style={[styles.confirmButtonText, confirmed && { color: '#94A3B8' }]}>
-              {confirmed ? 'جاري التأكيد...' : 'تأكيد الاستلام'}
-            </Text>
-            {!confirmed && <Ionicons name="checkmark-circle-outline" size={24} color={COLORS.primary} style={{ marginRight: 8 }} />}
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={confirmed ? ['#E2E8F0', '#CBD5E1'] : [COLORS.secondary, '#EAB308']}
+              style={styles.confirmGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={[styles.confirmButtonText, confirmed && { color: '#94A3B8' }]}>
+                {confirmed ? 'جاري التأكيد...' : 'تأكيد الاستلام'}
+              </Text>
+              {!confirmed && <Ionicons name="checkmark-circle-outline" size={24} color={COLORS.primary} style={{ marginRight: 8 }} />}
+            </LinearGradient>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.cancelLink} onPress={handleReject} disabled={confirmed}>
-          <Text style={styles.cancelText}>رفض الطلبية</Text>
-        </TouchableOpacity>
-      </Animated.View>
+          <TouchableOpacity style={styles.cancelLink} onPress={handleReject} disabled={confirmed}>
+            <Text style={styles.cancelText}>رفض الطلبية</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
     </View>
   );

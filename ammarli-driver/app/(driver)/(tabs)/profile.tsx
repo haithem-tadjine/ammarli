@@ -47,30 +47,6 @@ const DriverProfileScreen = () => {
     router.replace('/(driver)/login' as any);
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'حذف الحساب بشكل نهائي',
-      'هل أنت متأكد أنك تريد حذف حسابك؟ هذا الإجراء لا يمكن التراجع عنه وسيتم مسح جميع بياناتك.',
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'نعم، احذف حسابي',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (userProfile?.id) {
-                await api.delete(`/users/${userProfile.id}`);
-              }
-              await logout();
-              router.replace('/(driver)/login' as any);
-            } catch (err) {
-              Alert.alert('خطأ', 'حدث خطأ أثناء محاولة حذف الحساب.');
-            }
-          }
-        }
-      ]
-    );
-  };
 
   const isOnline = useDriverStore(s => s.isOnline);
   const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
@@ -167,15 +143,6 @@ const DriverProfileScreen = () => {
           </BlurView>
         </TouchableOpacity>
 
-        {/* Delete Account Action */}
-        <TouchableOpacity style={[styles.logoutButton, { marginTop: 0 }]} onPress={handleDeleteAccount} activeOpacity={0.8}>
-          <BlurView intensity={70} tint="light" style={styles.logoutBlur}>
-             <View style={[styles.logoutIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-               <MaterialCommunityIcons name="delete-outline" size={22} color={COLORS.danger} />
-             </View>
-             <Text style={styles.logoutText}>حذف الحساب نهائياً</Text>
-          </BlurView>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );

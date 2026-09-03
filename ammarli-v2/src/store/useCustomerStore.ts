@@ -19,6 +19,7 @@ export type OrderStatus =
   | 'completed'
   | 'cancelled'
   | 'expired'
+  | 'timeout'
   | 'scheduled';
 
 export interface DriverInfo {
@@ -119,6 +120,7 @@ interface CustomerState {
   createOrder: (order: Order) => Promise<void>;
   updateOrder: (update: Partial<Order>) => void;
   cancelOrder: (reason?: string) => Promise<void>;
+  timeoutOrder: () => Promise<void>;
   completeOrder: () => void;
   scheduleOrder: (order: Order, date: string, time: string) => void;
   acceptScheduledOrder: (id: string, driver: ScheduledDriverInfo) => void;
@@ -409,6 +411,20 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
         ? [{ ...s.activeOrder, status: 'cancelled', cancelReason: reason }, ...s.pastOrders]
         : s.pastOrders,
       activeOrder: null,
+    }));
+  },
+
+  timeoutOrder: async () => {
+    const activeId = get().activeOrder?.id;
+    if (activeId && typeof activeId === 'string' && !activeId.startsWith('local-')) {
+      try {
+        await api.post(`/requests/${activeId}/cancel`);
+      } catch (e) {
+        console.error('Failed to cancel (timeout) on backend:', e);
+      }
+    }
+    set((s) => ({
+      activeOrder: s.activeOrder ? { ...s.activeOrder, status: 'timeout' } : null,
     }));
   },
 
