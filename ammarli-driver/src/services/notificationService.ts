@@ -229,18 +229,29 @@ export async function clearAllLocalNotifications() {
   }
 }
 
-// ── Notifee: Full-Screen Order Channel Setup ──────────────────────────────────
+// ── Notifee: Order Channel Setup ──────────────────────────────────
 // Call this once inside setupPushNotifications() on Android.
 export async function setupNotifeeOrderChannel() {
   if (Platform.OS !== 'android' || !notifee) return;
+
+  await notifee.createChannel({
+    id: 'incoming_orders',
+    name: 'Incoming Orders',
+    sound: 'alert', // assets/sounds/alert.mp3 -> android/app/src/main/res/raw/alert.mp3
+    importance: AndroidImportance.HIGH,
+    vibration: true,
+    visibility: AndroidVisibility.PUBLIC,
+    vibrationPattern: [0, 800, 400, 800, 400, 800, 400],
+  });
+
   await notifee.createChannel({
     id: 'incoming-order-fullscreen',
     name: 'طلبية جديدة (شاشة كاملة)',
+    sound: 'alert',
     importance: AndroidImportance.HIGH,
-    visibility: AndroidVisibility.PUBLIC, // Visible on locked screen
+    visibility: AndroidVisibility.PUBLIC,
     vibration: true,
-    vibrationPattern: [0, 800, 400, 800, 400, 800, 400], // Strong, continuous-feeling vibration
-    sound: 'alert',  // → android/app/src/main/res/raw/alert.mp3
+    vibrationPattern: [0, 800, 400, 800, 400, 800, 400],
   });
 }
 
@@ -274,6 +285,13 @@ export async function triggerFullScreenOrderNotification(params?: {
     console.warn('Notifee not available, skipping full-screen notification');
     return;
   }
+
+  // ── Trigger Floating Bubble Badge & Flyout Message ──
+  try {
+    const Bubble = require('expo-floating-bubble');
+    Bubble.setBadge(1);
+    Bubble.showMessage('طلبية جديدة في الانتظار ⏳');
+  } catch (_) {}
 
   await notifee.displayNotification({
     id: 'incoming-order',

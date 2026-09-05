@@ -12,6 +12,7 @@ import NewOrderCard, { ORDER_TYPES, OrderType } from '../../../components/NewOrd
 import UpdateInventoryModal from '../../../components/UpdateInventoryModal';
 import { useDriverAlert } from '../../../src/hooks/useDriverAlert';
 import { useAuthStore } from '../../../src/store/useAuthStore';
+import * as Bubble from 'expo-floating-bubble';
 
 const { width } = Dimensions.get('window');
 const COLORS = { 
@@ -137,6 +138,12 @@ export default function DriverDashboardScreen() {
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0.6)).current;
 
+  // مزامنة حالة الفقاعة العائمة ومسح الشارة عند التحميل
+  useEffect(() => {
+    Bubble.enableBubble(isOnline);
+    Bubble.setBadge(0);
+  }, []);
+
   // Toggle Online/Offline State
   const toggleStatus = async () => {
     Vibration.vibrate(50);
@@ -187,10 +194,13 @@ export default function DriverDashboardScreen() {
       }
 
       setIsOnline(true);
+      Bubble.enableBubble(true);
       useDriverStore.getState().setDriverStatus('AVAILABLE');
       await useDriverStore.getState().startLocationTracking();
     } else {
       setIsOnline(false);
+      Bubble.enableBubble(false);
+      Bubble.hideBubble();
       useDriverStore.getState().setDriverStatus('OFFLINE');
       useDriverStore.getState().stopLocationTracking();
     }
@@ -326,6 +336,7 @@ export default function DriverDashboardScreen() {
   }, [currentOffer]);
 
   const dismissOrder = () => {
+    Bubble.setBadge(0);
     Animated.parallel([
       Animated.timing(slideAnim, { toValue: 600, duration: 280, useNativeDriver: true }),
       Animated.timing(fadeAnim,  { toValue: 0,   duration: 280, useNativeDriver: true }),
@@ -458,6 +469,7 @@ export default function DriverDashboardScreen() {
 
   const handleDecline = () => {
     if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    Bubble.setBadge(0);
     dismissOrder();
     if (currentOffer?.orderId) {
       refuseDriverOrder(currentOffer.orderId);
@@ -527,6 +539,7 @@ export default function DriverDashboardScreen() {
               }
 
               setIsOnline(true);
+              Bubble.enableBubble(true);
               useDriverStore.getState().setDriverStatus('AVAILABLE');
               await useDriverStore.getState().startLocationTracking();
             }}>
@@ -569,6 +582,7 @@ export default function DriverDashboardScreen() {
                 
                 // Now allow them to go online
                 setIsOnline(true);
+                Bubble.enableBubble(true);
                 useDriverStore.getState().setDriverStatus('AVAILABLE');
                 await useDriverStore.getState().startLocationTracking();
               }}

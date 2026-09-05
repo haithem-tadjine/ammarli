@@ -1,0 +1,13 @@
+{
+  "name": "expo-floating-bubble",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "types": "index.ts",
+  "author": "Ammarli",
+  "license": "UNLICENSED",
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

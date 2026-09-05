@@ -14,6 +14,9 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "baseUrl": ".",
+    "paths": {
+      "expo-floating-bubble": ["./modules/expo-floating-bubble"]
+    },
     "skipLibCheck": true
   },
   "include": [

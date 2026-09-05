@@ -293,7 +293,7 @@ export default function PricingSettingsScreen() {
 
         {/* زر الحفظ */}
         <TouchableOpacity
-          style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
+          style={[styles.saveBtn, isSaving && { opacity: 0.7 }, { marginBottom: 20 }]}
           onPress={handleSave}
           disabled={isSaving}
         >
@@ -307,7 +307,7 @@ export default function PricingSettingsScreen() {
           )}
         </TouchableOpacity>
 
-        <View style={{ height: 250 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
       </KeyboardAvoidingView>
     </View>

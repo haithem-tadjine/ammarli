@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "325897111238",
+    "project_id": "ammarli-a97da",
+    "storage_bucket": "ammarli-a97da.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:325897111238:android:1c88402a9239d18ff6f9c7",
+        "android_client_info": {
+          "package_name": "ammarli.driver.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6ro7i9R8V1RYQcjjmLOzqnW15qCo0Z0k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:325897111238:android:c19605ebd14876e9f6f9c7",
+        "android_client_info": {
+          "package_name": "com.ammarli.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6ro7i9R8V1RYQcjjmLOzqnW15qCo0Z0k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:325897111238:android:3d14560906443244f6f9c7",
+        "android_client_info": {
+          "package_name": "com.ammarli.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6ro7i9R8V1RYQcjjmLOzqnW15qCo0Z0k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

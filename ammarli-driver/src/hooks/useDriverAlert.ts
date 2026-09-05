@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Vibration } from 'react-native';
 import { Audio } from 'expo-av';
+import * as Bubble from 'expo-floating-bubble';
 
 /**
  * useDriverAlert — plays looping vibration + in-app sound while `isActive` is true.
@@ -18,7 +19,13 @@ export function useDriverAlert(isActive: boolean) {
     let vibrationInterval: ReturnType<typeof setInterval> | null = null;
 
     async function startAlert() {
-      // ── 1. Looping vibration via setInterval (vibrate → pause → repeat) ──────
+      // ── 1. Trigger Floating Bubble Badge & Flyout Message ─────────────────
+      try {
+        Bubble.setBadge(1);
+        Bubble.showMessage('طلبية جديدة في الانتظار ⏳');
+      } catch (_) {}
+
+      // ── 2. Looping vibration via setInterval (vibrate → pause → repeat) ──────
       // React Native's Vibration.vibrate() with repeat=true is unreliable on some
       // Android versions, so we use setInterval for precise control.
       Vibration.vibrate([0, 500, 250, 500]); // fire immediately
@@ -29,13 +36,13 @@ export function useDriverAlert(isActive: boolean) {
       }, 1500); // repeat every 1.5 s (matches pattern duration)
 
       try {
-        // ── 2. iOS silent-mode override ─────────────────────────────────────────
+        // ── 3. iOS silent-mode override ─────────────────────────────────────────
         await Audio.setAudioModeAsync({
           playsInSilentModeIOS: true,
           staysActiveInBackground: false,
         });
 
-        // ── 3. Load sound ────────────────────────────────────────────────────────
+        // ── 4. Load sound ────────────────────────────────────────────────────────
         // 📌 Place your alert file at: assets/sounds/alert.mp3
         const { sound } = await Audio.Sound.createAsync(
           require('../../assets/sounds/alert.mp3'),
@@ -59,6 +66,11 @@ export function useDriverAlert(isActive: boolean) {
 
     async function stopAlert() {
       cancelled = true;
+
+      // Clear Floating Bubble Badge
+      try {
+        Bubble.setBadge(0);
+      } catch (_) {}
 
       // Stop vibration loop
       if (vibrationInterval) clearInterval(vibrationInterval);

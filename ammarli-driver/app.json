@@ -51,6 +51,7 @@
       "expo-router",
       "expo-font",
       "./withLockScreenBypass.js",
+      "./withAndroidSounds.js",
       [
         "expo-splash-screen",
         {
@@ -75,9 +76,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "f92c9c97-6290-493b-abd0-c3448c4dbfc9"
+        "projectId": "dcb4eccf-88e8-4945-a077-0d65a1bd0f85"
       }
     },
-    "owner": "nicoulas_tadjine"
+    "owner": "haithem-tadjine"
   }
 }
