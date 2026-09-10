@@ -35,6 +35,9 @@ export default function SearchingDriverScreen() {
   const activeOrderStatus = useCustomerStore(s => s.activeOrder?.status);
   const creatingRef      = useRef(false);
   const mapRef           = useRef<any>(null);
+  // Keep snapshot of the last real order so we can retry after expiry
+  const lastOrderRef     = useRef<typeof activeOrder>(null);
+  const prevOrderRef     = useRef<typeof activeOrder | undefined>(undefined);
 
   const nearbyDrivers    = useCustomerStore(s => s.nearbyDrivers);
   const fetchNearbyDrivers = useCustomerStore(s => s.fetchNearbyDrivers);
@@ -152,22 +155,48 @@ export default function SearchingDriverScreen() {
     }
   }, [activeOrderStatus, router]);
 
-  // Send order to backend
+  // Send order to backend + monitor status
   useEffect(() => {
+    // Save the current real order for potential retry
+    if (activeOrder && !String(activeOrder.id).startsWith('local-')) {
+      lastOrderRef.current = activeOrder;
+    }
+
     if (activeOrder && typeof activeOrder.id === 'string' && activeOrder.id.startsWith('local-') && !creatingRef.current) {
+      // New local draft → send to backend
       creatingRef.current = true;
+      lastOrderRef.current = activeOrder; // save for retry
       createOrder(activeOrder).catch(e => {
         creatingRef.current = false;
         Alert.alert('خطأ', 'تعذر إرسال الطلب: ' + (e?.response?.data?.message || e.message || 'خطأ غير معروف'),
           [{ text: 'حسناً', onPress: () => router.back() }]);
       });
-    } else if (activeOrder?.status === 'cancelled' || activeOrder?.status === 'expired') {
-      const isExpired = activeOrder.status === 'expired';
-      setEndModalType(isExpired ? 'expired' : 'cancelled');
-      setEndModalMsg(isExpired ? 'عذراً، لم نعثر على سائق متاح حالياً.\nيرجى المحاولة مرة أخرى لاحقاً.' : 'تم إلغاء الطلب بنجاح.');
+    } else if (activeOrder?.status === 'cancelled') {
+      // Explicit cancellation from backend
+      setEndModalType('cancelled');
+      setEndModalMsg('تم إلغاء الطلب بنجاح.');
       useCustomerStore.getState().clearActiveOrderStore();
       setShowEndModal(true);
+    } else if (activeOrder?.status === 'expired') {
+      // Backend sent explicit expired status
+      setEndModalType('expired');
+      setEndModalMsg('عذراً، لم نعثر على سائق متاح حالياً.');
+      useCustomerStore.getState().clearActiveOrderStore();
+      setShowEndModal(true);
+    } else if (
+      // Order disappeared (backend deleted it after timeout)
+      prevOrderRef.current !== undefined &&
+      prevOrderRef.current !== null &&
+      !String(prevOrderRef.current?.id || '').startsWith('local-') &&
+      activeOrder === null &&
+      !showEndModal
+    ) {
+      setEndModalType('expired');
+      setEndModalMsg('عذراً، لم نعثر على سائق متاح حالياً.');
+      setShowEndModal(true);
     }
+
+    prevOrderRef.current = activeOrder;
   }, [activeOrder, createOrder, router]);
 
   const handleCancel = () => {
@@ -273,7 +302,6 @@ export default function SearchingDriverScreen() {
 
       </Animated.View>
 
-      {/* ── End Modal (Expired or Cancelled) ────────────────────────────── */}
       <Modal visible={showEndModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -286,15 +314,40 @@ export default function SearchingDriverScreen() {
             </View>
             <Text style={styles.modalTitle}>{endModalType === 'expired' ? 'عذراً!' : 'تم الإلغاء'}</Text>
             <Text style={styles.modalMessage}>{endModalMsg}</Text>
+
+            {/* Retry button — only for expired/timeout */}
+            {endModalType === 'expired' && lastOrderRef.current && (
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: YELLOW, marginBottom: 10 }]}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setShowEndModal(false);
+                  const prev = lastOrderRef.current!;
+                  // Create a fresh local order with a new id so createOrder fires again
+                  const retryOrder = {
+                    ...prev,
+                    id: 'local-' + Math.floor(Math.random() * 100000),
+                    status: 'searching' as any,
+                  };
+                  creatingRef.current = false;
+                  prevOrderRef.current = undefined;
+                  useCustomerStore.setState({ activeOrder: retryOrder });
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: NAVY }]}>إعادة المحاولة ⭯</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity 
-              style={styles.modalButton} 
+              style={[styles.modalButton, { backgroundColor: endModalType === 'expired' ? '#F1F5F9' : NAVY }]} 
               activeOpacity={0.85}
               onPress={() => {
                 setShowEndModal(false);
+                useCustomerStore.getState().clearActiveOrderStore();
                 router.replace('/(customer)/(tabs)' as any);
               }}
             >
-              <Text style={styles.modalButtonText}>العودة للرئيسية</Text>
+              <Text style={[styles.modalButtonText, { color: endModalType === 'expired' ? NAVY : WHITE }]}>العودة للرئيسية</Text>
             </TouchableOpacity>
           </View>
         </View>

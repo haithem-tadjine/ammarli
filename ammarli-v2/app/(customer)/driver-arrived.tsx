@@ -72,9 +72,16 @@ export default function DriverArrivedScreen() {
     }
   }, [activeOrder?.status, router]);
 
-  const coordinates = userLocation || { latitude: 35.5557, longitude: 6.1748 };
-  // Driver is very close
-  const driverCoordinates = { latitude: coordinates.latitude + 0.00015, longitude: coordinates.longitude + 0.00015 };
+  const driverLocation = useCustomerStore(state => state.driverLocation);
+
+  const coordinates = (activeOrder?.location?.latitude && activeOrder?.location?.longitude)
+    ? activeOrder.location
+    : (userLocation || { latitude: 35.5557, longitude: 6.1748 });
+
+  // Driver is very close or at actual driver location
+  const driverCoordinates = (driverLocation?.latitude && driverLocation?.longitude)
+    ? driverLocation
+    : { latitude: coordinates.latitude + 0.00015, longitude: coordinates.longitude + 0.00015 };
 
   const serviceName = activeOrder?.type === 'Bottled' ? 'مياه معبأة' : (activeOrder?.type === 'Well' ? 'مياه الآبار' : 'مياه الشرب');
   const driverInfo = activeOrder?.driverInfo;

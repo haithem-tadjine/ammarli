@@ -119,7 +119,9 @@ export default function OrderTrackingScreen() {
     }
   }, [activeOrder, activeOrder?.status]);
 
-  const coordinates = userLocation || { latitude: 35.5557, longitude: 6.1748 };
+  const coordinates = (activeOrder?.location?.latitude && activeOrder?.location?.longitude)
+    ? activeOrder.location
+    : (userLocation || { latitude: 35.5557, longitude: 6.1748 });
   const dCoordinates = driverLocation || { latitude: coordinates.latitude - 0.008, longitude: coordinates.longitude - 0.012 };
   
   const isSearching = activeOrder?.status === 'searching';

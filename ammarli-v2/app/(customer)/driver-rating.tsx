@@ -77,9 +77,9 @@ export default function DriverRatingScreen() {
         await import('../../src/services/api').then(({ api }) => {
           return api.post(`/requests/${orderId}/rate`, {
             targetId,
-            driverRating,
+            rating: driverRating,
             appRating,
-            comment: `${selectedChips.join(', ')} - ${comment}`,
+            comment: selectedChips.length > 0 ? `${selectedChips.join(', ')} - ${comment}` : comment,
           });
         });
       }

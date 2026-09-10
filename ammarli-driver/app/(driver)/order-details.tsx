@@ -345,6 +345,7 @@ export default function OrderDetailsScreen() {
           serviceType: meta.label, 
           price: String(price),
           customerName: customerName,
+          customerPhone: customerPhone,
           items: JSON.stringify(activeDriverOrder?.items || []),
           orderType: orderType,
         },

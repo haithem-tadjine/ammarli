@@ -55,6 +55,8 @@ export default function InteractiveLocationPicker() {
 
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [bottomSheetHeight, setBottomSheetHeight] = useState(200);
 
   // Debounce search
   React.useEffect(() => {
@@ -192,6 +194,55 @@ export default function InteractiveLocationPicker() {
     }
   };
 
+  const handleGetCurrentLocation = async () => {
+    if (isLocating) return;
+    setIsLocating(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert("تنبيه", "يجب الموافقة على صلاحيات الموقع لتحديد مكانك بدقة.");
+        setIsLocating(false);
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      const lat = location.coords.latitude;
+      const lon = location.coords.longitude;
+      
+      const newRegion = {
+        latitude: lat,
+        longitude: lon,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      };
+
+      setRegion(newRegion);
+
+      if (Platform.OS !== 'web') {
+        mapRef.current?.animateToRegion(newRegion, 800);
+      }
+
+      try {
+        let geocode = await Location.reverseGeocodeAsync({
+          latitude: lat,
+          longitude: lon
+        });
+        if (geocode.length > 0) {
+          const shortAddress = geocode[0].district || geocode[0].street || geocode[0].city;
+          if (shortAddress) setAddress(shortAddress);
+        }
+      } catch (e) {
+        console.log("Geocode error on GPS button", e);
+      }
+    } catch (e) {
+      console.log("GPS fetch failed", e);
+      Alert.alert("خطأ", "تعذر الحصول على موقعك الحالي. يرجى التأكد من تشغيل الـ GPS وإعادة المحاولة.");
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
   const handleConfirmLocation = () => {
     updateDraftOrder({ location: { latitude: region.latitude, longitude: region.longitude, address } });
     router.back();
@@ -209,19 +260,15 @@ export default function InteractiveLocationPicker() {
         <MapView
           ref={mapRef}
           style={styles.map}
-          initialRegion={region}
+          region={region}
           onRegionChange={onRegionChange}
           onRegionChangeComplete={onRegionChangeComplete}
           showsUserLocation={true}
         />
       )}
 
-      {/* 2. Central Interactive Pin */}
+      {/* 2. Central Interactive Pin - no tooltip */}
       <View style={styles.markerFixed} pointerEvents="none">
-        <Animated.View style={[styles.tooltip, { transform: [{ translateY: pinTranslateY }] }]}>
-          <Text style={styles.tooltipText}>هل هذا موقع التوصيل؟</Text>
-          <View style={styles.tooltipTriangle} />
-        </Animated.View>
         <Animated.View style={[styles.pinContainer, { transform: [{ translateY: pinTranslateY }] }]}>
           <View style={styles.customPinOuter}>
              <View style={styles.customPinInner} />
@@ -268,52 +315,29 @@ export default function InteractiveLocationPicker() {
         )}
       </View>
 
-      {/* 4. GPS Location Button */}
+      {/* 4. GPS "موقعك الحالي" Button */}
       <TouchableOpacity 
-        style={styles.gpsButton}
-        onPress={async () => {
-           try {
-             let { status } = await Location.requestForegroundPermissionsAsync();
-             if (status !== 'granted') {
-               Alert.alert("تنبيه", "يجب الموافقة على صلاحيات الموقع لتحديد مكانك بدقة.");
-               return;
-             }
-             let location = await Location.getCurrentPositionAsync({
-               accuracy: Location.Accuracy.High,
-             });
-             const lat = location.coords.latitude;
-             const lon = location.coords.longitude;
-             setRegion(prev => ({
-               ...prev,
-               latitude: lat,
-               longitude: lon
-             }));
-             if (Platform.OS !== 'web') {
-               mapRef.current?.animateToRegion({
-                 latitude: lat,
-                 longitude: lon,
-                 latitudeDelta: 0.01,
-                 longitudeDelta: 0.01,
-               }, 1000);
-             }
-             let geocode = await Location.reverseGeocodeAsync({
-               latitude: lat,
-               longitude: lon
-             });
-             if (geocode.length > 0) {
-               setAddress(geocode[0].district || geocode[0].street || geocode[0].city || address);
-             }
-           } catch (e) {
-             console.log("GPS fetch failed", e);
-             Alert.alert("خطأ", "تعذر الحصول على موقعك الحالي. يرجى تفعيل خدمة الموقع (GPS).");
-           }
-        }}
+        style={[styles.gpsButton, { bottom: bottomSheetHeight + 14 }]}
+        onPress={handleGetCurrentLocation}
+        activeOpacity={0.8}
+        disabled={isLocating}
       >
-        <MaterialIconCrossPlatform name="crosshairs" size={24} color={COLORS.primaryBlue} />
+        {isLocating ? (
+          <ActivityIndicator size="small" color={COLORS.primaryBlue} />
+        ) : (
+          <Ionicons name="navigate" size={18} color={COLORS.primaryBlue} />
+        )}
+        <Text style={styles.gpsButtonText}>موقعك الحالي</Text>
       </TouchableOpacity>
 
       {/* 5. Bottom Sheet for Confirmation */}
-      <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 16 }]}>
+      <View 
+        style={[styles.bottomSheet, { paddingBottom: insets.bottom + 10 }]}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0) setBottomSheetHeight(h);
+        }}
+      >
         <View style={styles.handle} />
         
         <View style={styles.locationInfoRow}>
@@ -322,7 +346,7 @@ export default function InteractiveLocationPicker() {
             <Text style={styles.locationSubtitle}>حرك الخريطة لضبط المكان بدقة</Text>
           </View>
           <View style={styles.iconBackground}>
-            <Ionicons name="location-outline" color={COLORS.primaryBlue} size={26} />
+            <Ionicons name="location-outline" color={COLORS.primaryBlue} size={22} />
           </View>
         </View>
 
@@ -487,20 +511,28 @@ const styles = StyleSheet.create({
   backButton: { padding: 5 },
   gpsButton: {
     position: 'absolute',
-    bottom: 220,
-    right: 20, // Moved to right side for better thumb reach
+    alignSelf: 'center',
     backgroundColor: COLORS.white,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    elevation: 6,
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 25,
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    zIndex: 20,
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    zIndex: 40,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+    gap: 8,
+  },
+  gpsButtonText: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.primaryBlue,
   },
   bottomSheet: {
     position: 'absolute',
@@ -520,18 +552,19 @@ const styles = StyleSheet.create({
   },
   handle: {
     width: 40,
-    height: 5,
+    height: 4,
     backgroundColor: '#E5E5EA',
     borderRadius: 2.5,
     alignSelf: 'center',
-    marginVertical: 15,
+    marginTop: 10,
+    marginBottom: 10,
   },
   locationInfoRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'flex-end',
     width: '100%',
-    marginBottom: 25,
+    marginBottom: 14,
   },
   textContainer: {
     marginRight: 15,
@@ -557,8 +590,8 @@ const styles = StyleSheet.create({
   confirmButton: {
     backgroundColor: COLORS.accentYellow,
     width: '100%',
-    height: 60,
-    borderRadius: 18,
+    height: 52,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
@@ -568,7 +601,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   confirmButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Cairo-Bold',
     color: COLORS.primaryBlue,
   },

@@ -10,6 +10,7 @@ import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsPhoneNumber,
   ValidateIf,
@@ -88,4 +89,9 @@ export class RegisterReqDto {
   @IsOptional()
   @IsArray()
   brands?: string[];
+
+  /** Bottled water prices (bottled drivers only) */
+  @IsOptional()
+  @IsObject()
+  bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
 }

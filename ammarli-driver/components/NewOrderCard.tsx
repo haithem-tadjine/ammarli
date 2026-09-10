@@ -198,7 +198,7 @@ const NewOrderCard = ({
             onPress={async () => {
               setIsAccepting(true);
               try {
-                await onAccept();
+                await onAccept?.();
               } finally {
                 setIsAccepting(false);
               }

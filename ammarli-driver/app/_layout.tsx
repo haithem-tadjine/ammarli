@@ -279,6 +279,8 @@ export default function RootLayout() {
                   params: { 
                     orderId: globalIncomingOrder.orderId,
                     price: finalTotal.toString(),
+                    customerLat: globalIncomingOrder.deliveryAddress?.lat?.toString() || '',
+                    customerLng: globalIncomingOrder.deliveryAddress?.lng?.toString() || '',
                   }
                 });
               }}

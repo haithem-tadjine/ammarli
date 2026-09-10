@@ -189,6 +189,7 @@ export class AuthService {
         waterType: dto.waterType,
         capacity: dto.capacity,
         brands: dto.brands,
+        bottledPrices: dto.bottledPrices,
       }, manager);
     }
 

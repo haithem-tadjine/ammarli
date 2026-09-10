@@ -52,6 +52,7 @@ export default function TripCompletionScreen() {
     serviceType: string;
     price: string;
     customerName: string;
+    customerPhone?: string;
     items?: string;
     orderType?: string;
   }>();
@@ -104,11 +105,6 @@ export default function TripCompletionScreen() {
     }
   };
 
-  const handleBack = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
-  };
-
   const bgColors = isOnline ? (['#F8FAFC', '#E2E8F0'] as const) : (['#F1F5F9', '#CBD5E1'] as const);
 
   return (
@@ -146,6 +142,18 @@ export default function TripCompletionScreen() {
               </View>
             </View>
             
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <Text style={styles.infoValue}>{customerName ?? 'العميل'}</Text>
+              <Text style={styles.infoLabel}>الزبون:</Text>
+            </View>
+
+            <View style={[styles.infoRow, { marginTop: 10 }]}>
+              <Text style={[styles.infoValue, { direction: 'ltr' }]}>{params.customerPhone ?? '---'}</Text>
+              <Text style={styles.infoLabel}>رقم الهاتف:</Text>
+            </View>
+
             <View style={styles.divider} />
 
             <View style={styles.infoRow}>
@@ -208,15 +216,6 @@ export default function TripCompletionScreen() {
               <Text style={styles.primaryButtonText}>تم التوصيل بنجاح</Text>
             </>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.secondaryButton} 
-          activeOpacity={0.6}
-          onPress={handleBack}
-          disabled={isLoading}
-        >
-          <Text style={styles.secondaryButtonText}>رجوع للتفاصيل</Text>
         </TouchableOpacity>
       </BlurView>
       
@@ -393,25 +392,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
-    marginBottom: 15,
   },
   primaryButtonText: {
     color: COLORS.primary,
     fontSize: 18,
     fontFamily: 'Cairo-Black',
-  },
-  secondaryButton: {
-    width: '100%',
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(0,33,71,0.2)',
-  },
-  secondaryButtonText: {
-    color: COLORS.textSecondary,
-    fontSize: 15,
-    fontFamily: 'Cairo-Bold',
   },
 });

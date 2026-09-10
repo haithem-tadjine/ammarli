@@ -1,5 +1,6 @@
 import { UpdateUserReqDto } from '@/api/user/dto/update-user.req.dto';
 import { EnumFieldOptional, NumberFieldOptional } from '@/decorators/field.decorators';
+import { IsObject, IsOptional } from 'class-validator';
 import { DriverTypeEnum } from '../enums/driver-type.enum';
 
 export class UpdateDriverReqDto extends UpdateUserReqDto {
@@ -14,6 +15,8 @@ export class UpdateDriverReqDto extends UpdateUserReqDto {
   defaultPrice?: number;
 
   // أسعار القوارير لسائقي المياه المعبأة (fast accept)
+  @IsOptional()
+  @IsObject()
   bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
 
   @NumberFieldOptional({

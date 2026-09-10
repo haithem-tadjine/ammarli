@@ -259,6 +259,18 @@ export async function setupNotifeeOrderChannel() {
 // AndroidCategory.CALL = highest OS priority — bypasses DND & lock screen.
 // fullScreenAction opens the app's main Activity, expo-router then routes
 // to /(driver)/incoming-order via the notification data.
+
+/** Maps the internal orderType string to an Arabic display label. */
+function getServiceTypeLabel(orderType?: string): string {
+  switch (orderType) {
+    case 'bottles':            return 'مياه معبأة';
+    case 'well_water':         return 'مياه آبار';
+    case 'spring_water':       return 'مياه ينابيع';
+    case 'construction_water': return 'مياه بناء';
+    default:                   return 'خدمة مياه';
+  }
+}
+
 export async function triggerFullScreenOrderNotification(params?: {
   orderId?: string;
   customerName?: string;
@@ -286,11 +298,18 @@ export async function triggerFullScreenOrderNotification(params?: {
     return;
   }
 
-  // ── Trigger Floating Bubble Badge & Flyout Message ──
+  // ── Trigger Floating Bubble Badge & Order Card Overlay ──
   try {
     const Bubble = require('expo-floating-bubble');
     Bubble.setBadge(1);
-    Bubble.showMessage('طلبية جديدة في الانتظار ⏳');
+    Bubble.showOrderCard({
+      customerName: orderPayload.customerName,
+      price:        orderPayload.price,
+      serviceType:  getServiceTypeLabel(orderPayload.orderType),
+      address:      orderPayload.address,
+      distance:     orderPayload.distance,
+      orderId:      orderPayload.orderId,
+    });
   } catch (_) {}
 
   await notifee.displayNotification({

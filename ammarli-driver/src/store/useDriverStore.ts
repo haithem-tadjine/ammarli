@@ -503,6 +503,69 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       if (state.incomingOrdersQueue.some(o => o.orderId === mappedOrder.orderId)) return state;
       return { incomingOrdersQueue: [...state.incomingOrdersQueue, mappedOrder] };
     });
+
+    // ── Show native Order Card overlay (visible above any app in the background) ──
+    try {
+      const Bubble = require('expo-floating-bubble');
+      const registeredDriver = get().registeredDriver;
+      let serviceType = 'خدمة مياه';
+      if (registeredDriver?.driverType === 'Bottled') serviceType = 'مياه معبأة';
+      else if (registeredDriver?.waterType === 'well') serviceType = 'مياه آبار';
+      else if (registeredDriver?.waterType === 'spring') serviceType = 'مياه ينابيع';
+      else if (registeredDriver?.waterType === 'construction') serviceType = 'مياه بناء';
+
+      // Estimate price from driver's own pricing (same logic as _layout.tsx accept handler)
+      const driverTypeRaw  = registeredDriver?.driverType?.toLowerCase() || '';
+      const waterTypeRaw   = registeredDriver?.waterType?.toLowerCase()  || '';
+      const isSpringTanker = driverTypeRaw === 'tanker' && (waterTypeRaw === 'spring' || waterTypeRaw.includes('ينابيع'));
+      const isBottled      = driverTypeRaw === 'bottled';
+      const isWellOrConst  = driverTypeRaw === 'tanker' && !isSpringTanker;
+
+      let estimatedPrice = Number(mappedOrder.total) || 0;
+      const firstItemDetail = mappedOrder.items?.[0]?.detail || '';
+
+      if (isSpringTanker) {
+        const defPrice = (registeredDriver?.defaultPrice && registeredDriver.defaultPrice > 0) ? registeredDriver.defaultPrice : 0;
+        const liters   = parseFloat(firstItemDetail.replace(/\D/g, '') || '1000');
+        const calc     = (liters / 20) * defPrice;
+        if (calc > 0) estimatedPrice = calc;
+      } else if (isBottled) {
+        const bottledPrices = registeredDriver?.bottledPrices || { '0.5L': 0, '1.5L': 0, '5L': 0 };
+        const calc = (mappedOrder.items || []).reduce((sum: number, item: any) => {
+          const unitPrice = (bottledPrices as any)[item.detail] ?? 0;
+          return sum + ((item.qty || 1) * unitPrice);
+        }, 0);
+        if (calc > 0) estimatedPrice = calc;
+      } else if (isWellOrConst) {
+        const unitPrice  = registeredDriver?.pricePerUnit  ? Number(registeredDriver.pricePerUnit)  : 0;
+        const floorPrice = registeredDriver?.floorPrice    ? Number(registeredDriver.floorPrice)    : 0;
+        const liters     = parseFloat(firstItemDetail.replace(/\D/g, '') || '1500');
+        const numUnits   = Math.ceil(liters / 1500);
+        const floorCount = parseInt(mappedOrder.items?.[0]?.floor || '0') || 0;
+        const calc       = (numUnits * unitPrice) + (floorCount * floorPrice);
+        if (calc > 0) estimatedPrice = calc;
+      }
+
+      const quantityStr = mappedOrder.items?.map(i => i.detail).join(' + ') || '';
+
+      const cardParams = {
+        customerName: mappedOrder.customer.name || 'زبون جديد',
+        price:        String(estimatedPrice  || 0),
+        serviceType,
+        address:      mappedOrder.deliveryAddress.label    || '',
+        distance:     mappedOrder.deliveryAddress.distance || '',
+        orderId:      mappedOrder.orderId,
+        quantity:     quantityStr,
+      };
+
+      // Show floating overlay (when screen is ON and app in background)
+      Bubble.showOrderCard(cardParams);
+
+      // Also fire Full-Screen Intent (wakes the screen if locked)
+      try { Bubble.showLockScreenCard(cardParams); } catch (_) {}
+    } catch (_) {
+      // expo-floating-bubble not available (iOS / Expo Go) — silently skip
+    }
   },
 
   shiftIncomingQueue: () => {
@@ -515,6 +578,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     set((state) => ({
       incomingOrdersQueue: state.incomingOrdersQueue.filter(o => o.orderId !== orderId)
     }));
+    // Dismiss the native card if visible
+    try { require('expo-floating-bubble').hideOrderCard(); } catch (_) {}
   },
 
   handleSocketCancel: (orderId?: string) => {
@@ -536,6 +601,8 @@ export const useDriverStore = create<DriverState>((set, get) => ({
   },
 
   acceptDriverOrder: async (order) => {
+    // Dismiss the native overlay card immediately
+    try { require('expo-floating-bubble').hideOrderCard(); } catch (_) {}
     try {
       await api.post(`/requests/${order.orderId}/lock`);
       const isRetail = get().registeredDriver?.driverType === 'Bottled' || 

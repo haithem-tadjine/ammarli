@@ -611,6 +611,7 @@ export class RequestService {
   async rateRequest(requestId: string, dto: import('./dto/rate-request.dto').RateRequestDto, reviewerId: string) {
     const request = await this.requestRepo.findOne({
       where: { id: requestId as Uuid },
+      relations: ['driver', 'driver.user'],
     });
 
     if (!request) {
@@ -621,7 +622,9 @@ export class RequestService {
       throw new Error('Request is not completed yet');
     }
 
-    const isDriverRatingCustomer = request.driverId === reviewerId;
+    const isDriverRatingCustomer =
+      request.driverId === reviewerId ||
+      request.driver?.user?.id === reviewerId;
     const isCustomerRatingDriver = request.userId === reviewerId;
 
     if (!isDriverRatingCustomer && !isCustomerRatingDriver) {

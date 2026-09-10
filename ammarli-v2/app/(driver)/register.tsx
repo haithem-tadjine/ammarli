@@ -102,12 +102,15 @@ const DriverRegistrationScreen = () => {
     ]).start();
   };
 
-
-
   const [vehicleType, setVehicleType] = useState<'tanker' | 'bottled'>('tanker');
   const [waterType,   setWaterType]   = useState('spring');
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [capacity,    setCapacity]    = useState('5000');
+
+  // أسعار القوارير لسائق المياه المعبأة
+  const [price05, setPrice05] = useState('');
+  const [price15, setPrice15] = useState('');
+  const [price5,  setPrice5]  = useState('');
 
   const [fullName,  setFullName]  = useState('');
   const [phone,     setPhone]     = useState('');
@@ -134,14 +137,31 @@ const DriverRegistrationScreen = () => {
       shake();
       return;
     }
-    if (vehicleType === 'bottled' && selectedBrands.length === 0) {
-      Alert.alert('اختر علامة تجارية', 'يرجى اختيار علامة تجارية واحدة على الأقل.');
-      shake();
-      return;
+    if (vehicleType === 'bottled') {
+      if (selectedBrands.length === 0) {
+        Alert.alert('اختر علامة تجارية', 'يرجى اختيار علامة تجارية واحدة على الأقل.');
+        shake();
+        return;
+      }
+      const p05 = parseFloat(price05);
+      const p15 = parseFloat(price15);
+      const p5  = parseFloat(price5);
+      if (isNaN(p05) || p05 <= 0 || isNaN(p15) || p15 <= 0 || isNaN(p5) || p5 <= 0) {
+        Alert.alert('تحديد الأسعار مطلوب', 'يرجى إدخال أسعار صحيحة لجميع أحجام العبوات (0.5L، 1.5L، 5L).');
+        shake();
+        return;
+      }
     }
 
     setLoading(true);
     try {
+      const p05 = parseFloat(price05);
+      const p15 = parseFloat(price15);
+      const p5  = parseFloat(price5);
+      const bottledPrices = vehicleType === 'bottled' && !isNaN(p05) && !isNaN(p15) && !isNaN(p5)
+        ? { '0.5L': p05, '1.5L': p15, '5L': p5 }
+        : undefined;
+
       await useAuthStore.getState().register({
         phone: phone.trim(),
         firstName: fullName.trim().split(' ')[0],
@@ -153,6 +173,7 @@ const DriverRegistrationScreen = () => {
         waterType: vehicleType === 'tanker' ? waterType : undefined,
         brands: vehicleType === 'bottled' ? selectedBrands : undefined,
         capacity: vehicleType === 'tanker' ? Number(capacity) : undefined,
+        bottledPrices,
       });
 
       // الدخول التلقائي سيغير الـ state 
@@ -252,6 +273,56 @@ const DriverRegistrationScreen = () => {
               );
             })}
           </View>
+
+          {/* أسعار بيع العبوات */}
+          <Text style={styles.sectionLabel}>أسعار بيع العبوات (د.ج)</Text>
+          <Text style={styles.sectionSublabel}>
+            يرجى تحديد سعر البيع لكل حجم لحساب تكلفة الطلبات تلقائياً
+          </Text>
+          <View style={styles.pricingRow}>
+            <View style={styles.priceCol}>
+              <Text style={styles.priceColTitle}>فاردو 0.5L</Text>
+              <View style={styles.priceInputWrap}>
+                <TextInput
+                  style={styles.priceTextInput}
+                  placeholder="150"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="numeric"
+                  value={price05}
+                  onChangeText={setPrice05}
+                />
+                <Text style={styles.priceCurrency}>د.ج</Text>
+              </View>
+            </View>
+            <View style={styles.priceCol}>
+              <Text style={styles.priceColTitle}>فاردو 1.5L</Text>
+              <View style={styles.priceInputWrap}>
+                <TextInput
+                  style={styles.priceTextInput}
+                  placeholder="200"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="numeric"
+                  value={price15}
+                  onChangeText={setPrice15}
+                />
+                <Text style={styles.priceCurrency}>د.ج</Text>
+              </View>
+            </View>
+            <View style={styles.priceCol}>
+              <Text style={styles.priceColTitle}>قارورة 5L</Text>
+              <View style={styles.priceInputWrap}>
+                <TextInput
+                  style={styles.priceTextInput}
+                  placeholder="90"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="numeric"
+                  value={price5}
+                  onChangeText={setPrice5}
+                />
+                <Text style={styles.priceCurrency}>د.ج</Text>
+              </View>
+            </View>
+          </View>
         </View>
       )}
 
@@ -322,8 +393,6 @@ const DriverRegistrationScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} translucent={false} />
 
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} translucent={false} />
-
       {/* ── Navy Header with Logo ──────────────────────────────────────────── */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.absoluteBack} onPress={() => router.back()}>
@@ -336,17 +405,18 @@ const DriverRegistrationScreen = () => {
       </View>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View style={styles.formCard}>
-            <Text style={styles.cardHeaderTitle}>تسجيل حساب</Text>
+            <Text style={styles.cardHeaderTitle}>تسجيل حساب سائق</Text>
             {FormContent}
           </View>
         </ScrollView>
@@ -371,16 +441,58 @@ const styles = StyleSheet.create({
   absoluteBack: { position: 'absolute', top: 20, right: 20, zIndex: 10, width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
 
   // Scroll / Card
-  scrollContent: { paddingHorizontal: 25, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 160, flexGrow: 1 },
   formCard: {
-    backgroundColor: COLORS.white, borderRadius: 35, padding: 30, width: '100%',
+    backgroundColor: COLORS.white, borderRadius: 35, padding: 25, width: '100%',
     elevation: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 15 }, shadowOpacity: 0.3, shadowRadius: 25,
   },
   cardHeaderTitle: { fontSize: 20, fontWeight: '900', color: COLORS.primary, textAlign: 'center', marginBottom: 20, fontFamily: 'Cairo-Bold' },
 
   formSection:  { marginBottom: 10 },
-  sectionLabel: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginBottom: 12, textAlign: 'left', marginTop: 15 },
+  sectionLabel: { fontSize: 15, fontWeight: '800', color: COLORS.primary, marginBottom: 8, textAlign: 'left', marginTop: 15 },
+  sectionSublabel: { fontSize: 12, color: COLORS.textGray, marginBottom: 12, textAlign: 'left', fontFamily: 'Cairo-Regular' },
+
+  // Pricing inputs
+  pricingRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 15,
+  },
+  priceCol: {
+    flex: 1,
+  },
+  priceColTitle: {
+    fontSize: 11,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.primary,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  priceInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    height: 48,
+  },
+  priceTextInput: {
+    flex: 1,
+    fontFamily: 'Cairo-Bold',
+    fontSize: 14,
+    color: COLORS.primary,
+    textAlign: 'center',
+    paddingVertical: 0,
+  },
+  priceCurrency: {
+    fontSize: 10,
+    fontFamily: 'Cairo-Bold',
+    color: COLORS.textGray,
+    marginStart: 2,
+  },
 
   // Vehicle cards
   row:                  { flexDirection: 'row', gap: 10, marginBottom: 10 },

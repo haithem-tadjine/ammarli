@@ -39,6 +39,7 @@ export class DriverService {
       waterType?: string;
       capacity?: number;
       brands?: string[];
+      bottledPrices?: { '0.5L': number; '1.5L': number; '5L': number };
     },
     manager?: EntityManager,
   ): Promise<DriverEntity> {
@@ -50,6 +51,7 @@ export class DriverService {
       waterType: extras?.waterType,
       capacity: extras?.capacity,
       inventory: extras?.brands ? { brands: extras.brands } : undefined,
+      bottledPrices: extras?.bottledPrices,
     });
     return await repo.save(driver);
   }
