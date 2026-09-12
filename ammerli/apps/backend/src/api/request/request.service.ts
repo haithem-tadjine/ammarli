@@ -44,7 +44,6 @@ import { SettingService } from '../setting/setting.service';
  * @class RequestService
  */
 import { ConfigService } from '@nestjs/config';
-import { SimulationService } from '../simulation/simulation.service';
 import { AllConfigType } from '@/config/config.type';
 
 @Injectable()
@@ -63,8 +62,8 @@ export class RequestService {
     private readonly settingService: SettingService,
     private readonly redisLibsService: RedisLibsService,
     private readonly configService: ConfigService<AllConfigType>,
-    @Inject(forwardRef(() => SimulationService))
-    private readonly simulationService: SimulationService,
+    @InjectQueue('simulation-queue')
+    private readonly simulationQueue: Queue,
     @InjectQueue('continuous-matching')
     private readonly continuousMatchingQueue: Queue,
     @InjectQueue('dispatch-timeout')
@@ -136,7 +135,11 @@ export class RequestService {
 
     if (finalPayload.isReviewOrder) {
       this.logger.log(`Intercepted Review Order ${finalPayload.id}. Starting simulation flow...`);
-      await this.simulationService.simulateDriverFlow(finalPayload as any);
+      await this.simulationQueue.add(
+        'simulate-accept',
+        { requestId: finalPayload.id },
+        { delay: 3000 },
+      );
     } else {
       // ── 1. Event-Driven: Trigger On-Demand Matching for this specific request ─
       await this.continuousMatchingQueue.add(

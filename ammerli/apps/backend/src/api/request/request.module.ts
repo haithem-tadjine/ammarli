@@ -17,7 +17,6 @@ import { GeocodingModule } from '@/libs/geocoding/geocoding.module';
 import { SettingModule } from '../setting/setting.module';
 
 import { BullModule } from '@nestjs/bullmq';
-import { SimulationModule } from '../simulation/simulation.module';
 
 @Module({
   imports: [
@@ -37,7 +36,9 @@ import { SimulationModule } from '../simulation/simulation.module';
     forwardRef(() => DispatchModule),
     GeocodingModule,
     SettingModule,
-    forwardRef(() => SimulationModule),
+    BullModule.registerQueue({
+      name: 'simulation-queue',
+    }),
   ],
   controllers: [RequestController],
   providers: [RequestService, RequestCacheRepository],
