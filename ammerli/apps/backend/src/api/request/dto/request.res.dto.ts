@@ -147,6 +147,13 @@ export class RequestResDto extends CreateRequestDto {
   dispatchAttempts?: number = 0;
 
   /**
+   * Flag indicating if this is a Google Play review order.
+   * Review orders bypass production dispatch and financial transactions.
+   */
+  @Expose()
+  isReviewOrder?: boolean;
+
+  /**
    * The driver ID to whom the request is currently offered.
    */
   @UUIDField({ nullable: true })

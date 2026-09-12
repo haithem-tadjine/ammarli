@@ -3,6 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
 import { UserService } from './user.service';
+import { ConfigService } from '@nestjs/config';
+import { AppLogger } from 'src/logger/logger.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { RedisLibsService } from '@/libs/redis/redis-libs.service';
 
 describe('UserService', () => {
   let service: UserService;
@@ -22,6 +26,10 @@ describe('UserService', () => {
           provide: getRepositoryToken(UserEntity),
           useValue: userRepositoryValue,
         },
+        { provide: ConfigService, useValue: {} },
+        { provide: AppLogger, useValue: { setContext: jest.fn() } },
+        { provide: CACHE_MANAGER, useValue: {} },
+        { provide: RedisLibsService, useValue: { zcard: jest.fn() } },
       ],
     }).compile();
 

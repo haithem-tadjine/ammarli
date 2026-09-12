@@ -130,6 +130,33 @@ export default function DriverDashboardScreen() {
   const setIsOnline = useDriverStore(s => s.setIsOnline);
   const [showOrder, setShowOrder] = useState(false);
   const [showProminentDisclosure, setShowProminentDisclosure] = useState(false);
+  const isReviewerAccount = useAuthStore(s => s.userProfile?.phone) === '+213000000000';
+
+  const triggerMockOrder = () => {
+    const mockPayload = {
+      id: "mock_" + Date.now().toString(),
+      user: {
+        firstName: "Play",
+        lastName: "Reviewer",
+        phone: "+213000000000"
+      },
+      deliveryAddress: "Google Play Test Location",
+      pickupLat: 36.7525,
+      pickupLng: 3.0420,
+      bottledItems: {
+        "1": {
+          brand: "Ifri",
+          size: "1.5L",
+          qty: 4,
+          unitPrice: 30,
+          floor: 0
+        }
+      },
+      totalPrice: 120,
+      status: "pending"
+    };
+    useDriverStore.getState().handleSocketDispatch(mockPayload);
+  };
 
   // تشغيل صوت تنبيه + اهتزاز متكرر طوال مدة ظهور بطاقة الطلبية
   useDriverAlert(showOrder);
@@ -601,7 +628,6 @@ export default function DriverDashboardScreen() {
 
 
       
-      {/* 1. Top Floating Header */}
       <View style={[styles.headerTarget, { paddingTop: insets.top + 15 }]}>
         <View style={styles.userInfoWrap}>
           <View style={styles.avatarPlaceholder}>
@@ -612,14 +638,21 @@ export default function DriverDashboardScreen() {
              <Text style={styles.greetingTextTarget}>{driver_name}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.iconButtonTarget} onPress={() => router.push('/(driver)/notifications')}>
-          <View style={styles.notifWrap}>
-            <Ionicons name="notifications-outline" size={24} color={COLORS.primary} />
-            {useDriverStore(s => s.notifications.some(n => !n.isRead)) && (
-              <View style={styles.dotTarget} />
-            )}
-          </View>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {isReviewerAccount && (
+            <TouchableOpacity style={{ backgroundColor: COLORS.success, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }} onPress={triggerMockOrder}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>Simulate Order</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.iconButtonTarget} onPress={() => router.push('/(driver)/notifications')}>
+            <View style={styles.notifWrap}>
+              <Ionicons name="notifications-outline" size={24} color={COLORS.primary} />
+              {useDriverStore(s => s.notifications.some(n => !n.isRead)) && (
+                <View style={styles.dotTarget} />
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}>

@@ -30,7 +30,8 @@ export class ProductMetricProvider extends BaseMetricProvider<ProductStats> {
     const baseQuery = this.orderRepository
       .createQueryBuilder('order')
       .innerJoin(RequestEntity, 'request', 'request.id = order.requestId')
-      .where('order.status = :status', { status: OrderStatusEnum.DELIVERED });
+      .where('order.status = :status', { status: OrderStatusEnum.DELIVERED })
+      .andWhere('request.isReviewOrder = false');
 
     this.applyDateFilters(baseQuery, filters, 'order');
 

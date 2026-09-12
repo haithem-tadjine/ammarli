@@ -17,6 +17,7 @@ import { GeocodingModule } from '@/libs/geocoding/geocoding.module';
 import { SettingModule } from '../setting/setting.module';
 
 import { BullModule } from '@nestjs/bullmq';
+import { SimulationModule } from '../simulation/simulation.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { BullModule } from '@nestjs/bullmq';
     forwardRef(() => DispatchModule),
     GeocodingModule,
     SettingModule,
+    forwardRef(() => SimulationModule),
   ],
   controllers: [RequestController],
   providers: [RequestService, RequestCacheRepository],

@@ -43,7 +43,8 @@ export class RevenueMetricProvider extends BaseMetricProvider<RevenueStats> {
       .createQueryBuilder('order')
       .innerJoin(RequestEntity, 'request', 'request.id = order.requestId')
       .innerJoin(ProductEntity, 'product', 'product.id = request.productId')
-      .where('order.status = :status', { status: OrderStatusEnum.DELIVERED });
+      .where('order.status = :status', { status: OrderStatusEnum.DELIVERED })
+      .andWhere('request.isReviewOrder = false');
 
     this.applyDateFilters(baseQuery, filters, 'order');
 

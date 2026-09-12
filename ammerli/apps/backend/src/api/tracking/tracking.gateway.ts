@@ -30,6 +30,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WilayaEntity } from '../wilaya/entities/wilaya.entity';
 import { RedisLibsService } from '@/libs/redis/redis-libs.service';
+import { SimulationService } from '../simulation/simulation.service';
 
 /**
  * WebSocket Gateway for driver location updates and alerts.
@@ -62,6 +63,8 @@ export class TrackingGateway
     private readonly dispatchService: DispatchService,
     @Inject(forwardRef(() => RequestService))
     private readonly requestService: RequestService,
+    @Inject(forwardRef(() => SimulationService))
+    private readonly simulationService: SimulationService,
     private readonly notificationService: NotificationService,
     private readonly geocodingService: GeocodingService,
     @InjectRepository(WilayaEntity)
@@ -111,10 +114,10 @@ export class TrackingGateway
           const cachedDriver: any = await this.cacheManager.get(cacheKey);
 
           if (cachedDriver) {
-            // Cache Hit: Proceed immediately
             driverType = cachedDriver.type;
             waterType = cachedDriver.waterType;
             isSuspended = cachedDriver.isSuspended;
+            client.data.phone = cachedDriver.phone;
             this.logger.debug(`[Cache Hit] Driver ${driverId} authenticated from Redis`);
           } else {
             // Cache Miss: Query Database
@@ -122,11 +125,13 @@ export class TrackingGateway
             driverType = driver.type;
             waterType = driver.waterType;
             isSuspended = driver.isSuspended;
+            client.data.phone = driver.user?.phone;
             
             await this.cacheManager.set(cacheKey, {
               type: driverType,
               waterType: waterType,
               isSuspended: isSuspended,
+              phone: client.data.phone,
             }, 86400 * 1000); 
             this.logger.debug(`[Cache Miss] Driver ${driverId} authenticated from DB and cached`);
           }
@@ -143,6 +148,22 @@ export class TrackingGateway
           isSuspended,
         );
         this.logger.log(`${LogConstants.TRACKING.DRIVER_CONNECTED}: ${driverId}`);
+
+        // Phase 4: Driver Review Flow Interception
+        const reviewDriverPhone = this.configService.get<string>('REVIEW_DRIVER_PHONE');
+        if (reviewDriverPhone && client.data.phone === reviewDriverPhone) {
+          this.logger.log(`[Review Environment] Review Driver ${driverId} connected. Bypassing production Geo Pool and injecting mock offer.`);
+          client.data.isReviewDriver = true;
+          
+          // Ensure idempotency for the session by checking for an active request
+          const activeRequest = await this.requestService.findActiveRequest(driverId as Uuid);
+          
+          if (!activeRequest) {
+            await this.simulationService.injectMockOffer(driverId, driverId);
+          } else {
+            this.logger.log(`[Review Environment] Review Driver ${driverId} already has an active request (${activeRequest.id}). Skipping injection.`);
+          }
+        }
       } else {
         // User Connection
         client.data.userId = userId;
@@ -393,11 +414,14 @@ export class TrackingGateway
         throw new Error(ErrorMessageConstants.TRACKING.SERVICE_NOT_INITIALIZED);
       }
 
-      const updated = await this.trackingService.updateDriverLocation(
-        driverId,
-        lat,
-        lng,
-      );
+      let updated: number | boolean = 0;
+      if (!client.data.isReviewDriver) {
+        updated = await this.trackingService.updateDriverLocation(
+          driverId,
+          lat,
+          lng,
+        );
+      }
 
       client.emit('location_ack', {
         driverId,
@@ -431,7 +455,7 @@ export class TrackingGateway
       const lastHeavyOps = this._heavyOpsThrottle.get(driverId) ?? 0;
       const shouldRunHeavyOps = (now - lastHeavyOps) >= this.HEAVY_OPS_INTERVAL_MS;
 
-      if (shouldRunHeavyOps) {
+      if (shouldRunHeavyOps && !client.data.isReviewDriver) {
         this._heavyOpsThrottle.set(driverId, now);
 
         const geoResult = await this.geocodingService.reverseGeocode(lat, lng);

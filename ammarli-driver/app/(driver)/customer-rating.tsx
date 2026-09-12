@@ -120,7 +120,11 @@ export default function CustomerRatingScreen() {
       
       const customerId = 'unknown'; 
       if (orderId) {
-        await import('../../src/services/api').then(({ api }) => {
+        await import('../../src/services/api').then(async ({ api }) => {
+          if (orderId.startsWith('mock_')) {
+             console.log('[MOCK] Bypassing rate API for mock order:', orderId);
+             return;
+          }
           // Submit customer rating
           const req1 = api.post(`/requests/${orderId}/rate`, {
             targetId: customerId,
@@ -138,9 +142,9 @@ export default function CustomerRatingScreen() {
               orderId: orderId,
             }).catch(e => console.warn('App rating submission not implemented on backend', e));
           }
-
-          return Promise.all([req1, req2]);
-        });
+          
+          await Promise.all([req1, req2].filter(Boolean));
+        }).catch(e => console.error('Failed to submit rating', e));
       }
       setSubmitted(true);
     } catch (e) {

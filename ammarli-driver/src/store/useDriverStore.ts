@@ -604,7 +604,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     // Dismiss the native overlay card immediately
     try { require('expo-floating-bubble').hideOrderCard(); } catch (_) {}
     try {
-      await api.post(`/requests/${order.orderId}/lock`);
+      if (!order.orderId.startsWith('mock_')) {
+        await api.post(`/requests/${order.orderId}/lock`);
+      } else {
+        console.log('[MOCK] Bypassing lock API for mock order:', order.orderId);
+      }
       const isRetail = get().registeredDriver?.driverType === 'Bottled' || 
                        (get().registeredDriver?.driverType === 'Tanker' && get().registeredDriver?.waterType === 'spring');
       set((state) => {
@@ -624,7 +628,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   rejectDriverOrder: async (orderId) => {
     try {
-      await api.post(`/requests/${orderId}/reject`);
+      if (!orderId.startsWith('mock_')) {
+        await api.post(`/requests/${orderId}/reject`);
+      } else {
+        console.log('[MOCK] Bypassing reject API for mock order:', orderId);
+      }
     } catch (e) {
       console.error('Failed to reject order:', e);
     }
@@ -643,7 +651,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   refuseDriverOrder: async (requestId) => {
     try {
-      await api.post(`/dispatch/refuse`, { requestId });
+      if (!requestId.startsWith('mock_')) {
+        await api.post(`/dispatch/refuse`, { requestId });
+      } else {
+        console.log('[MOCK] Bypassing refuse API for mock order:', requestId);
+      }
     } catch (e) { console.error('Failed to refuse order:', e); }
     // DO NOT clear activeDriverOrder here. The UI will shift the queue, active is only for accepted orders.
   },
@@ -653,12 +665,16 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     let updatedRequest: any = null;
     if (activeId) {
       try {
-        if (status === 'arrived') await api.post(`/requests/${activeId}/arrived`);
-        if (status === 'driving') {
-          const res = await api.post(`/requests/${activeId}/start`, { price });
-          if (res.data) {
-            updatedRequest = res.data;
+        if (!activeId.startsWith('mock_')) {
+          if (status === 'arrived') await api.post(`/requests/${activeId}/arrived`);
+          if (status === 'driving') {
+            const res = await api.post(`/requests/${activeId}/start`, { price });
+            if (res.data) {
+              updatedRequest = res.data;
+            }
           }
+        } else {
+          console.log('[MOCK] Bypassing status update API for mock order:', activeId, status);
         }
       } catch (e: any) {
         console.error('Failed to update order status (arrived/driving):', e?.response?.data || e.message);
@@ -700,7 +716,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
     if (!activeId) return;
 
     try {
-      await api.post(`/requests/${activeId}/complete`);
+      if (!activeId.startsWith('mock_')) {
+        await api.post(`/requests/${activeId}/complete`);
+      } else {
+        console.log('[MOCK] Bypassing complete API for mock order:', activeId);
+      }
     } catch (e) { console.error('Failed to complete order:', e); }
 
     set((s) => {
@@ -794,7 +814,11 @@ export const useDriverStore = create<DriverState>((set, get) => ({
       const payload = { reason: reason || 'Driver cancelled due to unforeseen circumstances' };
       console.log('[DEBUG API] Cancelling order with payload:', payload); 
       try {
-        await api.post(`/requests/${activeId}/cancel`, payload);
+        if (!activeId.startsWith('mock_')) {
+          await api.post(`/requests/${activeId}/cancel`, payload);
+        } else {
+          console.log('[MOCK] Bypassing cancel API for mock order:', activeId);
+        }
       } catch (e) { console.error('Failed to cancel order:', e); }
     }
     set((s) => {

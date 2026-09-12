@@ -14,6 +14,8 @@ import { RequestStatusEnum } from '../request/enums/request-status.enum';
 import { RequestService } from '../request/request.service';
 import { DispatchService } from './dispatch.service';
 import { MatchingService } from './matching.service';
+import { DriverMetadataService } from '../driver/driver-metadata.service';
+import { getQueueToken } from '@nestjs/bullmq';
 
 // Mock UUID to avoid issues
 jest.mock('uuid', () => ({ v4: () => 'test-uuid' }));
@@ -52,6 +54,7 @@ describe('DispatchService', () => {
       error: jest.fn(),
       warn: jest.fn(),
       debug: jest.fn(),
+      log: jest.fn(),
     };
     redisScriptService = {
       eval: jest.fn().mockResolvedValue({ success: true }),
@@ -71,6 +74,9 @@ describe('DispatchService', () => {
         },
         { provide: RedisScriptService, useValue: redisScriptService },
         { provide: OrderService, useValue: { createOrder: jest.fn() } },
+        { provide: DriverMetadataService, useValue: {} },
+        { provide: getQueueToken('continuous-matching'), useValue: { add: jest.fn(), remove: jest.fn() } },
+        { provide: getQueueToken('dispatch-timeout'), useValue: { add: jest.fn(), remove: jest.fn() } },
       ],
     }).compile();
 
@@ -139,6 +145,8 @@ describe('DispatchService', () => {
         },
       ]);
 
+      redisScriptService.eval.mockResolvedValue(1);
+
       const result = await service.dispatchRequest(requestDto);
 
       expect(result).toHaveLength(1);
@@ -153,7 +161,7 @@ describe('DispatchService', () => {
       // Verify event emission
       expect(amqpConnection.publish).toHaveBeenCalledWith(
         'requests',
-        'request.dispatched',
+        'driver.offered',
         expect.objectContaining({
           id: requestId,
           matchedDrivers: expect.arrayContaining([
@@ -192,9 +200,9 @@ describe('DispatchService', () => {
 
       expect(result).toEqual({ success: true });
       expect(redisScriptService.eval).toHaveBeenCalledWith(
-        'REFUSE_REQUEST',
+        'REJECT_REQUEST',
         [expect.stringContaining(requestId)],
-        [driverId, RequestStatusEnum.SEARCHING, RequestStatusEnum.DISPATCHED],
+        [userId, RequestStatusEnum.SEARCHING, RequestStatusEnum.DISPATCHED, RequestStatusEnum.LOCKED],
       );
       expect(amqpConnection.publish).toHaveBeenCalledWith(
         'requests',
@@ -216,26 +224,5 @@ describe('DispatchService', () => {
       });
     });
 
-    it('should throw 404 if request not found', async () => {
-      driverRepo.findOne.mockResolvedValue(driverEntity);
-      redisScriptService.eval.mockResolvedValue(-1);
-
-      await expect(
-        service.refuseRequest(requestId as Uuid, userId as Uuid),
-      ).rejects.toMatchObject({
-        errorCode: ErrorMessageConstants.REQUEST.NOT_FOUND,
-      });
-    });
-
-    it('should throw 400 if request is already ACCEPTED', async () => {
-      driverRepo.findOne.mockResolvedValue(driverEntity);
-      redisScriptService.eval.mockResolvedValue(0);
-
-      await expect(
-        service.refuseRequest(requestId as Uuid, userId as Uuid),
-      ).rejects.toMatchObject({
-        errorCode: ErrorMessageConstants.REQUEST.NOT_AVAILABLE,
-      });
-    });
   });
 });

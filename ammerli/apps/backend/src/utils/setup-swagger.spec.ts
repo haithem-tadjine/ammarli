@@ -4,6 +4,10 @@ import { SwaggerModule } from '@nestjs/swagger';
 import { Test, TestingModule } from '@nestjs/testing';
 import setupSwagger from './setup-swagger';
 
+jest.mock('@scalar/nestjs-api-reference', () => ({
+  apiReference: jest.fn(() => (req: any, res: any, next: any) => next()),
+}));
+
 describe('setupSwagger', () => {
   let app: INestApplication;
   let configService: ConfigService;
@@ -35,25 +39,22 @@ describe('setupSwagger', () => {
   });
 
   it('should call ConfigService with correct parameters', () => {
-    setupSwagger(app);
+    setupSwagger(app, 'api');
     expect(configService.getOrThrow).toHaveBeenCalledWith('app.name', {
-      infer: true,
-    });
-    expect(configService.getOrThrow).toHaveBeenCalledWith('app.url', {
       infer: true,
     });
   });
 
   it('should call SwaggerModule.createDocument with correct parameters', () => {
     const createDocumentSpy = jest.spyOn(SwaggerModule, 'createDocument');
-    setupSwagger(app);
+    setupSwagger(app, 'api');
     expect(createDocumentSpy).toHaveBeenCalled();
   });
 
   it('should call SwaggerModule.setup with correct parameters', () => {
     const setupSpy = jest.spyOn(SwaggerModule, 'setup');
-    setupSwagger(app);
-    expect(setupSpy).toHaveBeenCalledWith('api-docs', app, expect.any(Object), {
+    setupSwagger(app, 'api');
+    expect(setupSpy).toHaveBeenCalledWith('api/api-docs', app, expect.any(Object), {
       customSiteTitle: 'TestApp',
     });
   });

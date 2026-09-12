@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
@@ -43,6 +43,10 @@ import { SettingService } from '../setting/setting.service';
  *
  * @class RequestService
  */
+import { ConfigService } from '@nestjs/config';
+import { SimulationService } from '../simulation/simulation.service';
+import { AllConfigType } from '@/config/config.type';
+
 @Injectable()
 export class RequestService {
   constructor(
@@ -58,6 +62,9 @@ export class RequestService {
     private readonly dataSource: DataSource,
     private readonly settingService: SettingService,
     private readonly redisLibsService: RedisLibsService,
+    private readonly configService: ConfigService<AllConfigType>,
+    @Inject(forwardRef(() => SimulationService))
+    private readonly simulationService: SimulationService,
     @InjectQueue('continuous-matching')
     private readonly continuousMatchingQueue: Queue,
     @InjectQueue('dispatch-timeout')
@@ -92,12 +99,16 @@ export class RequestService {
     
     this.logger.log(`Full User fetched for request: ${JSON.stringify(fullUser)}`);
 
+    const reviewCustomerPhone = this.configService.get<string>('app.reviewCustomerPhone', { infer: true });
+    const isReviewOrder = Boolean(reviewCustomerPhone && fullUser?.phone === reviewCustomerPhone);
+
     const requestId = uuidv4() as Uuid;
     const payload = plainToInstance(RequestResDto, {
       id: requestId,
       status: RequestStatusEnum.SEARCHING,
       user: fullUser,
       driverId: null,
+      isReviewOrder: isReviewOrder,
       createdAt: new Date().toISOString(),
       ...dto,
     });
@@ -123,27 +134,32 @@ export class RequestService {
 
     this.logger.log(`${LogConstants.REQUEST.RECEIVED}: ${finalPayload.id}`);
 
-    // ── 1. Event-Driven: Trigger On-Demand Matching for this specific request ─
-    await this.continuousMatchingQueue.add(
-      'match-request',
-      { requestId: finalPayload.id },
-      { delay: 0, jobId: `match-request-${finalPayload.id}-${Date.now()}` },
-    );
+    if (finalPayload.isReviewOrder) {
+      this.logger.log(`Intercepted Review Order ${finalPayload.id}. Starting simulation flow...`);
+      await this.simulationService.simulateDriverFlow(finalPayload as any);
+    } else {
+      // ── 1. Event-Driven: Trigger On-Demand Matching for this specific request ─
+      await this.continuousMatchingQueue.add(
+        'match-request',
+        { requestId: finalPayload.id },
+        { delay: 0, jobId: `match-request-${finalPayload.id}-${Date.now()}` },
+      );
 
-    // ── 2. Request Expiration: Single 3-Minute Delayed Job ──────────────────
-    // Replaces random timeout polling. Automatically marks request UNFULFILLED
-    // after 3 minutes if no driver accepted it.
-    await this.dispatchTimeoutQueue.add(
-      'request-expiration-job',
-      { requestId: finalPayload.id },
-      { delay: 180000, jobId: `request-expiration-${finalPayload.id}` },
-    );
+      // ── 2. Request Expiration: Single 3-Minute Delayed Job ──────────────────
+      // Replaces random timeout polling. Automatically marks request UNFULFILLED
+      // after 3 minutes if no driver accepted it.
+      await this.dispatchTimeoutQueue.add(
+        'request-expiration-job',
+        { requestId: finalPayload.id },
+        { delay: 180000, jobId: `request-expiration-${finalPayload.id}` },
+      );
 
-    await this.amqpConnection.publish(
-      RabbitMqExchange.REQUESTS,
-      RabbitMqRoutingKey.REQUEST_CREATED,
-      finalPayload,
-    );
+      await this.amqpConnection.publish(
+        RabbitMqExchange.REQUESTS,
+        RabbitMqRoutingKey.REQUEST_CREATED,
+        finalPayload,
+      );
+    }
 
     return finalPayload;
   }
@@ -375,7 +391,7 @@ export class RequestService {
           [request.id]
         );
 
-        if (request.driverId) {
+        if (request.driverId && !request.isReviewOrder) {
           const finalPrice = request.totalPrice || 0;
           
           const driver = await queryRunner.manager.findOne('DriverEntity', {

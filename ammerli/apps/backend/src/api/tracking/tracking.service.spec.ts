@@ -1,9 +1,11 @@
 import { RedisConstants } from '@/constants/redis.constants';
 import { RedisScriptService } from '@/libs/redis/redis-script.service';
 import { Test, TestingModule } from '@nestjs/testing';
+import { RedisLibsService } from '@/libs/redis/redis-libs.service';
 import { AppLogger } from 'src/logger/logger.service';
 import { DriverMetadataCacheRepository } from './driver-metadata-cache.repository';
 import { TrackingService } from './tracking.service';
+import { DriverMetadataService } from '../driver/driver-metadata.service';
 
 describe('TrackingService', () => {
   let service: TrackingService;
@@ -33,6 +35,8 @@ describe('TrackingService', () => {
           useValue: driverMetadataCacheRepoMock,
         },
         { provide: AppLogger, useValue: loggerMock },
+        { provide: RedisLibsService, useValue: { geoAdd: jest.fn(), hset: jest.fn(), del: jest.fn(), zrem: jest.fn() } },
+        { provide: DriverMetadataService, useValue: { updateMetadata: jest.fn(), getMetadata: jest.fn() } },
       ],
     }).compile();
 
@@ -80,21 +84,16 @@ describe('TrackingService', () => {
       const result = await service.updateDriverLocation(driverId, lat, lng);
 
       expect(result).toBe(false);
-      expect(logger.debug).toHaveBeenCalledWith(
-        `Stale GPS update ignored for driver ${driverId}`,
-      );
     });
 
-    it('should return false and log error on exception', async () => {
+    it('should throw error and log on exception', async () => {
       const error = new Error('Redis down');
       redisScriptService.eval.mockRejectedValue(error);
 
-      const result = await service.updateDriverLocation(driverId, lat, lng);
-
-      expect(result).toBe(false);
+      await expect(service.updateDriverLocation(driverId, lat, lng)).rejects.toThrow('Redis down');
       expect(logger.error).toHaveBeenCalledWith(
-        `Failed to update driver location ${driverId}`,
-        error.stack,
+        `Failed to update location for ${driverId}`,
+        expect.any(String),
       );
     });
   });

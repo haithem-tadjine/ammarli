@@ -12,6 +12,15 @@ import { RequestEntity } from './entities/request.entity';
 import { RequestStatusEnum } from './enums/request-status.enum';
 import { RequestCacheRepository } from './request-cache.repository';
 import { RequestService } from './request.service';
+import { UserService } from '../user/user.service';
+import { DriverMetadataService } from '../driver/driver-metadata.service';
+import { GeocodingService } from '@/libs/geocoding/geocoding.service';
+import { DataSource } from 'typeorm';
+import { SettingService } from '../setting/setting.service';
+import { RedisLibsService } from '@/libs/redis/redis-libs.service';
+import { ConfigService } from '@nestjs/config';
+import { SimulationService } from '../simulation/simulation.service';
+import { getQueueToken } from '@nestjs/bullmq';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid'),
@@ -68,6 +77,16 @@ describe('RequestService', () => {
           provide: 'REDLOCK_CLIENT',
           useValue: { using: jest.fn((keys, ttl, cb) => cb()) },
         },
+        { provide: UserService, useValue: {} },
+        { provide: DriverMetadataService, useValue: {} },
+        { provide: GeocodingService, useValue: {} },
+        { provide: DataSource, useValue: {} },
+        { provide: SettingService, useValue: {} },
+        { provide: RedisLibsService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: SimulationService, useValue: {} },
+        { provide: getQueueToken('continuous-matching'), useValue: { add: jest.fn() } },
+        { provide: getQueueToken('dispatch-timeout'), useValue: { add: jest.fn() } },
       ],
     }).compile();
 
@@ -183,7 +202,7 @@ describe('RequestService', () => {
     it('should call repository set with default TTL', async () => {
       const request = { id: 'req-1' } as any;
       await service.setRequestInCache(request);
-      expect(cacheRepo.set).toHaveBeenCalledWith(request, 300);
+      expect(cacheRepo.set).toHaveBeenCalledWith(request, 60);
     });
 
     it('should call repository set with custom TTL', async () => {

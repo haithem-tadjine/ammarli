@@ -5,6 +5,8 @@ import { StatisticsQueryDto } from './dtos/statistics-query.dto';
 import { OrderMetricProvider } from './providers/order-metric.provider';
 import { RevenueMetricProvider } from './providers/revenue-metric.provider';
 import { UserMetricProvider } from './providers/user-metric.provider';
+import { ProductMetricProvider } from './providers/product-metric.provider';
+import { CommuneManagersMetricProvider } from './providers/commune-managers-metric.provider';
 import { StatisticsService } from './statistics.service';
 
 describe('StatisticsService', () => {
@@ -53,6 +55,8 @@ describe('StatisticsService', () => {
         { provide: UserMetricProvider, useValue: mockUserProvider },
         { provide: OrderMetricProvider, useValue: mockOrderProvider },
         { provide: RevenueMetricProvider, useValue: mockRevenueProvider },
+        { provide: ProductMetricProvider, useValue: { name: 'products', compute: jest.fn() } },
+        { provide: CommuneManagersMetricProvider, useValue: { name: 'commune-managers', compute: jest.fn() } },
         { provide: RedisScriptService, useValue: mockRedisScriptService },
         { provide: CACHE_MANAGER, useValue: mockCacheManager },
       ],

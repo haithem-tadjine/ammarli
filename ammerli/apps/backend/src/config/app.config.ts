@@ -71,6 +71,14 @@ class EnvironmentVariablesValidator {
   )
   @IsOptional()
   APP_CORS_ORIGIN: string;
+
+  @IsString()
+  @IsOptional()
+  REVIEW_CUSTOMER_PHONE?: string;
+
+  @IsString()
+  @IsOptional()
+  REVIEW_DRIVER_PHONE?: string;
 }
 
 /**
@@ -97,6 +105,8 @@ export default registerAs<AppConfig>('app', () => {
     logLevel: process.env.APP_LOG_LEVEL || 'warn',
     logService: process.env.APP_LOG_SERVICE || LogService.CONSOLE,
     corsOrigin: getCorsOrigin(),
+    reviewCustomerPhone: process.env.REVIEW_CUSTOMER_PHONE,
+    reviewDriverPhone: process.env.REVIEW_DRIVER_PHONE,
   };
 });
 

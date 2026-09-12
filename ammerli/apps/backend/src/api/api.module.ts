@@ -20,6 +20,7 @@ import { WilayaModule } from './wilaya/wilaya.module';
 import { PromoModule } from './promo/promo.module';
 import { WalletModule } from './wallet/wallet.module';
 import { SettingModule } from './setting/setting.module';
+import { SimulationModule } from './simulation/simulation.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { SettingModule } from './setting/setting.module';
     PromoModule,
     WalletModule,
     SettingModule,
+    SimulationModule,
   ],
 })
 export class ApiModule {}

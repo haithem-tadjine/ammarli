@@ -5,6 +5,16 @@ import { Server, Socket } from 'socket.io';
 import { AppLogger } from 'src/logger/logger.service';
 import { TrackingGateway } from './tracking.gateway';
 import { TrackingService } from './tracking.service';
+import { DriverService } from '../driver/driver.service';
+import { DispatchService } from '../dispatch/dispatch.service';
+import { RequestService } from '../request/request.service';
+import { SimulationService } from '../simulation/simulation.service';
+import { NotificationService } from '../notification/notification.service';
+import { GeocodingService } from '@/libs/geocoding/geocoding.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { WilayaEntity } from '../wilaya/entities/wilaya.entity';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { RedisLibsService } from '@/libs/redis/redis-libs.service';
 
 describe('TrackingGateway', () => {
   let gateway: TrackingGateway;
@@ -18,6 +28,11 @@ describe('TrackingGateway', () => {
   beforeEach(async () => {
     const trackingServiceMock = {
       updateDriverLocation: jest.fn(),
+      setDriverOffline: jest.fn(),
+    };
+    const notificationServiceMock = {
+      sendPushNotification: jest.fn().mockResolvedValue(undefined),
+      sendDataNotification: jest.fn().mockResolvedValue(undefined),
     };
     const loggerMock = {
       setContext: jest.fn(),
@@ -39,6 +54,15 @@ describe('TrackingGateway', () => {
         { provide: AppLogger, useValue: loggerMock },
         { provide: JwtService, useValue: jwtServiceMock },
         { provide: ConfigService, useValue: configServiceMock },
+        { provide: DriverService, useValue: {} },
+        { provide: DispatchService, useValue: {} },
+        { provide: RequestService, useValue: {} },
+        { provide: SimulationService, useValue: {} },
+        { provide: NotificationService, useValue: notificationServiceMock },
+        { provide: GeocodingService, useValue: {} },
+        { provide: getRepositoryToken(WilayaEntity), useValue: {} },
+        { provide: CACHE_MANAGER, useValue: {} },
+        { provide: RedisLibsService, useValue: {} },
       ],
     }).compile();
 
@@ -76,10 +100,15 @@ describe('TrackingGateway', () => {
       expect(socket.disconnect).toHaveBeenCalled();
     });
 
-    it('should join driver room if driverId is present', async () => {
+    it('should join driver room if driverId is present and token is valid', async () => {
       const driverId = 'driver-1';
       socket.handshake.query = { driverId };
+      socket.handshake.auth = { token: 'valid' };
+      jwtService.verify.mockReturnValue({ id: driverId });
+      configService.get.mockReturnValue('secret');
+      
       await gateway.handleConnection(socket);
+      
       expect(socket.data.driverId).toBe(driverId);
       expect(socket.join).toHaveBeenCalledWith(`driver_${driverId}`);
     });
@@ -114,7 +143,7 @@ describe('TrackingGateway', () => {
       socket.data = {};
       await gateway.handleLocationUpdate({ lat: 10, lng: 20 }, socket);
       expect(socket.emit).toHaveBeenCalledWith('error', {
-        message: 'Connection not identified',
+        message: 'tracking.error.not_identified',
       });
     });
 
@@ -123,7 +152,7 @@ describe('TrackingGateway', () => {
       socket.data = { driverId };
       await gateway.handleLocationUpdate({ lat: null, lng: 20 } as any, socket);
       expect(socket.emit).toHaveBeenCalledWith('error', {
-        message: 'Invalid location payload',
+        message: 'tracking.error.invalid_payload',
       });
     });
 
@@ -157,12 +186,12 @@ describe('TrackingGateway', () => {
       await gateway.handleLocationUpdate({ lat: 10, lng: 20 }, socket);
 
       expect(logger.error).toHaveBeenCalledWith(
-        `Failed to update location for driver ${driverId}`,
+        `tracking.error.update_failed for driver ${driverId}`,
         error.stack,
       );
       expect(socket.emit).toHaveBeenCalledWith('error', {
         driverId,
-        message: 'Failed to update location',
+        message: 'tracking.error.update_failed',
         debug: error?.message || String(error),
       });
     });
@@ -189,7 +218,7 @@ describe('TrackingGateway', () => {
       await gateway.sendAlert(driverId, {});
 
       expect(logger.error).toHaveBeenCalledWith(
-        `Failed to send alert to driver ${driverId}`,
+        `Failed to remove stale drivers ${driverId}`,
         error.stack,
       );
     });
@@ -215,9 +244,9 @@ describe('TrackingGateway', () => {
       expect(server.to).not.toHaveBeenCalled();
       expect(server.emit).not.toHaveBeenCalled();
     });
-    it('should emit ride_started to user room when status is IN_PROGRESS', async () => {
+    it('should emit ride_started to user room when status is DELIVERING', async () => {
       const userId = 'user-1';
-      const msg = { status: 'IN_PROGRESS', user: { id: userId } };
+      const msg = { status: 'DELIVERING', user: { id: userId } };
 
       await gateway.handleRequestEvents(msg);
 

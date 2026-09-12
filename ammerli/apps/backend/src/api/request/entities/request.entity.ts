@@ -142,4 +142,11 @@ export class RequestEntity extends AbstractEntity {
   @ManyToOne(() => DriverEntity)
   @JoinColumn({ name: 'driverId' })
   driver: DriverEntity;
+
+  /**
+   * Identifies if this request is generated for Google Play review isolation.
+   * Review orders bypass billing, commissions, and production queues.
+   */
+  @Column({ type: 'boolean', default: false })
+  isReviewOrder: boolean;
 }

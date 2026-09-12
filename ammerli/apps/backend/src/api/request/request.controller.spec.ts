@@ -5,6 +5,7 @@ import { CreateRequestDto } from './dto/create-request.dto';
 import { RequestStatusEnum } from './enums/request-status.enum';
 import { RequestController } from './request.controller';
 import { RequestService } from './request.service';
+import { DispatchService } from '../dispatch/dispatch.service';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid'),
@@ -21,7 +22,10 @@ describe('RequestController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RequestController],
-      providers: [{ provide: RequestService, useValue: serviceMock }],
+      providers: [
+        { provide: RequestService, useValue: serviceMock },
+        { provide: DispatchService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get<RequestController>(RequestController);

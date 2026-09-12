@@ -6,6 +6,8 @@ import {
 } from '../driver/driver-metadata.service';
 import { RequestResDto } from '../request/dto/request.res.dto';
 import { MatchingService } from './matching.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { WilayaEntity } from '@/api/wilaya/entities/wilaya.entity';
 
 describe('MatchingService', () => {
   let service: MatchingService;
@@ -25,6 +27,7 @@ describe('MatchingService', () => {
         MatchingService,
         { provide: DriverMetadataService, useValue: driverMetadataServiceMock },
         { provide: AppLogger, useValue: loggerMock },
+        { provide: getRepositoryToken(WilayaEntity), useValue: {} },
       ],
     }).compile();
 

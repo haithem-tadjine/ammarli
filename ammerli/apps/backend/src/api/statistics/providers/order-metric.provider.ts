@@ -5,6 +5,7 @@ import {
   OrderEntity,
   OrderStatusEnum,
 } from '../../order/entities/order.entity';
+import { RequestEntity } from '../../request/entities/request.entity';
 import { MetricFilters } from '../interfaces/metric-provider.interface';
 import { BaseMetricProvider } from './base-metric.provider';
 
@@ -33,7 +34,10 @@ export class OrderMetricProvider extends BaseMetricProvider<OrderStats> {
    * Computes order performance metrics including volume trends and fulfillment speed.
    */
   async compute(filters?: MetricFilters): Promise<OrderStats> {
-    const baseQuery = this.orderRepository.createQueryBuilder('order');
+    const baseQuery = this.orderRepository
+      .createQueryBuilder('order')
+      .innerJoin(RequestEntity, 'request', 'request.id = order.requestId')
+      .where('request.isReviewOrder = false');
     this.applyDateFilters(baseQuery, filters, 'order');
 
     const [total, byStatusRaw] = await Promise.all([
@@ -53,11 +57,13 @@ export class OrderMetricProvider extends BaseMetricProvider<OrderStats> {
     // Fulfillment time: difference between created_at and updated_at for DELIVERED orders
     const fulfillmentQuery = this.orderRepository
       .createQueryBuilder('order')
+      .innerJoin(RequestEntity, 'request', 'request.id = order.requestId')
       .select(
         'AVG(EXTRACT(EPOCH FROM (order.updated_at - order.created_at)) / 60)',
         'avgMinutes',
       )
-      .where('order.status = :status', { status: OrderStatusEnum.DELIVERED });
+      .where('order.status = :status', { status: OrderStatusEnum.DELIVERED })
+      .andWhere('request.isReviewOrder = false');
 
     this.applyDateFilters(fulfillmentQuery, filters, 'order');
     const fulfillmentResult = await fulfillmentQuery.getRawOne();
