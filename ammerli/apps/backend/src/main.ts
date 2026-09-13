@@ -1,3 +1,6 @@
+import { setDefaultResultOrder } from 'node:dns';
+setDefaultResultOrder('ipv4first'); // إجبار Node.js على استخدام IPv4 كأولوية
+
 import {
   ClassSerializerInterceptor,
   HttpStatus,
@@ -20,6 +23,10 @@ import { GlobalExceptionFilter } from './filters/global-exception.filter';
 import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import setupSwagger from './utils/setup-swagger';
+
+// منع انهيار التطبيق بسبب أي خطأ شبكي غير معالج في ioredis
+// ... (بقية الملف كما هو بدون تغيير).js على استخدام IPv4 كأولوية
+
 
 // منع انهيار التطبيق بسبب أي خطأ شبكي غير معالج في ioredis
 process.on('unhandledRejection', (reason: any) => {
