@@ -1,10 +1,21 @@
 const Redis = require('ioredis');
 
-const redis = new Redis({
-  host: 'localhost',
-  port: 6379,
-  password: 'redispass'
-});
+const redisUrl = process.env.REDIS_URL;
+let redis;
+
+if (redisUrl) {
+  redis = new Redis(redisUrl, {
+    maxRetriesPerRequest: null,
+    tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined
+  });
+} else {
+  redis = new Redis({
+    host: 'localhost',
+    port: 6379,
+    password: 'redispass',
+    maxRetriesPerRequest: null
+  });
+}
 
 async function run() {
   try {
@@ -15,7 +26,7 @@ async function run() {
       console.log(`${key}:`, data);
     }
   } catch (err) {
-    console.error(err);
+    console.error('Redis error:', err);
   } finally {
     redis.quit();
   }

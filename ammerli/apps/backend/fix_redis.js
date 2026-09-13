@@ -2,15 +2,21 @@ const Redis = require('ioredis');
 
 async function main() {
   const redisUrl = process.env.REDIS_URL;
+  let redis;
 
-  const redis = new Redis(redisUrl || {
-    host: 'localhost',
-    port: 6379,
-    password: 'redispass',
-  }, {
-    maxRetriesPerRequest: null,
-    tls: redisUrl && redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined
-  });
+  if (redisUrl) {
+    redis = new Redis(redisUrl, {
+      maxRetriesPerRequest: null,
+      tls: redisUrl.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined
+    });
+  } else {
+    redis = new Redis({
+      host: 'localhost',
+      port: 6379,
+      password: 'redispass',
+      maxRetriesPerRequest: null
+    });
+  }
 
   const driverId = '76e75842-1483-45b5-ae42-a6dea32ff284';
   const key = `driver:metadata:${driverId}`;
