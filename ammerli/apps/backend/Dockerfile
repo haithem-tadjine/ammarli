@@ -57,7 +57,7 @@ FROM base AS production
 WORKDIR /app
 
 RUN mkdir -p src/generated && chown -R node:node src
-
+RUN mkdir -p logs && chown -R node:node logs
 # Copy the bundled code from the build stage to the production image
 COPY --chown=node:node --from=builder /app/node_modules ./node_modules
 COPY --chown=node:node --from=builder /app/dist ./dist
