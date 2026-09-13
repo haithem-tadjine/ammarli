@@ -11,8 +11,11 @@ RUN (addgroup -g 1000 node || true) && (adduser -u 1000 -G node -s /bin/sh -D no
 FROM base As development
 WORKDIR /app
 RUN chown -R node:node /app
+# تثبيت Python وأدوات البناء الضرورية لـ better-sqlite3
+RUN apk add --no-cache python3 make g++
 
 COPY --chown=node:node package.json ./
+
 
 # Install all dependencies (including devDependencies)
 RUN npm install --legacy-peer-deps
