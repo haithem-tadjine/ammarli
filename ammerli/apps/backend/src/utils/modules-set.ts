@@ -33,7 +33,6 @@ import {
   createRedisClient,
 } from '../libs/redis/redis-client.factory';
 
-
 function generateModulesSet() {
   const imports: ModuleMetadata['imports'] = [
     ConfigModule.forRoot({
@@ -57,9 +56,6 @@ function generateModulesSet() {
 
   const bullModule = BullModule.forRootAsync({
     useFactory: () => {
-      // Now that the circular dependency is fixed (redis-client.factory.ts),
-      // we pass the singleton ioredis instance. BullMQ v5 calls .duplicate() on it
-      // which correctly copies host + tls options to all internal connections.
       return {
         connection: getRedisClient(),
         defaultJobOptions: {
@@ -113,7 +109,7 @@ function generateModulesSet() {
     imports: [ConfigModule],
     useFactory: async (configService: ConfigService<AllConfigType>) => {
       return {
-        store: await redisStore(getRedisClient() as any),
+        store: await redisStore(getRedisConnectionOptions() as any),
       };
     },
     isGlobal: true,
