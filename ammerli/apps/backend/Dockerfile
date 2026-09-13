@@ -45,7 +45,7 @@ RUN npm run build
 
 # Removes unnecessary packages and re-install only production dependencies
 ENV NODE_ENV production
-RUN npm prune --omit=dev
+RUN npm prune --omit=dev --legacy-peer-deps
 
 USER node
 
