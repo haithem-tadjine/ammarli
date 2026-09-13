@@ -15,7 +15,8 @@ RUN chown -R node:node /app
 COPY --chown=node:node package.json ./
 
 # Install all dependencies (including devDependencies)
-RUN npm install
+RUN npm install --legacy-peer-deps
+
 
 # Bundle app source
 COPY --chown=node:node . .
