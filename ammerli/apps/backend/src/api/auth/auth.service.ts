@@ -48,12 +48,6 @@ type Token = Branded<
   'token'
 >;
 
-/**
- * Core service for handling authentication and session management.
- * Manages user registration, login, logout, token rotation (JWT), and session blacklisting.
- *
- * @class AuthService
- */
 @Injectable()
 export class AuthService {
   constructor(
@@ -67,19 +61,8 @@ export class AuthService {
     private readonly cacheManager: Cache,
     private readonly clientService: ClientService,
     private readonly driverService: DriverService,
-  ) {}
+  ) { }
 
-  /**
-   * authenticates a user by phone and password.
-   * Generates a new session and returns access/refresh tokens.
-   *
-   * @param dto - Login credentials
-   * @returns Successful login payload including tokens and user info
-   * @throws {UnauthorizedException} If credentials are invalid
-   *
-   * @example
-   * const loginData = await authService.signIn({ phone: '+123', password: '...' });
-   */
   async signIn(dto: LoginReqDto): Promise<LoginResDto> {
     const { phone, password } = dto;
     const whereCondition: any = { phone: dto.phone };
@@ -126,26 +109,16 @@ export class AuthService {
     });
   }
 
-  /**
-   * Registers a new user and creates their specific profile (Client or Driver).
-   * Validates role-specific requirements and ensures phone uniqueness.
-   *
-   * @param dto - Registration details (identity, role, password)
-   * @param manager - Optional EntityManager for transactional consistency
-   * @returns Detailed registration response
-   * @throws {ValidationException} If phone exists or role data is invalid
-   *
-   * @example
-   * await authService.register({ phone: '...', role: UserRoleEnum.CLIENT, ... });
-   */
   async register(
     dto: RegisterReqDto,
     manager?: EntityManager,
   ): Promise<RegisterResDto> {
     if (!manager) {
-      return await this.userRepository.manager.transaction(async (transactionalEntityManager) => {
-        return await this.register(dto, transactionalEntityManager);
-      });
+      return await this.userRepository.manager.transaction(
+        async (transactionalEntityManager) => {
+          return await this.register(dto, transactionalEntityManager);
+        },
+      );
     }
 
     const userRepo = manager.getRepository(UserEntity);
@@ -174,26 +147,26 @@ export class AuthService {
       updatedBy: SYSTEM_USER_ID,
     });
 
-    // Explicitly call hashPassword() as a safety net in case the @BeforeInsert
-    // hook does not fire (e.g., edge cases in some TypeORM transactional modes).
-    // hashPassword() is idempotent: if the hook ALSO fires, the '$argon2' prefix
-    // guard prevents the already-hashed value from being hashed a second time.
     await user.hashPassword();
     await userRepo.save(user);
 
     if (dto.role === UserRoleEnum.CLIENT) {
       await this.clientService.createProfile(user, manager);
     } else if (dto.role === UserRoleEnum.DRIVER) {
-      await this.driverService.createProfile(user, dto.driverType!, {
-        truckPlate: dto.truckPlate,
-        waterType: dto.waterType,
-        capacity: dto.capacity,
-        brands: dto.brands,
-        bottledPrices: dto.bottledPrices,
-      }, manager);
+      await this.driverService.createProfile(
+        user,
+        dto.driverType!,
+        {
+          truckPlate: dto.truckPlate,
+          waterType: dto.waterType,
+          capacity: dto.capacity,
+          brands: dto.brands,
+          bottledPrices: dto.bottledPrices,
+        },
+        manager,
+      );
     }
 
-    // Create a session and return auth tokens so the user is immediately logged in
     const hash = crypto
       .createHash('sha256')
       .update(randomStringGenerator())
@@ -205,14 +178,9 @@ export class AuthService {
       createdBy: SYSTEM_USER_ID,
       updatedBy: SYSTEM_USER_ID,
     });
-    // ⚠️ Must use `manager.save()` here — NOT `session.save()`.
-    // `session.save()` is an ActiveRecord call that opens its own global DB
-    // connection outside this transaction. Because the user INSERT hasn't
-    // committed yet, the FK_session_user check fails with a constraint error.
     await manager.save(SessionEntity, session);
 
-
-    const token = await this.createToken({
+    const token = await this.createTokenWithUser(user, {
       id: user.id,
       sessionId: session.id,
       hash,
@@ -225,15 +193,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Invalidates a user session by blacklisting the current token.
-   * Session blacklisting persists in Cache (Redis) until token expiry.
-   *
-   * @param userToken - Decoded JWT payload from the current request
-   *
-   * @example
-   * await authService.logout(decodedToken);
-   */
   async logout(userToken: JwtPayloadType): Promise<void> {
     await this.cacheManager.set<boolean>(
       createCacheKey(CacheKey.SESSION_BLACKLIST, userToken.sessionId),
@@ -243,14 +202,6 @@ export class AuthService {
     await SessionEntity.delete(userToken.sessionId);
   }
 
-  /**
-   * Rotates access and refresh tokens using a valid refresh token.
-   * Validates session hash to prevent reuse of compromised refresh tokens.
-   *
-   * @param dto - Request containing valid refresh token
-   * @returns New set of tokens
-   * @throws {UnauthorizedException} If token is expired or session is invalid
-   */
   async refreshToken(dto: RefreshReqDto): Promise<RefreshResDto> {
     const { sessionId, hash } = await this.verifyRefreshToken(dto.refreshToken);
     const session = await SessionEntity.findOneBy({ id: sessionId });
@@ -278,13 +229,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Validates an access token and checks if the session has been blacklisted.
-   *
-   * @param token - Bearer access token string
-   * @returns Decoded payload if valid
-   * @throws {UnauthorizedException} If token is invalid or session is blacklisted
-   */
   async verifyAccessToken(token: string): Promise<JwtPayloadType> {
     let payload: JwtPayloadType;
     try {
@@ -304,10 +248,9 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    // Strict validation: Verify user still exists in the database
     const userExists = await this.userRepository.findOne({
       where: { id: payload.id as Uuid },
-      select: ['id'], // Only select ID for performance
+      select: ['id'],
     });
 
     if (!userExists) {
@@ -317,11 +260,9 @@ export class AuthService {
     return payload;
   }
 
-  /**
-   * Internal helper to verify refresh token integrity.
-   * @private
-   */
-  private async verifyRefreshToken(token: string): Promise<JwtRefreshPayloadType> {
+  private async verifyRefreshToken(
+    token: string,
+  ): Promise<JwtRefreshPayloadType> {
     try {
       return await this.jwtService.verifyAsync(token, {
         secret: this.configService.getOrThrow('auth.refreshSecret', {
@@ -334,36 +275,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Creates a dedicated token for email/account verification.
-   * @private
-   */
-  private async createVerificationToken(data: { id: string }): Promise<string> {
-    return await this.jwtService.signAsync(
-      {
-        id: data.id,
-      },
-      {
-        secret: this.configService.getOrThrow('auth.confirmEmailSecret', {
-          infer: true,
-        }),
-        expiresIn: Number(
-          this.configService.getOrThrow<number>('auth.confirmEmailExpires', {
-            infer: true,
-          }),
-        ),
-      },
-    );
-  }
-
-  /**
-   * Generates a pair of access and refresh tokens for a user session.
-   * Claims include user ID, Role, and Session ID for authorization.
-   *
-   * @param data - Session metadata needed for token signing
-   * @returns Branded token payload
-   * @private
-   */
   private async createToken(data: {
     id: string;
     sessionId: string;
@@ -372,7 +283,13 @@ export class AuthService {
     const user = await this.userRepository.findOne({
       where: { id: data.id as Uuid },
     });
-    
+    return this.createTokenWithUser(user!, data);
+  }
+
+  private async createTokenWithUser(
+    user: UserEntity,
+    data: { id: string; sessionId: string; hash: string },
+  ): Promise<Token> {
     let driverId: string | undefined;
     let clientId: string | undefined;
 
@@ -380,20 +297,16 @@ export class AuthService {
       try {
         const driver = await this.driverService.findByUserId(user.id);
         driverId = driver.id;
-      } catch (e) {
-        // Driver profile might be missing if created improperly in older data
-      }
+      } catch (e) { }
     } else if (user?.role === UserRoleEnum.CLIENT) {
       try {
         const client = await this.clientService.findByUserId(user.id);
         clientId = client.id;
-      } catch (e) {
-        // Client profile might be missing
-      }
+      } catch (e) { }
     }
 
     const [accessToken, refreshToken] = await Promise.all([
-      await this.jwtService.signAsync(
+      this.jwtService.signAsync(
         {
           id: data.id,
           role: user?.role || '',
@@ -408,7 +321,7 @@ export class AuthService {
           }),
         },
       ),
-      await this.jwtService.signAsync(
+      this.jwtService.signAsync(
         {
           sessionId: data.sessionId,
           hash: data.hash,
@@ -426,50 +339,56 @@ export class AuthService {
         },
       ),
     ]);
+
     return {
       accessToken,
       refreshToken,
     } as Token;
   }
 
-  /**
-   * Verifies driver phone and truck plate number.
-   */
-  async verifyDriverPlate(dto: { phone: string, truckPlate: string }): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { phone: dto.phone, role: UserRoleEnum.DRIVER } });
+  async verifyDriverPlate(dto: {
+    phone: string;
+    truckPlate: string;
+  }): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { phone: dto.phone, role: UserRoleEnum.DRIVER },
+    });
     if (!user) {
       throw new ValidationException('Driver account not found');
     }
 
-    const driver = await DriverEntity.findOne({ where: { user: { id: user.id } } });
+    const driver = await DriverEntity.findOne({
+      where: { user: { id: user.id } },
+    });
     if (!driver || driver.truckPlate !== dto.truckPlate) {
       throw new ValidationException('Invalid truck plate number');
     }
   }
 
-  /**
-   * Resets driver password using phone and truck plate number.
-   */
-  async resetDriverPasswordWithPlate(dto: ResetDriverPasswordDto): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { phone: dto.phone, role: UserRoleEnum.DRIVER } });
+  async resetDriverPasswordWithPlate(
+    dto: ResetDriverPasswordDto,
+  ): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { phone: dto.phone, role: UserRoleEnum.DRIVER },
+    });
     if (!user) {
       throw new ValidationException('Driver account not found');
     }
 
-    const driver = await DriverEntity.findOne({ where: { user: { id: user.id } } });
+    const driver = await DriverEntity.findOne({
+      where: { user: { id: user.id } },
+    });
     if (!driver || driver.truckPlate !== dto.truckPlate) {
       throw new ValidationException('Invalid truck plate number');
     }
 
     user.password = dto.newPassword;
-    await this.userRepository.save(user); // Will hash the password via @BeforeUpdate
+    await this.userRepository.save(user);
   }
 
-  /**
-   * Checks whether a phone number is registered as a CLIENT.
-   * Returns { exists: true } if found, throws ValidationException if not.
-   */
-  async checkClientPhone(dto: CheckClientPhoneDto): Promise<{ exists: boolean }> {
+  async checkClientPhone(
+    dto: CheckClientPhoneDto,
+  ): Promise<{ exists: boolean }> {
     const user = await this.userRepository.findOne({
       where: { phone: dto.phone, role: UserRoleEnum.CLIENT },
     });
@@ -479,10 +398,6 @@ export class AuthService {
     return { exists: true };
   }
 
-  /**
-   * Resets the CLIENT password directly by phone number.
-   * Caller must have already verified the phone via checkClientPhone.
-   */
   async resetClientPassword(dto: ResetClientPasswordDto): Promise<void> {
     const user = await this.userRepository.findOne({
       where: { phone: dto.phone, role: UserRoleEnum.CLIENT },
@@ -491,6 +406,6 @@ export class AuthService {
       throw new ValidationException('رقم الهاتف غير مسجّل');
     }
     user.password = dto.newPassword;
-    await this.userRepository.save(user); // Will hash via @BeforeUpdate
+    await this.userRepository.save(user);
   }
 }
