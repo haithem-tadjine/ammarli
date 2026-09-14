@@ -64,7 +64,8 @@ export default function OrderTrackingScreen() {
     return 'Bottled';
   };
   const typeCfg = TYPE_CONFIG[getWaterTypeKey()] || TYPE_CONFIG['Bottled'];
-  const quantity = activeOrder?.quantity ? `${activeOrder.quantity} لتر` : '';
+  // Use displayVolume (e.g., "1500 لتر") first; fall back to raw quantity
+  const quantity = activeOrder?.displayVolume || (activeOrder?.quantity ? `${activeOrder.quantity} لتر` : '');
 
   const handleCallPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

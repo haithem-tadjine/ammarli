@@ -237,12 +237,19 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
           };
         }
 
+        const isTanker = (data.type || '').toUpperCase() === 'TANKER';
+        const realVolume = isTanker
+          ? (data.tankerDetails?.volume || data.volume || data.quantity)
+          : data.quantity;
+        const displayVolume = data.displayVolume
+          || (isTanker && realVolume ? `${realVolume} لتر` : undefined);
+
         const mappedOrder: Order = {
           id: data.id,
-          type: data.type === 'TANKER' ? 'Tanker' : 'Bottled',
+          type: isTanker ? 'Tanker' : 'Bottled',
           status: data.status.toLowerCase() as OrderStatus,
-          quantity: data.quantity?.toString(),
-          displayVolume: data.displayVolume || (data.tankerDetails?.volume ? `${data.tankerDetails.volume} لتر` : data.volume ? `${data.volume} لتر` : undefined),
+          quantity: realVolume?.toString(),
+          displayVolume,
           price: data.totalPrice || data.subtotal,
           subtotal: data.subtotal,
           deliveryFee: data.deliveryFee,
@@ -284,12 +291,31 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
         }
       : existing?.driverInfo; // keep previous driverInfo if not re-sent
 
+    const isTanker = (payload.type || '').toUpperCase() === 'TANKER';
+
+    // For tanker orders, the real volume is in tankerDetails.volume.
+    // payload.quantity is always "1" for tankers (backend artifact) — ignore it.
+    const realVolume = isTanker
+      ? (payload.tankerDetails?.volume || payload.volume || payload.quantity)
+      : payload.quantity;
+
+    const displayVolume = payload.displayVolume
+      || (isTanker && realVolume ? `${realVolume} لتر` : undefined)
+      || (!isTanker && payload.bottledItems
+          ? (() => {
+              const items = Array.isArray(payload.bottledItems)
+                ? payload.bottledItems
+                : Object.values(payload.bottledItems);
+              return items.length === 1 ? '1 منتج' : `${items.length} منتجات`;
+            })()
+          : undefined);
+
     const mappedOrder: Order = {
       id:           payload.id,
-      type:         payload.type === 'TANKER' ? 'Tanker' : 'Bottled',
+      type:         isTanker ? 'Tanker' : 'Bottled',
       status:       payload.status.toLowerCase() as OrderStatus,
-      quantity:     payload.quantity?.toString(),
-      displayVolume: payload.displayVolume || (payload.tankerDetails?.volume ? `${payload.tankerDetails.volume} لتر` : payload.volume ? `${payload.volume} لتر` : undefined),
+      quantity:     realVolume?.toString(),
+      displayVolume,
       price:        payload.total || payload.totalPrice || payload.subtotal,
       subtotal:     payload.subtotal,
       deliveryFee:  payload.deliveryFee,
@@ -302,6 +328,7 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
     set({ activeOrder: mappedOrder });
   },
+
 
   fetchPastOrders: async () => {
     try {

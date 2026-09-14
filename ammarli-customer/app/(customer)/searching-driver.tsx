@@ -59,7 +59,9 @@ export default function SearchingDriverScreen() {
   const typeCfg = TYPE_CONFIG[getWaterTypeKey()] || TYPE_CONFIG['Bottled'];
   
   const locationName = activeOrder?.locationName || userLocation?.address || 'موقع التوصيل';
-  const quantity     = activeOrder?.quantity ? `${activeOrder.quantity} لتر` : '';
+  // Use displayVolume (e.g., "1500 لتر") first; fall back to raw quantity
+  const quantity = activeOrder?.displayVolume || (activeOrder?.quantity ? `${activeOrder.quantity} لتر` : '');
+
 
   const [showEndModal, setShowEndModal] = useState(false);
   const [endModalMsg, setEndModalMsg] = useState('');

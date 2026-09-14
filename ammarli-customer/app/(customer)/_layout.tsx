@@ -95,16 +95,10 @@ export default function CustomerLayout() {
           console.log('✅ SOCKET RECEIVED (request_accepted):', data);
           useCustomerStore.getState().handleSocketOrderUpdate(data);
           
-          // Smart Navigation: Navigate immediately if it's Spring or Bottled (Fast Accept)
-          const orderType = data.type?.toUpperCase();
-          const waterType = data.tankerDetails?.waterType?.toLowerCase() || '';
-          const isSpringOrBottled = orderType === 'BOTTLED' || (orderType === 'TANKER' && (waterType === 'spring' || waterType.includes('ينابيع')));
-          
-          if (isSpringOrBottled) {
-            setTimeout(() => {
-              router.replace('/(customer)/order-tracking');
-            }, 300);
-          }
+          // Navigate to tracking for ALL water types once a driver accepts
+          setTimeout(() => {
+            router.replace('/(customer)/order-tracking');
+          }, 300);
         };
 
         handleRideStarted = (data: any) => {
