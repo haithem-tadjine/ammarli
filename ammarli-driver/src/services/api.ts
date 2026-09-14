@@ -3,7 +3,7 @@ import { storage, STORAGE_KEYS } from '../utils/storage';
 import { Alert } from 'react-native';
 
 // Use EXPO_PUBLIC_API_URL from .env — fallback to localhost for web/dev
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://amerli-backend.onrender.com';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://ammarli-production.up.railway.app';
 const API_URL = `${BASE_URL}/api/v1`;
 
 export const api = axios.create({
@@ -43,12 +43,12 @@ api.interceptors.response.use(
     // Exponential Backoff Setup
     if (config && (!error.response || error.response.status >= 500)) {
       config.retryCount = config.retryCount || 0;
-      
+
       if (config.retryCount < 3) {
         config.retryCount += 1;
         const delay = Math.pow(2, config.retryCount) * 1000;
         console.log(`[API] Retrying ${config.url} (Attempt ${config.retryCount}) after ${delay}ms`);
-        
+
         await new Promise(resolve => setTimeout(resolve, delay));
         return api(config);
       }
