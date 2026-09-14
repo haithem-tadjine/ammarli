@@ -342,6 +342,12 @@ export class RequestService {
     const ttl = isTerminal ? 60 : 14400; // 60s if terminal, 4 hours if active ride
     await this.setRequestInCache(request, ttl);
 
+    // ── Review Orders: Never persist to PostgreSQL (mock driverId causes FK errors) ──
+    if (request.isReviewOrder) {
+      this.logger.log(`[Simulation] Skipping DB save for review order ${requestId} (status=${status})`);
+      return;
+    }
+
     // If cancelled or expired BEFORE any driver accepted it, DO NOT save to PostgreSQL
     if ((status === RequestStatusEnum.CANCELLED || status === RequestStatusEnum.EXPIRED) && !request.driverId) {
       return;
@@ -721,6 +727,58 @@ export class RequestService {
     const cachedRequest = await this.getRequestFromCache(requestId);
 
     if (!requestEntity) {
+      // ── Review Order Fast-Cancel: exists only in Redis (isReviewOrder=true) ──
+      // Handles cancellation at ANY stage (SEARCHING, ACCEPTED, ARRIVED) since
+      // review orders are never persisted to PostgreSQL until delivery.
+      if (cachedRequest?.isReviewOrder) {
+        this.logger.log(`[Simulation] Review order ${requestId} cancellation intercepted.`);
+
+        // 1. Drain all pending simulation jobs for this request
+        try {
+          const jobs = await this.simulationQueue.getJobs(['waiting', 'delayed', 'active']);
+          for (const job of jobs) {
+            if (job.data?.requestId === requestId) {
+              await job.remove();
+              this.logger.log(`[Simulation] Removed pending job "${job.name}" for ${requestId}`);
+            }
+          }
+        } catch (e) {
+          this.logger.warn(`[Simulation] Failed to drain simulation jobs: ${(e as Error).message}`);
+        }
+
+        // 2. Update Redis to CANCELLED and clean up
+        const payload = plainToInstance(RequestResDto, {
+          ...cachedRequest,
+          status: RequestStatusEnum.CANCELLED,
+        }, { excludeExtraneousValues: true });
+
+        await this.setRequestInCache(payload, 60);
+
+        const uId = (cachedRequest as any).userId || cachedRequest.user?.id;
+        if (uId) {
+          try { await this.cacheRepo.removeUserActiveRequest(uId as string); } catch (_) {}
+        }
+        await this.redisLibsService.srem(`${RedisConstants.KEYS.REQUESTS_INDEX}:active_set`, requestId);
+
+        // 3. Publish cancellation event so frontend receives it via WebSocket
+        try {
+          await this.amqpConnection.publish('requests', 'request.cancelled', {
+            ...payload,
+            reason: reason || 'تم إلغاء الطلب من قبل الزبون',
+            canceledBy: initiatorId,
+            requeued: false,
+            alertTitle: 'تنبيه',
+            alertMessage: 'تم إلغاء الطلب بنجاح.',
+            action: 'GO_HOME',
+          });
+        } catch (e) {
+          this.logger.error('[Simulation] Failed to publish cancellation event', e);
+        }
+
+        return payload;
+      }
+
+      // ── Regular Order: Only SEARCHING state can be cancelled from Redis ──
       if (cachedRequest && cachedRequest.status === RequestStatusEnum.SEARCHING) {
         if (cachedRequest.user?.id !== initiatorId && cachedRequest.user?.id !== (initiatorId as any).id) {
           throw new BadRequestException('Only the customer can cancel a searching request.');

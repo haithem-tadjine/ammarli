@@ -48,68 +48,83 @@ export class SimulationProcessor extends WorkerHost {
 
     // 2. حساب السعر الديناميكي وفق نوع المياه والكمية
     let mockPrice = 0;
-    const waterType = (request.tankerDetails?.waterType || request.type || '').toLowerCase();
 
-    if (waterType.includes('spring') || waterType.includes('ينابيع')) {
-      // مياه الينابيع: 60 د.ج لكل 20 لتر
-      const volume = Number(
-        request.tankerDetails?.volume ||
-        request.tankerDetails?.quantity ||
-        request.quantity ||
-        1000,
+    try {
+      // Normalize: collect all possible type identifiers from the request
+      const rawWaterType = (
+        request.tankerDetails?.waterType ||
+        request.type ||
+        ''
       );
-      mockPrice = (volume / 20) * 60;
-    } else if (
-      waterType.includes('well') ||
-      waterType.includes('آبار') ||
-      waterType.includes('ashghal') ||
-      waterType.includes('construction') ||
-      waterType.includes('أشغال')
-    ) {
-      // مياه الآبار ومياه الأشغال: 700 د.ج لكل 1500 لتر
-      const volume = Number(
-        request.tankerDetails?.volume ||
-        request.tankerDetails?.quantity ||
-        request.quantity ||
-        1500,
-      );
-      mockPrice = (volume / 1500) * 700;
-    } else if (String(request.type).toUpperCase() === 'BOTTLED') {
-      // المياه المعبأة
-      if (request.bottledItems) {
-        const items = Array.isArray(request.bottledItems)
-          ? request.bottledItems
-          : Object.values(request.bottledItems);
+      const waterType = String(rawWaterType).toUpperCase().trim();
+      const requestType = String(request.type || '').toUpperCase().trim();
 
-        mockPrice = items.reduce((sum: number, item: any) => {
-          const size = (item.size || item.bottleType || '').toLowerCase();
-          const qty = Number(item.qty || item.quantity || 1);
+      if (waterType.includes('SPRING') || waterType.includes('ينابيع')) {
+        // مياه الينابيع: 60 د.ج لكل 20 لتر
+        const volume = Number(
+          request.tankerDetails?.volume ||
+          request.tankerDetails?.quantity ||
+          request.quantity ||
+          1000,
+        );
+        mockPrice = (volume / 20) * 60;
 
-          if (size.includes('0.5')) {
-            return sum + qty * 210; // فاردو 0.5 لتر: 210 د.ج
-          } else if (size.includes('5')) {
-            return sum + qty * 95; // قارورة 5 لتر: 95 د.ج
-          } else {
-            return sum + qty * 200; // فاردو 1.5 لتر (الافتراضي): 200 د.ج
-          }
-        }, 0);
-      } else {
-        const qty = Number(request.quantity || 1);
-        const bottleType = (
-          (request as any).bottledDetails?.bottleType || ''
-        ).toLowerCase();
-        if (bottleType.includes('0.5')) {
-          mockPrice = qty * 210;
-        } else if (bottleType.includes('5')) {
-          mockPrice = qty * 95;
+      } else if (
+        waterType.includes('WELL') ||
+        waterType.includes('آبار') ||
+        waterType.includes('ASHGHAL') ||
+        waterType.includes('CONSTRUCTION') ||
+        waterType.includes('أشغال')
+      ) {
+        // مياه الآبار ومياه الأشغال: 700 د.ج لكل 1500 لتر
+        const volume = Number(
+          request.tankerDetails?.volume ||
+          request.tankerDetails?.quantity ||
+          request.quantity ||
+          1500,
+        );
+        mockPrice = (volume / 1500) * 700;
+
+      } else if (requestType === 'BOTTLED') {
+        // المياه المعبأة
+        if (request.bottledItems) {
+          const items = Array.isArray(request.bottledItems)
+            ? request.bottledItems
+            : Object.values(request.bottledItems);
+
+          mockPrice = items.reduce((sum: number, item: any) => {
+            const size = String(item.size || item.bottleType || '').toLowerCase();
+            const qty = Number(item.qty || item.quantity || 1);
+
+            if (size.includes('0.5')) {
+              return sum + qty * 210; // فاردو 0.5 لتر: 210 د.ج
+            } else if (size.includes('5') && !size.includes('1.5')) {
+              return sum + qty * 95;  // قارورة 5 لتر: 95 د.ج
+            } else {
+              return sum + qty * 200; // فاردو 1.5 لتر (الافتراضي): 200 د.ج
+            }
+          }, 0);
         } else {
-          mockPrice = qty * 200;
+          const qty = Number(request.quantity || 1);
+          const bottleType = String(
+            (request as any).bottledDetails?.bottleType || '',
+          ).toLowerCase();
+          if (bottleType.includes('0.5')) {
+            mockPrice = qty * 210;
+          } else if (bottleType.includes('5') && !bottleType.includes('1.5')) {
+            mockPrice = qty * 95;
+          } else {
+            mockPrice = qty * 200;
+          }
         }
+      } else {
+        // Fallback: نفس منطق الينابيع إذا لم يُعرّف النوع
+        const qty = Number(request.quantity || 1);
+        mockPrice = qty * 200;
       }
-    } else {
-      // Fallback
-      const qty = Number(request.quantity || 1);
-      mockPrice = qty * 200;
+    } catch (pricingError) {
+      this.logger.warn(`[Simulation] Pricing error for ${requestId}: ${(pricingError as Error).message}. Using fallback price.`);
+      mockPrice = 500; // سعر احتياطي
     }
 
     mockPrice = Math.round(mockPrice);
