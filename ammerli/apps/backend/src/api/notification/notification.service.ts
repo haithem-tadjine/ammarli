@@ -46,6 +46,23 @@ export class NotificationService implements OnModuleInit {
         return;
       }
 
+      // ── الطريقة 3: متغير بيئة FIREBASE_CREDENTIALS (JSON كامل - للإنتاج) ──
+      // أضف محتوى ملف Service Account كاملاً في Railway تحت:
+      // FIREBASE_CREDENTIALS={"type":"service_account","project_id":...}
+      const firebaseCredentials = process.env.FIREBASE_CREDENTIALS;
+      if (firebaseCredentials) {
+        try {
+          const serviceAccount = JSON.parse(firebaseCredentials);
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+          });
+          this.logger.log('✅ Firebase Admin initialized from FIREBASE_CREDENTIALS env var');
+          return;
+        } catch (parseError) {
+          this.logger.error('❌ Failed to parse FIREBASE_CREDENTIALS JSON', parseError);
+        }
+      }
+
       // ── لا يوجد إعداد Firebase ─────────────────────────────────────────────
       this.logger.warn(
         '⚠️  Firebase not configured. Push notifications will be disabled.\n' +
