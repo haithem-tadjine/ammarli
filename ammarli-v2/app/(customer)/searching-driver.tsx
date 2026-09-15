@@ -161,7 +161,7 @@ export default function SearchingDriverScreen() {
   // Navigation observer
   useEffect(() => {
     if (!activeOrderStatus) return;
-    if (['picked_up', 'delivering', 'driving'].includes(activeOrderStatus)) {
+    if (['accepted', 'dispatched', 'picked_up', 'delivering', 'driving'].includes(activeOrderStatus)) {
       setTimeout(() => router.replace('/(customer)/order-tracking'), 300);
     } else if (activeOrderStatus === 'arrived') {
       setTimeout(() => router.replace('/(customer)/driver-arrived'), 300);
