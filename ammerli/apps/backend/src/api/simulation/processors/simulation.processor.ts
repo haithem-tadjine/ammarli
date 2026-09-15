@@ -153,7 +153,7 @@ export class SimulationProcessor extends WorkerHost {
       } as any,
     });
 
-    // 4. Emit websocket event
+    // 4. Emit request.accepted websocket event
     const updatedRequest =
       await this.requestService.getRequestFromCache(requestId);
     if (updatedRequest) {
@@ -166,6 +166,27 @@ export class SimulationProcessor extends WorkerHost {
 
     this.logger.log(
       `[Simulation] Request ${requestId} ACCEPTED with mockPrice=${mockPrice} DZD`,
+    );
+
+    // 5. Immediately transition to DELIVERING — mimics the real driver app which calls
+    //    updateDriverOrderStatus('driving') right after accepting. This emits ride.started
+    //    so the customer's handleRideStarted fires for ALL water types (Well, Ashghal, Bottled).
+    await this.requestService.updateRequest(requestId, {
+      status: RequestStatusEnum.DELIVERING,
+    });
+
+    const deliveringRequest =
+      await this.requestService.getRequestFromCache(requestId);
+    if (deliveringRequest) {
+      await this.amqpConnection.publish(
+        'requests',
+        'ride.started',
+        deliveringRequest,
+      );
+    }
+
+    this.logger.log(
+      `[Simulation] Request ${requestId} DELIVERING — ride.started emitted`,
     );
 
     // Schedule arrive (20 seconds for customer to see driver on route)
