@@ -168,11 +168,11 @@ export class SimulationProcessor extends WorkerHost {
       `[Simulation] Request ${requestId} ACCEPTED with mockPrice=${mockPrice} DZD`,
     );
 
-    // Schedule arrive
+    // Schedule arrive (20 seconds for customer to see driver on route)
     await this.simulationQueue.add(
       'simulate-arrive',
       { requestId },
-      { delay: 10000 },
+      { delay: 20000 },
     );
   }
 
@@ -184,12 +184,12 @@ export class SimulationProcessor extends WorkerHost {
 
     const updatedRequest = await this.requestService.getRequestFromCache(requestId);
     if (updatedRequest) {
-      await this.amqpConnection.publish('requests', 'driver.arrived', updatedRequest);
+      await this.amqpConnection.publish('requests', 'ride.driver_arrived', updatedRequest);
     }
     
     this.logger.log(`[Simulation] Request ${requestId} ARRIVED`);
     
-    // Schedule deliver
+    // Schedule deliver (15 seconds after arrive)
     await this.simulationQueue.add(
       'simulate-deliver',
       { requestId },

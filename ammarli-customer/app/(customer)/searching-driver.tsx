@@ -147,10 +147,10 @@ export default function SearchingDriverScreen() {
     }
   }, [nearbyDrivers]);
 
-  // Navigation observer
+  // Navigation observer — reacts to all non-searching status changes
   useEffect(() => {
     if (!activeOrderStatus) return;
-    if (['picked_up', 'delivering', 'driving'].includes(activeOrderStatus)) {
+    if (['accepted', 'locked', 'picked_up', 'delivering', 'driving'].includes(activeOrderStatus)) {
       setTimeout(() => router.replace('/(customer)/order-tracking'), 300);
     } else if (activeOrderStatus === 'arrived') {
       setTimeout(() => router.replace('/(customer)/driver-arrived'), 300);

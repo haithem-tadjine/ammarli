@@ -104,10 +104,16 @@ export default function TankDeliveryDetailsScreen() {
     const orderData = {
       id: 'local-' + Math.floor(Math.random() * 100000),
       type: type as string,
+      waterType: type as string,
       status: 'searching' as any,
       quantity: quantity.toString(),
+      displayVolume: `${quantity} لتر`,
       location: selectedLocation,
       locationName: selectedLocation.address || 'موقع التوصيل الحالي',
+      tankerDetails: {
+        waterType: type as string,
+        volume: quantity,
+      },
       items: [{
         brand: cfg.title,
         size: `${quantity} لتر`,

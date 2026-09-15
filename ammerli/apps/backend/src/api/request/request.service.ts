@@ -138,7 +138,7 @@ export class RequestService {
       await this.simulationQueue.add(
         'simulate-accept',
         { requestId: finalPayload.id },
-        { delay: 3000 },
+        { delay: 10000 },
       );
     } else {
       // ── 1. Event-Driven: Trigger On-Demand Matching for this specific request ─
@@ -342,137 +342,134 @@ export class RequestService {
     const ttl = isTerminal ? 60 : 14400; // 60s if terminal, 4 hours if active ride
     await this.setRequestInCache(request, ttl);
 
-    // ── Review Orders: Never persist to PostgreSQL (mock driverId causes FK errors) ──
-    if (request.isReviewOrder) {
-      this.logger.log(`[Simulation] Skipping DB save for review order ${requestId} (status=${status})`);
-      return;
-    }
+    // ── Review Orders / Unmatched early cancellations: Skip DB save ──
+    const shouldSkipDbSave = request.isReviewOrder ||
+      ((status === RequestStatusEnum.CANCELLED || status === RequestStatusEnum.EXPIRED) && !request.driverId);
 
-    // If cancelled or expired BEFORE any driver accepted it, DO NOT save to PostgreSQL
-    if ((status === RequestStatusEnum.CANCELLED || status === RequestStatusEnum.EXPIRED) && !request.driverId) {
-      return;
-    }
+    if (shouldSkipDbSave) {
+      this.logger.log(`[Simulation/Optimization] Skipping DB save for request ${requestId} (isReview=${request.isReviewOrder}, status=${status})`);
+    } else {
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+      let wilaya = 'Unknown Wilaya';
+      let commune = 'Unknown Commune';
 
-    let wilaya = 'Unknown Wilaya';
-    let commune = 'Unknown Commune';
-
-    if (request.pickupLat && request.pickupLng) {
-      const geoResult = await this.geocodingService.reverseGeocode(request.pickupLat, request.pickupLng);
-      if (geoResult) {
-        wilaya = geoResult.wilaya;
-        commune = geoResult.commune;
-      }
-    }
-
-    try {
-      const requestEntity = this.requestRepo.create({
-        id: request.id as Uuid,
-        status: status,
-        userId: request.user?.id as Uuid,
-        driverId: request.driverId ? (request.driverId as Uuid) : null,
-        volume: request.tankerDetails?.volume || request.quantity,
-        pickupLat: request.pickupLat,
-        pickupLng: request.pickupLng,
-        deliveryAddress: request.deliveryAddress,
-        type: request.type,
-        tankerDetails: request.tankerDetails,
-        bottledItems: request.bottledItems,
-        isScheduled: request.isScheduled || false,
-        scheduledDate: request.scheduledDate,
-        scheduledTime: request.scheduledTime,
-        subtotal: request.subtotal,
-        deliveryFee: request.deliveryFee,
-        totalPrice: request.totalPrice,
-        productId: request.productId ? (request.productId as Uuid) : null,
-        wilaya,
-        commune,
-      });
-
-      await queryRunner.manager.save(requestEntity);
-
-      if (status === RequestStatusEnum.DELIVERED) {
-        await queryRunner.manager.query(
-          `UPDATE "orders" SET status = 'DELIVERED' WHERE "requestId" = $1`,
-          [request.id]
-        );
-
-        if (request.driverId && !request.isReviewOrder) {
-          const finalPrice = request.totalPrice || 0;
-          
-          const driver = await queryRunner.manager.findOne('DriverEntity', {
-            where: [{ id: request.driverId }, { user: { id: request.driverId } }],
-            relations: ['user']
-          }) as any;
-
-          if (driver) {
-            const settings = await this.settingService.getSettings();
-            
-            let commission = 0;
-            const reqTypeStr = String(request.type).toUpperCase();
-            
-            if (reqTypeStr === 'BOTTLED') {
-              commission = (request.quantity || 1) * 6; // 3 for customer + 3 for driver
-            } else if (reqTypeStr === 'TANKER') {
-              const volume = request.tankerDetails?.volume || request.quantity || 0;
-              const waterType = (request.tankerDetails?.waterType || driver.waterType || '').toLowerCase();
-              
-              if (waterType === 'spring' || waterType === 'مياه ينابيع') {
-                commission = (volume / 20) * 7; // 5 for customer + 2 for driver per 20L bucket
-              } else {
-                // For well water or fallback
-                commission = Math.ceil(volume / 1500) * 100; // 50 for customer + 50 for driver per 1500 L
-              }
-            }
-
-            let currentBalance = Number(driver.walletBalance || 0);
-            let newDebt = Number(driver.appCommissionDebt || 0);
-
-            if (currentBalance >= commission) {
-              currentBalance -= commission;
-            } else {
-              const remainingCommission = commission - currentBalance;
-              currentBalance = 0;
-              newDebt += remainingCommission;
-            }
-
-            const isSuspended = settings.enableAutoSuspend ? newDebt >= Number(settings.maxDebtAllowed) : false;
-
-            await queryRunner.manager.query(
-              `UPDATE "drivers" SET "totalJobs" = "totalJobs" + 1, "totalEarnings" = "totalEarnings" + $1, "app_commission_debt" = $2, "walletBalance" = $3, "is_suspended" = $4 WHERE "id" = $5 OR "user_id" = $5`,
-              [finalPrice, newDebt, currentBalance, isSuspended, request.driverId]
-            );
-
-            if (commission > 0) {
-              const { v4: uuidv4 } = require('uuid');
-              await queryRunner.manager.query(
-                `INSERT INTO "wallet_transactions" ("id", "receiver_id", "amount", "type", "created_at", "updated_at") VALUES ($1, $2, $3, $4, NOW(), NOW())`,
-                [uuidv4(), driver.user?.id || driver.id, commission, 'COMMISSION']
-              );
-            }
-            
-            // Sync to Redis Metadata so Radar knows instantly
-            try {
-              const targetMetadataId = request.driver?.user?.id || request.driverId;
-              await this.driverMetadataService.updateMetadata(targetMetadataId as string, {
-                isSuspended: isSuspended,
-              });
-            } catch (error: any) {
-              this.logger.error(`Failed to sync isSuspended to metadata: ${error.message}`);
-            }
-          }
+      if (request.pickupLat && request.pickupLng) {
+        const geoResult = await this.geocodingService.reverseGeocode(request.pickupLat, request.pickupLng);
+        if (geoResult) {
+          wilaya = geoResult.wilaya;
+          commune = geoResult.commune;
         }
       }
 
-      await queryRunner.commitTransaction();
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(`Failed to save finalized request to database: ${(error as Error).message}`);
-    } finally {
-      await queryRunner.release();
+      try {
+        const requestEntity = this.requestRepo.create({
+          id: request.id as Uuid,
+          status: status,
+          userId: request.user?.id as Uuid,
+          driverId: request.driverId ? (request.driverId as Uuid) : null,
+          volume: request.tankerDetails?.volume || request.quantity,
+          pickupLat: request.pickupLat,
+          pickupLng: request.pickupLng,
+          deliveryAddress: request.deliveryAddress,
+          type: request.type,
+          tankerDetails: request.tankerDetails,
+          bottledItems: request.bottledItems,
+          isScheduled: request.isScheduled || false,
+          scheduledDate: request.scheduledDate,
+          scheduledTime: request.scheduledTime,
+          subtotal: request.subtotal,
+          deliveryFee: request.deliveryFee,
+          totalPrice: request.totalPrice,
+          productId: request.productId ? (request.productId as Uuid) : null,
+          wilaya,
+          commune,
+        });
+
+        await queryRunner.manager.save(requestEntity);
+
+        if (status === RequestStatusEnum.DELIVERED) {
+          await queryRunner.manager.query(
+            `UPDATE "orders" SET status = 'DELIVERED' WHERE "requestId" = $1`,
+            [request.id]
+          );
+
+          if (request.driverId && !request.isReviewOrder) {
+            const finalPrice = request.totalPrice || 0;
+            
+            const driver = await queryRunner.manager.findOne('DriverEntity', {
+              where: [{ id: request.driverId }, { user: { id: request.driverId } }],
+              relations: ['user']
+            }) as any;
+
+            if (driver) {
+              const settings = await this.settingService.getSettings();
+              
+              let commission = 0;
+              const reqTypeStr = String(request.type).toUpperCase();
+              
+              if (reqTypeStr === 'BOTTLED') {
+                commission = (request.quantity || 1) * 6; // 3 for customer + 3 for driver
+              } else if (reqTypeStr === 'TANKER') {
+                const volume = request.tankerDetails?.volume || request.quantity || 0;
+                const waterType = (request.tankerDetails?.waterType || driver.waterType || '').toLowerCase();
+                
+                if (waterType === 'spring' || waterType === 'مياه ينابيع') {
+                  commission = (volume / 20) * 7; // 5 for customer + 2 for driver per 20L bucket
+                } else {
+                  // For well water or fallback
+                  commission = Math.ceil(volume / 1500) * 100; // 50 for customer + 50 for driver per 1500 L
+                }
+              }
+
+              let currentBalance = Number(driver.walletBalance || 0);
+              let newDebt = Number(driver.appCommissionDebt || 0);
+
+              if (currentBalance >= commission) {
+                currentBalance -= commission;
+              } else {
+                const remainingCommission = commission - currentBalance;
+                currentBalance = 0;
+                newDebt += remainingCommission;
+              }
+
+              const isSuspended = settings.enableAutoSuspend ? newDebt >= Number(settings.maxDebtAllowed) : false;
+
+              await queryRunner.manager.query(
+                `UPDATE "drivers" SET "totalJobs" = "totalJobs" + 1, "totalEarnings" = "totalEarnings" + $1, "app_commission_debt" = $2, "walletBalance" = $3, "is_suspended" = $4 WHERE "id" = $5 OR "user_id" = $5`,
+                [finalPrice, newDebt, currentBalance, isSuspended, request.driverId]
+              );
+
+              if (commission > 0) {
+                const { v4: uuidv4 } = require('uuid');
+                await queryRunner.manager.query(
+                  `INSERT INTO "wallet_transactions" ("id", "receiver_id", "amount", "type", "created_at", "updated_at") VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+                  [uuidv4(), driver.user?.id || driver.id, commission, 'COMMISSION']
+                );
+              }
+              
+              // Sync to Redis Metadata so Radar knows instantly
+              try {
+                const targetMetadataId = request.driver?.user?.id || request.driverId;
+                await this.driverMetadataService.updateMetadata(targetMetadataId as string, {
+                  isSuspended: isSuspended,
+                });
+              } catch (error: any) {
+                this.logger.error(`Failed to sync isSuspended to metadata: ${error.message}`);
+              }
+            }
+          }
+        }
+
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        this.logger.error(`Failed to save finalized request to database: ${(error as Error).message}`);
+      } finally {
+        await queryRunner.release();
+      }
     }
 
     const routingKeyMap: Partial<Record<RequestStatusEnum, string>> = {

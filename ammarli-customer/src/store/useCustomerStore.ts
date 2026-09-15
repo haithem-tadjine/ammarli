@@ -47,6 +47,7 @@ export interface Order {
   schedulingInfo?: { date: string; time: string };
   items?: Array<{ brand: string; size: string; qty: number; unitPrice?: number; floor?: number }>;
   cancelReason?: string;
+  tankerDetails?: Record<string, any>;
   /** Populated by socket event when a driver accepts the order */
   driverInfo?: DriverInfo;
 }
@@ -237,12 +238,27 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
           };
         }
 
-        const isTanker = (data.type || '').toUpperCase() === 'TANKER';
+        const isTanker = (data.type || '').toUpperCase() === 'TANKER' || data.type === 'Well' || data.type === 'Spring' || data.type === 'Ashghal';
+        
+        // Parse tankerDetails if returned as JSON string
+        const rawTankerDetails = data.tankerDetails || existingOrder?.tankerDetails;
+        const tankerDetails = typeof rawTankerDetails === 'string'
+          ? (() => { try { return JSON.parse(rawTankerDetails); } catch { return null; } })()
+          : rawTankerDetails;
+
+        const rawVolume = tankerDetails?.volume || data.volume;
+        const existingQtyNum = Number(existingOrder?.quantity);
+
+        // For tanker orders, volume can never be 1L (1 is backend truck count artifact).
         const realVolume = isTanker
-          ? (data.tankerDetails?.volume || data.volume || data.quantity)
+          ? (Number(rawVolume) > 1
+              ? rawVolume
+              : (existingQtyNum > 1 ? existingOrder?.quantity : (Number(data.quantity) > 1 ? data.quantity : 1500)))
           : data.quantity;
+
         const displayVolume = data.displayVolume
-          || (isTanker && realVolume ? `${realVolume} لتر` : undefined);
+          || (isTanker && realVolume ? `${realVolume} لتر` : undefined)
+          || existingOrder?.displayVolume;
 
         const mappedOrder: Order = {
           id: data.id,
@@ -255,7 +271,8 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
           deliveryFee: data.deliveryFee,
           locationName: data.deliveryAddress,
           location: { latitude: data.pickupLat, longitude: data.pickupLng },
-          waterType: data.tankerDetails?.waterType,
+          waterType: tankerDetails?.waterType || data.waterType || existingOrder?.waterType || (isTanker ? data.type : undefined),
+          tankerDetails: tankerDetails || existingOrder?.tankerDetails,
           items: data.bottledItems,
           driverInfo,
         };
@@ -291,16 +308,28 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
         }
       : existing?.driverInfo; // keep previous driverInfo if not re-sent
 
-    const isTanker = (payload.type || '').toUpperCase() === 'TANKER';
+    const isTanker = (payload.type || '').toUpperCase() === 'TANKER' || payload.type === 'Well' || payload.type === 'Spring' || payload.type === 'Ashghal';
 
-    // For tanker orders, the real volume is in tankerDetails.volume.
-    // payload.quantity is always "1" for tankers (backend artifact) — ignore it.
+    // Parse tankerDetails if returned as JSON string
+    const rawTankerDetails = payload.tankerDetails || existing?.tankerDetails;
+    const tankerDetails = typeof rawTankerDetails === 'string'
+      ? (() => { try { return JSON.parse(rawTankerDetails); } catch { return null; } })()
+      : rawTankerDetails;
+
+    const rawVolume = tankerDetails?.volume || payload.volume;
+    const existingQtyNum = Number(existing?.quantity);
+
+    // For tanker orders, volume can never be 1L (1 is backend truck count artifact).
+    // If backend payload.quantity is 1, fallback to tankerDetails.volume, existing quantity, or default.
     const realVolume = isTanker
-      ? (payload.tankerDetails?.volume || payload.volume || payload.quantity)
+      ? (Number(rawVolume) > 1
+          ? rawVolume
+          : (existingQtyNum > 1 ? existing?.quantity : (Number(payload.quantity) > 1 ? payload.quantity : 1500)))
       : payload.quantity;
 
     const displayVolume = payload.displayVolume
       || (isTanker && realVolume ? `${realVolume} لتر` : undefined)
+      || existing?.displayVolume
       || (!isTanker && payload.bottledItems
           ? (() => {
               const items = Array.isArray(payload.bottledItems)
@@ -321,7 +350,8 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
       deliveryFee:  payload.deliveryFee,
       locationName: payload.deliveryAddress,
       location:     { latitude: payload.pickupLat, longitude: payload.pickupLng },
-      waterType:    payload.tankerDetails?.waterType,
+      waterType:    tankerDetails?.waterType || payload.waterType || existing?.waterType || (isTanker ? payload.type : undefined),
+      tankerDetails: tankerDetails || existing?.tankerDetails,
       items:        payload.bottledItems,
       driverInfo,
     };
@@ -433,7 +463,14 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
       // Update with real ID from backend, but preserve current state in case it updated via socket
       set((s) => ({ 
-        activeOrder: s.activeOrder ? { ...s.activeOrder, id: res.data.id } : null 
+        activeOrder: s.activeOrder ? { 
+          ...s.activeOrder, 
+          id: res.data.id,
+          waterType: s.activeOrder.waterType || order.waterType || order.type,
+          displayVolume: s.activeOrder.displayVolume || order.displayVolume || (isTanker ? `${order.quantity} لتر` : undefined),
+          quantity: s.activeOrder.quantity || order.quantity,
+          tankerDetails: s.activeOrder.tankerDetails || order.tankerDetails,
+        } : null 
       }));
     } catch (error: any) {
       console.error('Failed to create order on backend:', error?.response?.data || error);
