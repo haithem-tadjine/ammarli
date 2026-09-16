@@ -70,12 +70,18 @@ export default function OrderDetailsScreen() {
       if (cart[size] > 0) items.push({ size, qty: cart[size] });
     });
     try {
-      setIsLoading(true);
-      await createOrder({ id: Math.floor(Math.random() * 100000), type: 'Bottled', status: 'searching', location: draftOrder.location, locationName: draftOrder.location.address || 'موقع التوصيل', items });
+      useCustomerStore.setState({
+        activeOrder: {
+          id: `local-${Date.now()}`,
+          type: 'Bottled',
+          status: 'created',
+          location: draftOrder.location,
+          locationName: draftOrder.location.address || 'موقع التوصيل',
+          items,
+        }
+      });
       router.push('/(customer)/searching-driver');
     } catch {
-    } finally {
-      setIsLoading(false);
     }
   };
 

@@ -10,7 +10,8 @@ import {
   Platform,
   Linking,
   ScrollView,
-  Animated
+  Animated,
+  BackHandler
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -92,6 +93,15 @@ export default function OrderTrackingScreen() {
       });
     };
   }, [setDriverLocation]);
+
+  React.useEffect(() => {
+    const onBackPress = () => {
+      router.replace('/(customer)/(tabs)');
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
+  }, []);
 
   React.useEffect(() => {
     if (!activeOrder) {

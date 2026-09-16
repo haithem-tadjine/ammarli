@@ -342,12 +342,13 @@ export class RequestService {
     const ttl = isTerminal ? 60 : 14400; // 60s if terminal, 4 hours if active ride
     await this.setRequestInCache(request, ttl);
 
-    // ── Review Orders / Unmatched early cancellations: Skip DB save ──
-    const shouldSkipDbSave = request.isReviewOrder ||
-      ((status === RequestStatusEnum.CANCELLED || status === RequestStatusEnum.EXPIRED) && !request.driverId);
+    // ── Unmatched early cancellations: Skip DB save ──
+    // Review orders (isReviewOrder) are now saved to DB so they appear in the customer's activities page.
+    // Driver accounting is already skipped for review orders below.
+    const shouldSkipDbSave = ((status === RequestStatusEnum.CANCELLED || status === RequestStatusEnum.EXPIRED) && !request.driverId);
 
     if (shouldSkipDbSave) {
-      this.logger.log(`[Simulation/Optimization] Skipping DB save for request ${requestId} (isReview=${request.isReviewOrder}, status=${status})`);
+      this.logger.log(`[Simulation/Optimization] Skipping DB save for request ${requestId} (status=${status})`);
     } else {
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();

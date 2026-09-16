@@ -2,7 +2,8 @@ import ScreenContainer from '../../components/ScreenContainer';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity,
-  Dimensions, Platform, Animated, Image, Alert, Modal, PanResponder
+  Dimensions, Platform, Animated, Image, Alert, Modal, PanResponder,
+  BackHandler
 } from 'react-native';
 import MapView, { Marker } from '../../components/Map';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -129,7 +130,16 @@ export default function SearchingDriverScreen() {
       fetchNearbyDrivers(coordinates.latitude, coordinates.longitude, 15);
     }, 7000);
 
-    return () => clearInterval(intervalId);
+    const onBackPress = () => {
+      router.replace('/(customer)/(tabs)');
+      return true; // Prevent default behavior
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+    return () => {
+      clearInterval(intervalId);
+      backSubscription.remove();
+    };
   }, []);
 
   // Map Auto-Zoom

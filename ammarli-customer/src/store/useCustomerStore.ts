@@ -278,7 +278,12 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
         };
         set({ activeOrder: mappedOrder });
       } else {
-        set({ activeOrder: null });
+        const currentOrder = get().activeOrder;
+        if (currentOrder && ['completed', 'delivered'].includes(currentOrder.status)) {
+          // Do not wipe out terminal state so invoice/rating screens keep their data
+        } else {
+          set({ activeOrder: null });
+        }
       }
     } catch (e) {
       console.log('No active order found or error:', e);
@@ -287,6 +292,10 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
   handleSocketOrderUpdate: (payload: any) => {
     if (!payload) {
+      const currentOrder = get().activeOrder;
+      if (currentOrder && ['completed', 'delivered'].includes(currentOrder.status)) {
+        return;
+      }
       set({ activeOrder: null });
       return;
     }
@@ -301,10 +310,11 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
       ? {
           id:        payload.driver.id,
           name:      `${payload.driver.user?.firstName ?? ''} ${payload.driver.user?.lastName ?? ''}`.trim() || payload.driver.name || 'السائق',
-          phone:     payload.driver.user?.phone ?? payload.driver.phone ?? '',
-          plate:     payload.driver.truckPlate ?? payload.driver.plate,
-          rating:    payload.driver.rating?.toString(),
-          avatarUrl: payload.driver.avatarUrl,
+          // Resolve phone from all possible payload shapes
+          phone:     payload.driver.user?.phone ?? payload.driver.userPhone ?? payload.driver.phone ?? '',
+          plate:     payload.driver.truckPlate ?? payload.driver.plate ?? payload.driver.licensePlate,
+          rating:    payload.driver.rating?.toString() ?? payload.driver.user?.rating?.toString(),
+          avatarUrl: payload.driver.avatarUrl ?? payload.driver.user?.image,
         }
       : existing?.driverInfo; // keep previous driverInfo if not re-sent
 
@@ -320,16 +330,21 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     const existingQtyNum = Number(existing?.quantity);
 
     // For tanker orders, volume can never be 1L (1 is backend truck count artifact).
-    // If backend payload.quantity is 1, fallback to tankerDetails.volume, existing quantity, or default.
+    // Priority: tankerDetails.volume > existing quantity (set locally) > payload.quantity > 1500 default
     const realVolume = isTanker
       ? (Number(rawVolume) > 1
           ? rawVolume
-          : (existingQtyNum > 1 ? existing?.quantity : (Number(payload.quantity) > 1 ? payload.quantity : 1500)))
+          : (existingQtyNum > 1
+              ? existing?.quantity
+              : (Number(payload.quantity) > 1 ? payload.quantity : null)))
       : payload.quantity;
 
-    const displayVolume = payload.displayVolume
+    // Priority for displayVolume: existing local value always wins over re-calculated.
+    // This preserves the user-selected quantity (e.g. "3000 لتر") even when the backend
+    // socket payload arrives with quantity=1 (truck count artifact).
+    const displayVolume = existing?.displayVolume
+      || payload.displayVolume
       || (isTanker && realVolume ? `${realVolume} لتر` : undefined)
-      || existing?.displayVolume
       || (!isTanker && payload.bottledItems
           ? (() => {
               const items = Array.isArray(payload.bottledItems)

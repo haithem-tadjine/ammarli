@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Platform,
-  StatusBar
+  StatusBar,
+  BackHandler
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +40,14 @@ export default function InvoiceScreen() {
 
   useEffect(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    const onBackPress = () => {
+      useCustomerStore.getState().clearActiveOrderStore();
+      router.replace('/(customer)/(tabs)');
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
   }, []);
 
   const getWaterTypeLabel = (type?: string) => {

@@ -10,7 +10,9 @@ import {
   Platform,
   StatusBar,
   Alert,
-  Animated
+  Animated,
+  Linking,
+  BackHandler
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,11 +49,28 @@ export default function DriverArrivedScreen() {
         Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true })
       ])
     ).start();
+
+    const onBackPress = () => {
+      router.replace('/(customer)/(tabs)');
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
   }, [pulseAnim]);
 
   const handleIAmGoingOut = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.replace('/(customer)/invoice');
+  };
+
+  const handleCallDriver = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const phone = driverInfo?.phone;
+    if (phone) {
+      Linking.openURL(`tel:${phone}`);
+    } else {
+      Alert.alert('تنبيه', 'رقم هاتف السائق غير متاح حالياً');
+    }
   };
 
   useEffect(() => {
@@ -171,7 +190,7 @@ export default function DriverArrivedScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.callCircle} onPress={() => Haptics.selectionAsync()}>
+            <TouchableOpacity style={styles.callCircle} onPress={handleCallDriver}>
               <Ionicons name="call" size={20} color={COLORS.white} />
             </TouchableOpacity>
           </View>
