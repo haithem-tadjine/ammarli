@@ -466,6 +466,7 @@ export class RequestService {
         }
 
         await queryRunner.commitTransaction();
+        this.logger.log(`Successfully saved finalized request ${request.id} to database with status ${status}`);
       } catch (error) {
         await queryRunner.rollbackTransaction();
         this.logger.error(`Failed to save finalized request to database: ${(error as Error).message}`);
