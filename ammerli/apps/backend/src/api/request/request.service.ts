@@ -370,7 +370,7 @@ export class RequestService {
           id: request.id as Uuid,
           status: status,
           userId: request.user?.id as Uuid,
-          driverId: request.driverId ? (request.driverId as Uuid) : null,
+          driverId: (request.driverId && !request.isReviewOrder) ? (request.driverId as Uuid) : null,
           volume: request.tankerDetails?.volume || request.quantity,
           pickupLat: request.pickupLat,
           pickupLng: request.pickupLng,
@@ -387,6 +387,7 @@ export class RequestService {
           productId: request.productId ? (request.productId as Uuid) : null,
           wilaya,
           commune,
+          isReviewOrder: request.isReviewOrder || false,
         });
 
         await queryRunner.manager.save(requestEntity);
