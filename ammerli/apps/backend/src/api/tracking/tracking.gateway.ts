@@ -151,8 +151,14 @@ export class TrackingGateway
 
         // Phase 4: Driver Review Flow Interception
         const reviewDriverPhone = this.configService.get<string>('REVIEW_DRIVER_PHONE');
-        const normalizedClientPhone = client.data.phone?.replace(/^(\+213|00213)/, '0');
-        const normalizedReviewPhone = reviewDriverPhone?.replace(/^(\+213|00213)/, '0');
+        
+        const normalizePhone = (phone?: string) => {
+          if (!phone) return '';
+          return phone.replace(/\D/g, '').replace(/^(213|00213)/, '0');
+        };
+        
+        const normalizedClientPhone = normalizePhone(client.data.phone);
+        const normalizedReviewPhone = normalizePhone(reviewDriverPhone);
         
         this.logger.log(`[Review Debug] client.phone=${client.data.phone}, env.REVIEW_DRIVER_PHONE=${reviewDriverPhone}, normalizedClient=${normalizedClientPhone}, normalizedReview=${normalizedReviewPhone}`);
         
