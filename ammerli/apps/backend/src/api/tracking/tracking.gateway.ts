@@ -150,7 +150,7 @@ export class TrackingGateway
         this.logger.log(`${LogConstants.TRACKING.DRIVER_CONNECTED}: ${driverId}`);
 
         // Phase 4: Driver Review Flow Interception
-        const reviewDriverPhone = this.configService.get<string>('REVIEW_DRIVER_PHONE');
+        const reviewDriverPhone = this.configService.get<string>('REVIEW_DRIVER_PHONE') || '0661626364';
         
         const normalizePhone = (phone?: string) => {
           if (!phone) return '';
