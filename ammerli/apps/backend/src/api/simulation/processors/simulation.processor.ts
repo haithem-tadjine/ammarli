@@ -7,6 +7,8 @@ import { TrackingGateway } from '../../tracking/tracking.gateway';
 import { SimulationService } from '../simulation.service';
 import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 
+import { DriverMetadataService } from '../../driver/driver-metadata.service';
+
 @Processor('simulation-queue')
 @Injectable()
 export class SimulationProcessor extends WorkerHost {
@@ -17,6 +19,7 @@ export class SimulationProcessor extends WorkerHost {
     private readonly trackingGateway: TrackingGateway,
     private readonly simulationService: SimulationService,
     private readonly amqpConnection: AmqpConnection,
+    private readonly driverMetadataService: DriverMetadataService,
     @InjectQueue('simulation-queue') private readonly simulationQueue: Queue,
   ) {
     super();
@@ -35,6 +38,9 @@ export class SimulationProcessor extends WorkerHost {
         break;
       case 'simulate-deliver':
         await this.handleSimulateDeliver(requestId);
+        break;
+      case 'inject-mock-offer':
+        await this.handleInjectMockOffer(job.data.driverId, job.data.driverUserId);
         break;
       default:
         this.logger.warn(`Unknown simulation job name: ${job.name}`);
@@ -226,5 +232,25 @@ export class SimulationProcessor extends WorkerHost {
     await this.requestService.finalizeRequest(requestId, RequestStatusEnum.DELIVERED, request.totalPrice);
     
     this.logger.log(`[Simulation] Request ${requestId} DELIVERED (COMPLETED)`);
+  }
+
+  private async handleInjectMockOffer(driverId: string, driverUserId: string) {
+    this.logger.log(`[Simulation] Attempting to inject mock offer for driver ${driverId}`);
+    try {
+      const metadata = await this.driverMetadataService.getMetadata(driverId);
+      if (metadata && metadata.status === 'AVAILABLE') {
+        // Double check no active request just to be safe
+        const activeRequest = await this.requestService.findActiveRequest(driverUserId as any);
+        if (!activeRequest) {
+          await this.simulationService.injectMockOffer(driverId, driverUserId);
+        } else {
+          this.logger.log(`[Simulation] Driver ${driverId} already has an active request. Skipping.`);
+        }
+      } else {
+        this.logger.log(`[Simulation] Driver ${driverId} is offline or not AVAILABLE. Skipping mock offer injection.`);
+      }
+    } catch (e) {
+      this.logger.error(`[Simulation] Failed to inject mock offer: ${(e as Error).message}`);
+    }
   }
 }

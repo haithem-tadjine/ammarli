@@ -3,6 +3,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { RabbitMqLibModule } from '@/libs/rabbitMq/rabbitMq.module';
 import { RequestModule } from '../request/request.module';
 import { TrackingModule } from '../tracking/tracking.module';
+import { DriverModule } from '../driver/driver.module';
 import { SimulationProcessor } from './processors/simulation.processor';
 import { SimulationService } from './simulation.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -12,6 +13,7 @@ import { RequestEntity } from '../request/entities/request.entity';
   imports: [
     forwardRef(() => RequestModule),
     forwardRef(() => TrackingModule),
+    forwardRef(() => DriverModule),
     BullModule.registerQueue({
       name: 'simulation-queue',
     }),

@@ -537,6 +537,17 @@ export class RequestService {
           this.logger.error(`Failed to update driver status: ${error.message}`);
         }
       }
+
+      if (request.isReviewOrder) {
+        const uId = (request as any).userId || request.user?.id;
+        if (uId) {
+          await this.simulationQueue.add(
+            'inject-mock-offer',
+            { driverId: uId, driverUserId: uId },
+            { delay: 30000 }
+          );
+        }
+      }
     }
 
     return request;
@@ -771,6 +782,15 @@ export class RequestService {
             alertMessage: 'تم إلغاء الطلب بنجاح.',
             action: 'GO_HOME',
           });
+          
+          const uId = (cachedRequest as any).userId || cachedRequest.user?.id;
+          if (uId) {
+            await this.simulationQueue.add(
+              'inject-mock-offer',
+              { driverId: uId, driverUserId: uId },
+              { delay: 30000 }
+            );
+          }
         } catch (e) {
           this.logger.error('[Simulation] Failed to publish cancellation event', e);
         }
