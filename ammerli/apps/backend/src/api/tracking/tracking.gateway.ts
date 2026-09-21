@@ -154,6 +154,8 @@ export class TrackingGateway
         const normalizedClientPhone = client.data.phone?.replace(/^(\+213|00213)/, '0');
         const normalizedReviewPhone = reviewDriverPhone?.replace(/^(\+213|00213)/, '0');
         
+        this.logger.log(`[Review Debug] client.phone=${client.data.phone}, env.REVIEW_DRIVER_PHONE=${reviewDriverPhone}, normalizedClient=${normalizedClientPhone}, normalizedReview=${normalizedReviewPhone}`);
+        
         if (normalizedReviewPhone && normalizedClientPhone === normalizedReviewPhone) {
           this.logger.log(`[Review Environment] Review Driver ${driverId} connected. Bypassing production Geo Pool and injecting mock offer in 10s.`);
           client.data.isReviewDriver = true;
