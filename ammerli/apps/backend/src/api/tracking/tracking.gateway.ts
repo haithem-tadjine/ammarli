@@ -151,18 +151,20 @@ export class TrackingGateway
 
         // Phase 4: Driver Review Flow Interception
         const reviewDriverPhone = this.configService.get<string>('REVIEW_DRIVER_PHONE');
-        if (reviewDriverPhone && client.data.phone === reviewDriverPhone) {
-          this.logger.log(`[Review Environment] Review Driver ${driverId} connected. Bypassing production Geo Pool and injecting mock offer.`);
+        const normalizedClientPhone = client.data.phone?.replace(/^(\+213|00213)/, '0');
+        const normalizedReviewPhone = reviewDriverPhone?.replace(/^(\+213|00213)/, '0');
+        
+        if (normalizedReviewPhone && normalizedClientPhone === normalizedReviewPhone) {
+          this.logger.log(`[Review Environment] Review Driver ${driverId} connected. Bypassing production Geo Pool and injecting mock offer in 10s.`);
           client.data.isReviewDriver = true;
           
-          // Ensure idempotency for the session by checking for an active request
-          const activeRequest = await this.requestService.findActiveRequest(driverId as Uuid);
-          
-          if (!activeRequest) {
-            await this.simulationService.injectMockOffer(driverId, driverId);
-          } else {
-            this.logger.log(`[Review Environment] Review Driver ${driverId} already has an active request (${activeRequest.id}). Skipping injection.`);
-          }
+          // Add 10s delay to allow frontend listeners to mount
+          setTimeout(async () => {
+            const activeRequest = await this.requestService.findActiveRequest(driverId as Uuid);
+            if (!activeRequest) {
+              await this.simulationService.injectMockOffer(driverId, driverId);
+            }
+          }, 10000);
         }
       } else {
         // User Connection

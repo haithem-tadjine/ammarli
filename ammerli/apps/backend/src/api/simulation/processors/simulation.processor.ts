@@ -232,6 +232,17 @@ export class SimulationProcessor extends WorkerHost {
     await this.requestService.finalizeRequest(requestId, RequestStatusEnum.DELIVERED, request.totalPrice);
     
     this.logger.log(`[Simulation] Request ${requestId} DELIVERED (COMPLETED)`);
+    
+    // Requeue mock offer for review drivers
+    const driverId = request.driverId;
+    if (driverId) {
+      this.logger.log(`[Simulation] Re-queuing mock offer for review driver ${driverId} in 15s`);
+      await this.simulationQueue.add(
+        'inject-mock-offer',
+        { driverId: driverId, driverUserId: driverId },
+        { delay: 15000 },
+      );
+    }
   }
 
   private async handleInjectMockOffer(driverId: string, driverUserId: string) {
