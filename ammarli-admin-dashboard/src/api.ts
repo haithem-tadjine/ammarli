@@ -1,10 +1,16 @@
 import axios from 'axios';
 
-// Base URL: reads from VITE_API_BASE_URL env variable (set in .env)
-// Fallback → Railway production URL
+// ====================================================================
+// Production API base URL (hardcoded to prevent Netlify build issues)
+// VITE_API_BASE_URL env var is supported as override for local dev only
+// ====================================================================
+const PRODUCTION_API = 'https://ammarli-production.up.railway.app/api/v1';
+
+const rawEnvUrl = import.meta.env.VITE_API_BASE_URL;
 const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  'https://ammarli-production.up.railway.app/api/v1';
+  typeof rawEnvUrl === 'string' && rawEnvUrl.trim().startsWith('https://')
+    ? rawEnvUrl.trim()
+    : PRODUCTION_API;
 
 // Create an Axios instance
 const api = axios.create({
