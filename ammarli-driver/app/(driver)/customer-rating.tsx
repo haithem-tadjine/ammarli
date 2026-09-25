@@ -11,7 +11,8 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
+  BackHandler,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -70,7 +71,15 @@ export default function CustomerRatingScreen() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const onBackPress = () => {
+      useDriverStore.getState().clearActiveOrderStore();
+      router.replace('/(driver)/(tabs)' as any);
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
     return () => {
+      backSubscription.remove();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
@@ -109,6 +118,7 @@ export default function CustomerRatingScreen() {
         }
       } as any);
     } else {
+      useDriverStore.getState().clearActiveOrderStore();
       router.replace('/(driver)/(tabs)' as any);
     }
   };

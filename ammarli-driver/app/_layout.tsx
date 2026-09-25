@@ -158,7 +158,7 @@ export default function RootLayout() {
 
         // ── 1. الزبون ضغط على زر "قبول" في إشعار طلبية جديدة ─────────────
         if (actionId === 'accept' || (actionId === Notifications.DEFAULT_ACTION_IDENTIFIER && notifType === 'NEW_ORDER')) {
-          router.push({
+          router.replace({
             pathname: '/(driver)/incoming-order' as any,
             params: {
               orderId: data.orderId
@@ -175,7 +175,7 @@ export default function RootLayout() {
 
         // ── 3. ضغط على إشعار "طلبية قيد التوصيل" (ACTIVE_ORDER) ──────────
         if (actionId === Notifications.DEFAULT_ACTION_IDENTIFIER && notifType === 'ACTIVE_ORDER') {
-          router.push({
+          router.replace({
             pathname: '/(driver)/order-details' as any,
             params: {
               customerName: data.customerName ?? 'الزبون',
@@ -274,7 +274,7 @@ export default function RootLayout() {
                 
                 await useDriverStore.getState().updateDriverOrderStatus('driving', finalTotal, globalIncomingOrder.orderId);
 
-                router.push({
+                router.replace({
                   pathname: '/(driver)/order-details' as any,
                   params: { 
                     orderId: globalIncomingOrder.orderId,

@@ -14,7 +14,6 @@ import {
   ScrollView,
   StatusBar,
   Modal,
-  Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar, Phone, Star, Truck, X } from 'lucide-react-native';
@@ -159,14 +158,11 @@ export default function MyActivitiesScreen() {
     setBottomSheetVisible(true);
   };
 
-  const handleReorder = (item: any) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('قريباً', 'جاري تحويلك إلى السلة لإعادة الطلب...');
-  };
 
-  const handleRate = () => {
+
+  const handleRate = (item: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('قريباً', 'ميزة التقييم قيد التطوير');
+    router.push('/(customer)/driver-rating');
   };
 
   return (
@@ -222,7 +218,19 @@ export default function MyActivitiesScreen() {
               );
             } else {
               const isCancelled = item.status === 'cancelled';
-              const orderSummaryText = item.waterType ? `مياه ${item.waterType}` : (item.items && item.items.length > 0 ? `${item.items.length} منتجات` : 'طلب مياه');
+              const waterTypeAr: Record<string, string> = {
+                spring:   'ينابيع',
+                well:     'آبار',
+                ashghal:  'أشغال',
+                tanker:   'صهريج',
+                bottled:  'معبأة',
+              };
+              const waterLabel = item.waterType
+                ? (waterTypeAr[(item.waterType as string).toLowerCase()] || item.waterType)
+                : null;
+              const orderSummaryText = waterLabel
+                ? `مياه ${waterLabel}`
+                : (item.items && item.items.length > 0 ? `${item.items.length} منتجات` : 'طلب مياه');
               
               return (
                 <View style={styles.pastCard}>
@@ -247,10 +255,7 @@ export default function MyActivitiesScreen() {
 
                   {!isCancelled && (
                     <View style={styles.pastCardActions}>
-                      <TouchableOpacity style={styles.reorderBtn} onPress={() => handleReorder(item)}>
-                        <Text style={styles.reorderBtnText}>إعادة الطلب</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.rateBtn} onPress={handleRate}>
+                      <TouchableOpacity style={styles.rateBtn} onPress={() => handleRate(item)}>
                         <Text style={styles.rateBtnText}>تقييم</Text>
                       </TouchableOpacity>
                     </View>

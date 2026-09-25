@@ -149,9 +149,7 @@ export default function OrderTrackingScreen() {
             <Feather name="x" size={24} color={COLORS.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>تتبع الطلبية</Text>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => {}}>
-            <Feather name="help-circle" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
+          <View style={styles.iconBtn} />
         </View>
 
         {/* ── Status Text ────────────────────────────────────────────────────── */}

@@ -5,13 +5,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Image
+  Image,
+  BackHandler,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import ScreenContainer, { MIN_BOTTOM_INSET } from '../../components/ScreenContainer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDriverStore } from '../../src/store/useDriverStore';
 
 const { width } = Dimensions.get('window');
 
@@ -33,8 +35,19 @@ export default function TripCancelledScreen() {
   // في التطبيق الحقيقي، سيتم تمرير السبب من خلال الـ params أو الـ state
   const cancelReason = "وقت الانتظار طويل جداً";
 
+  React.useEffect(() => {
+    const onBackPress = () => {
+      useDriverStore.getState().clearActiveOrderStore();
+      router.replace('/(driver)/(tabs)');
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
+  }, []);
+
   const handleReturnHome = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    useDriverStore.getState().clearActiveOrderStore();
     router.replace('/(driver)/(tabs)');
   };
 

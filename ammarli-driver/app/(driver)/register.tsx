@@ -35,21 +35,6 @@ const COLORS = {
   border:    '#E2E8F0',
 };
 
-// ─── جميع العلامات التجارية ───────────────────────────────────────────────────
-
-const ALL_BRANDS = [
-  { id: 'Ifri',          name: 'Ifri',          logo: require('../../assets/images/brands/ifri.png')           },
-  { id: 'Guedila',       name: 'Guedila',       logo: require('../../assets/images/brands/guedila.png')        },
-  { id: 'Saida',         name: 'Saida',         logo: require('../../assets/images/brands/saida.png')          },
-  { id: 'Lalla Khedidja',name: 'L.Khedidja',   logo: require('../../assets/images/brands/lalla-khedidja.png') },
-  { id: 'Mansourah',     name: 'Mansourah',     logo: require('../../assets/images/brands/mansourah.png')      },
-  { id: 'Toudja',        name: 'Toudja',        logo: require('../../assets/images/brands/toudja.png')         },
-  { id: 'Youkous',       name: 'Youkous',       logo: require('../../assets/images/brands/youkous.png')        },
-  { id: 'Messerghine',   name: 'Messerghine',   logo: require('../../assets/images/brands/messerghine.png')    },
-  { id: 'Texanna',       name: 'Texanna',       logo: require('../../assets/images/brands/texanna.png')        },
-  { id: 'Hayat',         name: 'Hayat',         logo: require('../../assets/images/brands/hayat.jpg')          },
-];
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 /** بطاقة اختيار نوع المركبة — تدعم صورة أو أيقونة */
@@ -106,7 +91,6 @@ const DriverRegistrationScreen = () => {
 
   const [vehicleType, setVehicleType] = useState<'tanker' | 'bottled'>('tanker');
   const [waterType,   setWaterType]   = useState('spring');
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [capacity,    setCapacity]    = useState('5000');
 
   // أسعار القوارير لسائق المياه المعبأة
@@ -127,11 +111,6 @@ const DriverRegistrationScreen = () => {
 
   const registerDriver = useDriverStore(s => s.registerDriver);
 
-  const toggleBrand = (id: string) => {
-    setSelectedBrands(prev =>
-      prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
-    );
-  };
 
   const handleRegister = async () => {
     if (!fullName.trim() || !phone.trim() || !password.trim() || !license.trim()) {
@@ -140,11 +119,6 @@ const DriverRegistrationScreen = () => {
       return;
     }
     if (vehicleType === 'bottled') {
-      if (selectedBrands.length === 0) {
-        Alert.alert('اختر علامة تجارية', 'يرجى اختيار علامة تجارية واحدة على الأقل.');
-        shake();
-        return;
-      }
       const p05 = parseFloat(price05);
       const p15 = parseFloat(price15);
       const p5  = parseFloat(price5);
@@ -173,7 +147,6 @@ const DriverRegistrationScreen = () => {
         driverType: vehicleType === 'bottled' ? 'BOTTLED' : 'TANKER',
         truckPlate: license.trim(),
         waterType: vehicleType === 'tanker' ? waterType : undefined,
-        brands: vehicleType === 'bottled' ? selectedBrands : undefined,
         capacity: vehicleType === 'tanker' ? Number(capacity) : undefined,
         bottledPrices,
       });
@@ -241,41 +214,9 @@ const DriverRegistrationScreen = () => {
         />
       </View>
 
-      {/* ── قسم العبوات: اختيار العلامات التجارية ── */}
+      {/* ── قسم العبوات: أسعار بيع العبوات ── */}
       {vehicleType === 'bottled' && (
         <View style={styles.dynamicSection}>
-          <Text style={styles.sectionLabel}>
-            اختر العلامات التجارية المتوفرة لديك
-          </Text>
-          {selectedBrands.length > 0 && (
-            <Text style={styles.selectedCount}>
-              {selectedBrands.length} علامة مختارة
-            </Text>
-          )}
-          <View style={styles.brandGrid}>
-            {ALL_BRANDS.map(brand => {
-              const active = selectedBrands.includes(brand.id);
-              return (
-                <TouchableOpacity
-                  key={brand.id}
-                  style={[styles.brandCard, active && styles.brandCardActive]}
-                  onPress={() => toggleBrand(brand.id)}
-                  activeOpacity={0.75}
-                >
-                  <Image source={brand.logo} style={styles.brandLogo} resizeMode="contain" />
-                  <Text style={[styles.brandName, active && styles.brandNameActive]}>
-                    {brand.name}
-                  </Text>
-                  {active && (
-                    <View style={styles.checkBadge}>
-                      <Ionicons name="checkmark" size={12} color={COLORS.white} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
           {/* أسعار بيع العبوات */}
           <Text style={styles.sectionLabel}>أسعار بيع العبوات (د.ج)</Text>
           <Text style={styles.sectionSublabel}>

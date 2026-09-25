@@ -48,6 +48,8 @@ const AmmerliHomeScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const isMounted = useRef(true);
+  // تتبع ما إذا تم طلب الصلاحية مرة في هذه الجلسة — يمنع إعادة الظهور بعد انتهاء الطلبية
+  const permissionAskedThisSession = useRef(false);
   
   // Dynamic user name from AuthStore - defaults to 'زائر'
   const userProfile = useAuthStore((s) => s.userProfile);
@@ -84,13 +86,16 @@ const AmmerliHomeScreen = () => {
 
   useEffect(() => {
     isMounted.current = true;
-    if (!userLocation) {
+    // يظهر الـ modal مرة واحدة فقط في الجلسة — عند بدء التطبيق وإذا لم يكن هناك موقع
+    if (!userLocation && !permissionAskedThisSession.current) {
+      permissionAskedThisSession.current = true;
       setShowPermissionModal(true);
     }
     return () => {
       isMounted.current = false;
     };
-  }, [userLocation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // [] ← تشغيل مرة واحدة عند mount فقط
 
   const requestLocationPermission = async () => {
     setIsFetchingLocation(true);

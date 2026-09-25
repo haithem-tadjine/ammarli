@@ -20,6 +20,7 @@ import {
   Dimensions,
   Animated,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -94,6 +95,15 @@ export default function IncomingOrderScreen() {
     loop.start();
     return () => loop.stop();
   }, []);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      handleDecline();
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
+  }, [activeDriverOrder?.orderId]);
 
   // ── Countdown timer ───────────────────────────────────────────────────────
   useEffect(() => {

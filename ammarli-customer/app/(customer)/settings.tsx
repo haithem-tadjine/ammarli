@@ -24,7 +24,6 @@ import {
   FileText, 
   LogOut, 
   ChevronLeft,
-  Camera,
   ChevronRight,
   Eye,
   EyeOff
@@ -151,13 +150,12 @@ const SettingsScreen = () => {
               {userAvatar ? (
                 <Image source={{ uri: userAvatar }} style={styles.avatarImage} />
               ) : (
-                <View style={[styles.avatarImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#D1D1D6' }]}>
-                  <Feather name="user" color="#ADB5BD" size={40} />
+                <View style={[styles.avatarImage, styles.avatarInitial]}>
+                  <Text style={styles.avatarInitialText}>
+                    {(userProfile?.firstName || userProfile?.name || 'م').charAt(0).toUpperCase()}
+                  </Text>
                 </View>
               )}
-              <View style={styles.cameraBadge}>
-                <Camera color="#FFF" size={14} />
-              </View>
             </View>
             <Text style={styles.profileName}>{userName}</Text>
           </View>
@@ -325,18 +323,15 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
   },
-  cameraBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    backgroundColor: '#012047',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  avatarInitial: {
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFF',
+    backgroundColor: '#012047',
+  },
+  avatarInitialText: {
+    fontSize: 40,
+    fontFamily: 'Cairo-Bold',
+    color: '#FFCC00',
   },
   profileName: {
     fontSize: 22,

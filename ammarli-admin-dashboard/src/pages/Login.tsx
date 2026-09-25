@@ -20,7 +20,8 @@ export default function Login() {
       // Real API call
       const response = await api.post('/auth/phone/login', {
         phone,
-        password
+        password,
+        role: 'SUPER_ADMIN'
       });
 
       const { accessToken, user } = response.data;

@@ -36,40 +36,9 @@ const StockBox = ({ label, val, status, color, bg }: any) => (
 );
 
 
-// جميع العلامات التجارية مع صورها
-const BRAND_ASSETS: Record<string, any> = {
-  'Ifri':           require('../../../assets/images/brands/ifri.png'),
-  'Guedila':        require('../../../assets/images/brands/guedila.png'),
-  'Saida':          require('../../../assets/images/brands/saida.png'),
-  'Lalla Khedidja': require('../../../assets/images/brands/lalla-khedidja.png'),
-  'Mansourah':      require('../../../assets/images/brands/mansourah.png'),
-  'Toudja':         require('../../../assets/images/brands/toudja.png'),
-  'Youkous':        require('../../../assets/images/brands/youkous.png'),
-  'Messerghine':    require('../../../assets/images/brands/messerghine.png'),
-  'Texanna':        require('../../../assets/images/brands/texanna.png'),
-  'Hayat':          require('../../../assets/images/brands/hayat.jpg'),
-};
-
-// مكون قائمة الجرد (لبائعي القوارير) — يعرض فقط العلامات التي اختارها السائق
+// مكون قائمة الجرد (لبائعي القوارير)
 const InventoryListCard = () => {
-  const registeredBrands = useDriverStore(s => s.registeredDriver?.brands ?? []);
-  const [selectedBrand, setSelectedBrand] = useState(registeredBrands[0] ?? '');
   const [showInventoryModal, setShowInventoryModal] = useState(false);
-
-  // بناء قائمة العلامات الديناميكية
-  const brands = registeredBrands
-    .filter(id => BRAND_ASSETS[id])
-    .map(id => ({ id, name: id, logo: BRAND_ASSETS[id], count: 0 }));
-
-  if (brands.length === 0) {
-    return (
-      <View style={styles.inventoryCard}>
-        <Text style={[styles.inventoryTitle, { textAlign: 'center', color: COLORS.textSecondary }]}>
-          لم يتم اختيار أي علامة تجارية
-        </Text>
-      </View>
-    );
-  }
 
   return (
     <BlurView intensity={70} tint="light" style={styles.inventoryCard}>
@@ -78,22 +47,7 @@ const InventoryListCard = () => {
          <Text style={styles.inventoryTitle}>المخزون الحالي</Text>
       </View>
 
-      {/* التبديل بين العلامات التجارية */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.brandScroll}>
-        {brands.map((brand) => (
-          <TouchableOpacity 
-            key={brand.id} 
-            style={[styles.brandBtn, selectedBrand === brand.id && styles.brandBtnActive]}
-            onPress={() => setSelectedBrand(brand.id)}
-          >
-            <View style={styles.brandCircle}>
-              <Image source={brand.logo} style={{ width: 28, height: 28 }} resizeMode="contain" />
-            </View>
-            <Text style={styles.brandName}>{brand.name}</Text>
-            <Text style={styles.brandCount}>المجموع: {brand.count}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+
 
       <Text style={styles.subTitle}>حالة المخزون</Text>
       
@@ -133,6 +87,26 @@ export default function DriverDashboardScreen() {
   const isReviewerAccount = useAuthStore(s => s.userProfile?.phone) === '+213000000000';
 
   const triggerMockOrder = () => {
+    // ─── توليد موقع عشوائي للزبون بعيد عن السائق بـ 3 كم كحد أقصى ───────────
+    const driverLoc = useDriverStore.getState().registeredDriver?.location;
+
+    // الموقع الافتراضي: العاصمة الجزائر (يُستعمل فقط إذا لم يُحدَّد موقع السائق)
+    const baseLat = driverLoc?.lat || 36.7525;
+    const baseLng = driverLoc?.lng || 3.0420;
+
+    // توليد نقطة عشوائية ضمن دائرة نصف قطرها 3 كم
+    const MAX_RADIUS_KM = 3;
+    const radiusInDeg = MAX_RADIUS_KM / 111; // 1 درجة ≈ 111 كم
+    const randomAngle = Math.random() * 2 * Math.PI;
+    // r عشوائي بتوزيع منتظم داخل الدائرة (جذر تربيعي لضمان التوزيع الصحيح)
+    const randomR = Math.sqrt(Math.random()) * radiusInDeg;
+    const offsetLat = randomR * Math.cos(randomAngle);
+    // تصحيح الطول الجغرافي بحسب خط العرض
+    const offsetLng = (randomR * Math.sin(randomAngle)) / Math.cos(baseLat * Math.PI / 180);
+
+    const customerLat = parseFloat((baseLat + offsetLat).toFixed(6));
+    const customerLng = parseFloat((baseLng + offsetLng).toFixed(6));
+
     const mockPayload = {
       id: "mock_" + Date.now().toString(),
       user: {
@@ -141,8 +115,8 @@ export default function DriverDashboardScreen() {
         phone: "+213000000000"
       },
       deliveryAddress: "Google Play Test Location",
-      pickupLat: 36.7525,
-      pickupLng: 3.0420,
+      pickupLat: customerLat,
+      pickupLng: customerLng,
       bottledItems: {
         "1": {
           brand: "Ifri",
@@ -741,7 +715,7 @@ export default function DriverDashboardScreen() {
                    key={order.orderId}
                    activeOpacity={0.9}
                    style={[styles.activeOrderCard, { width: width * 0.82 }]}
-                   onPress={() => router.push({ pathname: '/(driver)/order-details' as any, params: { orderId: order.orderId } })}
+                   onPress={() => router.replace({ pathname: '/(driver)/order-details' as any, params: { orderId: order.orderId } })}
                  >
                     <View style={styles.activeOrderHeader}>
                        <View style={styles.activeOrderIconWrap}>

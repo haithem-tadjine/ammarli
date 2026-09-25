@@ -139,8 +139,6 @@ const InventoryRow: React.FC<InventoryRowProps> = ({
 // ─── UpdateInventoryModal ────────────────────────────────────────────────────
 
 const UpdateInventoryModal: React.FC<UpdateInventoryModalProps> = ({ visible, onClose }) => {
-  const [selectedBrand, setSelectedBrand] = useState<string>('Ifri');
-
   // Numeric state (clamped)
   const [quantities, setQuantities] = useState<Quantities>({
     '0.5L': 12,
@@ -155,11 +153,7 @@ const UpdateInventoryModal: React.FC<UpdateInventoryModalProps> = ({ visible, on
     '5L': '0',
   });
 
-  const brands = [
-    { id: 'Saida', name: 'Saida' },
-    { id: 'Guedila', name: 'Guedila' },
-    { id: 'Ifri', name: 'Ifri' },
-  ];
+
 
   /** Clamp & sync after stepper button press */
   const handleStepQty = (size: SizeKey, delta: number) => {
@@ -195,7 +189,7 @@ const UpdateInventoryModal: React.FC<UpdateInventoryModalProps> = ({ visible, on
   const handleSave = () => {
     // Flush any pending text first
     (['0.5L', '1.5L', '5L'] as SizeKey[]).forEach(k => handleBlur(k));
-    console.log('Updating Stock:', { brand: selectedBrand, quantities });
+    console.log('Updating Stock:', { quantities });
     onClose();
   };
 
@@ -223,27 +217,7 @@ const UpdateInventoryModal: React.FC<UpdateInventoryModalProps> = ({ visible, on
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Step 1: Brand */}
-            <Text style={styles.sectionLabel}>1. اختر العلامة التجارية</Text>
-            <View style={styles.brandRow}>
-              {brands.map((brand) => (
-                <TouchableOpacity
-                  key={brand.id}
-                  style={[
-                    styles.brandTile,
-                    selectedBrand === brand.id && styles.brandTileActive,
-                  ]}
-                  onPress={() => setSelectedBrand(brand.id)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.brandInitial}>{brand.name.charAt(0)}</Text>
-                  <Text style={styles.brandName}>{brand.name}</Text>
-                  {selectedBrand === brand.id && <View style={styles.activeRing} />}
-                </TouchableOpacity>
-              ))}
-            </View>
 
-            {/* Step 2: Quantities */}
             <Text style={styles.sectionLabel}>2. أدخل الكميات</Text>
             <View style={styles.stepperContainer}>
               <InventoryRow

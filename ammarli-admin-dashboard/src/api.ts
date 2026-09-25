@@ -1,8 +1,14 @@
 import axios from 'axios';
 
+// Base URL: reads from VITE_API_BASE_URL env variable (set in .env)
+// Fallback → Railway production URL
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  'https://ammarli-production.up.railway.app/api/v1';
+
 // Create an Axios instance
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api/v1', // Standard NestJS API URL
+  baseURL: BASE_URL,
   timeout: 10000,
 });
 

@@ -174,6 +174,7 @@ interface DriverState {
   completeDelivery: (earnings: number, quantityLiters: number) => void;
   markOrderAsCompleted: (orderData: { orderId: string; price: number; customerName: string }) => void;
   fetchActiveOrder: () => Promise<{ hasActiveOrder: boolean; orderId?: string } >;
+  clearActiveOrderStore: () => void;
   clearStore: () => void;
 }
 
@@ -243,6 +244,18 @@ export const useDriverStore = create<DriverState>((set, get) => ({
 
   clearNotifications: () => set({ notifications: [] }),
   
+  clearActiveOrderStore: () => {
+    set({
+      activeDriverOrder: null,
+      activeDriverOrders: [],
+      driverStatus: 'AVAILABLE',
+    });
+    try {
+      const Bubble = require('expo-floating-bubble');
+      Bubble.hideOrderCard();
+    } catch (_) {}
+  },
+
   clearStore: () => set({
     registeredDriver: null,
     driverStatus: 'OFFLINE',

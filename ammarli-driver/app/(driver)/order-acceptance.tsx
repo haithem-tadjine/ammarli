@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Dimensions,
   Keyboard,
+  BackHandler,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -117,6 +118,15 @@ export default function OrderAcceptanceScreen() {
   const animatedUrgentStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseAnim.value }],
   }));
+
+  useEffect(() => {
+    const onBackPress = () => {
+      handleReject();
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
+  }, [activeDriverOrder?.orderId]);
 
   useEffect(() => {
     if (confirmed) return;

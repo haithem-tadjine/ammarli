@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
+  BackHandler,
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -216,7 +217,7 @@ export default function OrderDetailsScreen() {
 
       await useDriverStore.getState().updateDriverOrderStatus('driving', subtotalPrice, currentOffer.orderId);
       baseParams.price = finalPrice;
-      router.push({ pathname: '/(driver)/order-details' as any, params: baseParams });
+      router.replace({ pathname: '/(driver)/order-details' as any, params: baseParams });
     } catch (e) {
       Alert.alert('خطأ', 'تعذر قبول الطلبية');
     }
@@ -229,6 +230,15 @@ export default function OrderDetailsScreen() {
   };
 
   const isFocused = useIsFocused();
+
+  React.useEffect(() => {
+    const onBackPress = () => {
+      router.replace('/(driver)/(tabs)' as any);
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
+  }, []);
 
   React.useEffect(() => {
     if (isFocused && !activeDriverOrder && activeDriverOrders.length === 0) {
@@ -338,7 +348,7 @@ export default function OrderDetailsScreen() {
     try {
       await updateDriverOrderStatus('arrived');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push({
+      router.replace({
         pathname: '/(driver)/trip-completion',
         params: { 
           orderId: activeDriverOrder?.orderId || params.orderId || orderNumber, 

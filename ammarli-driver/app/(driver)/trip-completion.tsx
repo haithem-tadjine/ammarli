@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  BackHandler,
 } from 'react-native';
 import { Truck, CheckCircle, ChevronLeft, MapPin } from 'lucide-react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -87,6 +88,13 @@ export default function TripCompletionScreen() {
       Animated.timing(slideUpAnim, { toValue: 0, duration: 600, easing: Easing.out(Easing.exp), useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true })
     ]).start();
+
+    // منع العودة إلى شاشة القيادة
+    const onBackPress = () => {
+      return true;
+    };
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
   }, []);
 
   const handleComplete = async () => {
