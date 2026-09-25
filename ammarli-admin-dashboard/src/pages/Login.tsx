@@ -17,15 +17,22 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Real API call
+      // Real API call - no role filter, all admin roles can login
       const response = await api.post('/auth/phone/login', {
         phone,
         password,
-        role: 'SUPER_ADMIN'
       });
 
       const { accessToken, user } = response.data;
-      
+
+      // Block non-admin users (CLIENT, DRIVER) from accessing dashboard
+      const adminRoles = ['SUPER_ADMIN', 'WILAYA_MANAGER', 'COMMUNE_MANAGER', 'AGENT'];
+      if (!adminRoles.includes(user.role)) {
+        setError('هذا الحساب غير مصرح له بالدخول إلى لوحة التحكم.');
+        setLoading(false);
+        return;
+      }
+
       // Save token and role
       localStorage.setItem('access_token', accessToken);
       localStorage.setItem('user_role', user.role);
@@ -46,6 +53,7 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+
   };
 
   return (
